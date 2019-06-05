@@ -1,7 +1,8 @@
-
-
 #include "Wire.h"
 #include <circle/logger.h>
+
+#define I2C_CLOCK_SPEED     	100
+
 
 #define log_name "wire"
 
@@ -11,8 +12,9 @@ CWire Wire;
 
 CWire::CWire()
 {
-    m_pI2CMaster = 0;
+    m_len = 0;
     m_addr = 0;
+    m_pI2CMaster = 0;
 }
 
 CWire::~CWire()
@@ -24,7 +26,6 @@ CWire::~CWire()
 void CWire::begin()
 {
     LOG("begin()",0);
-    
     if (!m_pI2CMaster)
     {
         LOG("creating i2cMaster",0);
@@ -32,6 +33,7 @@ void CWire::begin()
         assert(mi);
         m_pI2CMaster = new CI2CMaster(mi->GetDevice(DeviceI2CMaster));
         assert(m_pI2CMaster);
+        m_pI2CMaster->SetClock(I2C_CLOCK_SPEED);
     }
 }
 
@@ -45,27 +47,25 @@ void CWire::end()
 
 void CWire::beginTransmission(u8 addr)
 {
+    m_len = 0;
     m_addr = addr;
 }
 
 void CWire::endTransmission()
 {
-    
+    if (m_len)
+    {
+        size_t rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len);
+        assert(rslt == m_len);
+        m_len = 0;
+    }
 }
 
-
-size_t CWire::write(const uint8_t *buf, size_t len)
-{
-    assert(m_pI2CMaster);
-    assert(m_addr);
-    size_t rslt = m_pI2CMaster->Write(m_addr, buf, len)        ;
-    assert(rslt == len);
-    return rslt;
-}
 
 size_t CWire::write(u8 value)
 {
-    return write(&value,1);
+    m_buf[m_len++] = value;
+    return 1;
 }
     
 
