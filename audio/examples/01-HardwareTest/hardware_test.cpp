@@ -4,7 +4,7 @@
 // note that you must use 'master' control devices
 // if you use 'slave' i2s devices.
 
-#define USE_SYNTH   1
+#define USE_SYNTH   0
 
 #if USE_SYNTH
     AudioSynthWaveformSine  synth;
@@ -29,7 +29,7 @@
 
 
 AudioConnection             patchCord1(input, 0, output, 0);
-AudioConnection             patchCord2(input, 0, output, 1);
+AudioConnection             patchCord2(input, 1, output, 1);
 
 
 

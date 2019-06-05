@@ -137,6 +137,9 @@ audio_block_t * AudioStream::allocate(void)
 	block = memory_pool + ((index << 5) + (31 - n));
 	block->ref_count = 1;
 	if (used > memory_used_max) memory_used_max = used;
+	
+	// printf("alloc 0x%08x\n",(uint32_t)block);
+	
 	//Serial.print("alloc:");
 	//Serial.println((uint32_t)block, HEX);
 	return block;
@@ -155,6 +158,7 @@ void AudioStream::release(audio_block_t *block)
 	if (block->ref_count > 1) {
 		block->ref_count--;
 	} else {
+		// printf("reles: 0x%08x\n",(uint32_t)block);
 		//Serial.print("reles:");
 		//Serial.println((uint32_t)block, HEX);
 		memory_pool_available_mask[index] |= mask;

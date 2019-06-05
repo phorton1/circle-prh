@@ -157,7 +157,7 @@ void AudioInputI2S::isr(void)
 		// buffer is ready: call the client update method.
 		
 		if (AudioInputI2S::update_responsibility)
-			AudioStream::update_all();
+		 	AudioStream::update_all();
 			
 		// this routine MUST complete before the DMA issues
 		// the next interrupt!! 
@@ -217,8 +217,14 @@ void AudioInputI2S::isr(void)
 
 
 
+
 void AudioInputI2S::update(void)
 {
+#ifdef __circle__
+	static u32 update_count = 0;
+	update_count++;
+#endif
+
 	audio_block_t *new_left=NULL, *new_right=NULL, *out_left=NULL, *out_right=NULL;
 
 	// allocate 2 new blocks, but if one fails, allocate neither
@@ -230,7 +236,8 @@ void AudioInputI2S::update(void)
 		if (new_right == NULL)
 		{
 			#ifdef __circle__
-				assert(new_right);
+				if (update_count<20)
+					printf("new right(%d)\n",update_count);
 			#endif
 			
 			release(new_left);
@@ -240,11 +247,10 @@ void AudioInputI2S::update(void)
 	#ifdef __circle__
 	else if (!new_left)
 	{
-		static int count = 0;
-		if (!count++)
-		{
-			assert(new_left);
-		}
+		#ifdef __circle__
+			if (update_count<20)
+				printf("new left(%d)\n",update_count);
+		#endif
 	}
 	#endif
 
@@ -261,8 +267,8 @@ void AudioInputI2S::update(void)
 		// prh - in circle there are "just" user blocks and
 		// not directly passed to the DMA routines
 
-		out_left = block_left;
-		block_left = new_left;
+		out_left = block_left;		// grab the block filled in by DMA
+		block_left = new_left;		// give it a new one
 		out_right = block_right;
 		block_right = new_right;
 		block_offset = 0;
@@ -270,8 +276,8 @@ void AudioInputI2S::update(void)
 	
 		// then transmit the DMA's former blocks
 	
-		transmit(out_left, 0);
-		release(out_left);
+		transmit(out_left, 0);		// send it to everyone
+		release(out_left);			// and we release it
 		transmit(out_right, 1);
 		release(out_right);
 		//Serial.print(".");

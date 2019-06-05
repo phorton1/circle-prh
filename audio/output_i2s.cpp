@@ -142,6 +142,8 @@ void AudioOutputI2S::isr(void)
 			AudioOutputI2S::block_right_1st = AudioOutputI2S::block_right_2nd;
 			AudioOutputI2S::block_left_2nd = NULL;
 			AudioOutputI2S::block_right_2nd = NULL;
+			AudioStream::release(blockL);
+			AudioStream::release(blockR);
 		}
 		else if (blockL)
 		{
@@ -153,6 +155,7 @@ void AudioOutputI2S::isr(void)
 			}
 			AudioOutputI2S::block_left_1st = AudioOutputI2S::block_left_2nd;
 			AudioOutputI2S::block_left_2nd = NULL;
+			AudioStream::release(blockL);
 		}
 		else if (blockR)
 		{
@@ -164,6 +167,7 @@ void AudioOutputI2S::isr(void)
 			}
 			AudioOutputI2S::block_right_1st = AudioOutputI2S::block_right_2nd;
 			AudioOutputI2S::block_right_2nd = NULL;
+			AudioStream::release(blockR);
 		}
 		else
 		{

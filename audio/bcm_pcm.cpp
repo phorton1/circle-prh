@@ -28,13 +28,11 @@
 
 #define log_name "bcm_pcm"
 
-#if 1
+#if 0
 	#define PCM_LOG(f,...)           CLogger::Get()->Write(log_name,LogNotice,f,__VA_ARGS__)
 #else
 	#define PCM_LOG(...)
 #endif
-
-
 
 
 #define PIN_BCLK	   18		// The bit clock
@@ -50,6 +48,28 @@
 	// #define CLOCK_FREQ  	303408000	
 #define NUM_HW_CHANNELS  2
 	// THIS IS ALWAYS TWO (2) FOR I2S
+
+
+// Test Routings and latency
+// Consider the time it takes to clock one RAW_AUDIO_BLOCK through
+// the i2s device as "one unite".  We'll call it 3ms for now.
+
+#define TEST_SHORT_CIRCUIT_IN_TO_OUT   0
+	// If 1, the input and output DMA's will use the same pair
+	// of physical buffers.  Since the input DMA is started first
+	// it just happens that the output DMA always has some bytes
+	// available to it.  LIKELY has sub 3ms latency, and is
+	// guaranteed to have sub-6ms latency, or it wouldn't work
+	// without more buffers!
+
+#define TEST_ROUTE_IN_TO_OUT    1
+	// If 1 the "teensy client" isr routines will not be called.
+	// A pair of buffers are used to move data from the input DMA
+	// to the output DMA.  PROBABLY has sub 6ms latancy.
+
+#if TEST_ROUTE_IN_TO_OUT
+	u32 test_buffer[2][RAW_AUDIO_BLOCK_SAMPLES];
+#endif
 
 
 // static instance
@@ -150,7 +170,7 @@ void BCM_PCM::init(
 	m_RX_ACTIVE.Write(0);
 	m_TX_ACTIVE.Write(0);
 		
-	PCM_LOG("init(%d,%d,%d,%d,%s) ...",
+	LOG("init(%d,%d,%d,%d,%s) ...",
 		sample_rate,
 		sample_size,
 		channel_length,
@@ -172,11 +192,7 @@ void BCM_PCM::init(
 	PCM_LOG("m_inBuffer[1]=0x%08x",m_inBuffer[1]);
 	PCM_LOG("m_outBuffer[0]=0x%08x",m_outBuffer[0]);
 	PCM_LOG("m_outBuffer[1]=0x%08x",m_outBuffer[1]);
-	
-	u32 addr = BUS_ADDRESS((uintptr)&m_inControlBlock[0]);
-	PCM_LOG("BUS_ADDRESS(0x%08x)=0x%08x",(u32)&m_inControlBlock[0],addr);
-	// PCM_LOG("BUS_ADDRESS(0x%08x)=0x%08x",(u32)&m_inControlBlock[0],BUS_ADDRESS((uintptr)&m_inControlBlock[0]));
-	
+	PCM_LOG("BUS_ADDRESS(0x%08x)=0x%08x",(u32)&m_inControlBlock[0],BUS_ADDRESS((uintptr)&m_inControlBlock[0]));
 	
 	m_pInterruptSystem = CInterruptSystem::Get();
 	assert(m_pInterruptSystem);
@@ -341,6 +357,14 @@ void BCM_PCM::initDMA(
 			| TI_SRC_WIDTH
 			| TI_SRC_INC 
 			| TI_DEST_DREQ;
+			
+		#if TEST_SHORT_CIRCUIT_IN_TO_OUT			
+			if (m_inISR)
+				pb[id].nSourceAddress = BUS_ADDRESS((uintptr) m_inBuffer[id]);
+			else
+		#endif
+		
+		pb[id].nSourceAddress = BUS_ADDRESS((uintptr) m_outBuffer[id]);	
 		pb[id].nDestinationAddress = (ARM_PCM_FIFO_A & 0xFFFFFF) + GPU_IO_BASE;
 	}
 	else	// Set for input (bo is zero)
@@ -351,11 +375,13 @@ void BCM_PCM::initDMA(
 			| TI_DEST_INC
 			| TI_SRC_DREQ;	// DMA gated by PCM RX signal
 		pb[id].nSourceAddress = (ARM_PCM_FIFO_A & 0xFFFFFF) + GPU_IO_BASE;   // PRH
+		pb[id].nDestinationAddress = BUS_ADDRESS((uintptr) m_inBuffer[id]);	
 	}
 
 	// finish up
 	
 	pb[id].nTransferInformation   	= tInfo;
+	pb[id].nTransferLength 			= RAW_AUDIO_BLOCK_BYTES;
 	pb[id].n2DModeStride       		= 0;
 	pb[id].nReserved[0]	       		= 0;
 	pb[id].nReserved[1]	       		= 0;
@@ -455,6 +481,7 @@ void BCM_PCM::stopI2S(void)
 	write32(ARM_PCM_CS_A, 0);
 	CTimer::Get()->usDelay(50);
 	PeripheralExit();
+
 	m_BitClock.Stop();
 
 	PCM_LOG("stopI2S() finished",0);
@@ -490,7 +517,6 @@ void BCM_PCM::stop()
 
 void BCM_PCM::start()
 {
-
 	if (m_state != bcmSoundIdle)
 	{
 		PCM_LOG("BCM_PCM::start() returning because state=%d",m_state);
@@ -526,8 +552,6 @@ void BCM_PCM::start()
 	// These calls give the 0th buffer to the 0th control block
 	// for each direction.
 
-	PeripheralEntry();
-	
 	if (m_inISR)
 	{
 		updateInput(true);
@@ -541,10 +565,13 @@ void BCM_PCM::start()
 
 	// enable I2S DMA operation
 	
+	PeripheralEntry();
 	write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_DMAEN);
-
+	PeripheralExit();
+	
 	// start DMA
 	
+	PeripheralEntry();
 	if (m_inISR)
 	{
 		// PCM_LOG("BUS_ADDRESS(0x%08x)=0x%08x",(u32)&m_inControlBlock[0],BUS_ADDRESS((uintptr)&m_inControlBlock[0]));
@@ -572,38 +599,6 @@ void BCM_PCM::start()
 	}
 
 	PeripheralExit();
-	
-	// At this point we have set the 0th INPUT and OUTPUT
-	// control blocks, which have pointers to the 0th
-	// input and output buffers.  The processor should
-	// happily be dma'ing the output buffer to the codec
-	// fifo and receiving the input buffer from the fifo.
-	//	
-	// By the time we get the first interrupt, remember
-	// that the 2nd DMAs will already be underway. We have
-	// to keep one step ahead in supplying buffers!
-	
-	// So, here we call the "update" methods again. These
-	// calls will set the control_block[1]'s with pointers
-	// to buffer[1]'s and after these calls, the toggle bits
-	// will be reset back to zero.
-	//
-	// So, when the first interrupt happens, and the DMA
-	// starts working with control_block and buffer #1,
-	// we will pass buffers #0 to the client, where they
-	// can use the data in the input buffer, and/or fill
-	// fill in for the subsequent interrupt(s)
-	
-	// if (m_inISR)
-	// 	updateInput(true);	
-	// if (m_outISR)
-	// 	updateOutput(true);
-
-		
-	// PCM_LOG("start() finished",0);
-	// m_RX_ACTIVE.Write(0);
-	// m_TX_ACTIVE.Write(0);
-	
 
 	// we are running ..
 
@@ -621,28 +616,31 @@ void BCM_PCM::start()
 
 
 void BCM_PCM::updateInput(bool cold)
-	// this method is called twice during initialization with cold=1
-	// to setup the first two input buffers.  Thereafter, it is called
-	// with cold=0 by the irq handler, signifying that the buffer indicated
-	// by m_inToggle is ready for the client to process. They must process
-	// (copy) it to another buffer, and return in time for us to pass it
-	// back to the DMA as the next buffer ...
+	// called twice during setup with cold=1, leaves
+	// the toggle at zero.  On the first interrupt
+	// buffer[0] will be ready while buffer[1] is being
+	// filled. 
 {
 	// pass the finished ready buffer to client
 
+	CleanAndInvalidateDataCacheRange((uintptr) m_inBuffer[m_inToggle], RAW_AUDIO_BLOCK_BYTES);
+	
 	if (!cold)
 	{
-		CleanAndInvalidateDataCacheRange((uintptr)  m_inBuffer[ m_inToggle ], RAW_AUDIO_BLOCK_BYTES);
-		assert(m_inISR);
-		(*m_inISR)();
+		#if TEST_SHORT_CIRCUIT_IN_TO_OUT
+			// do nothing, input and output buffers are the same
+		#elif TEST_ROUTE_IN_TO_OUT
+			// copy input to intermediate buffer for output
+			memcpy(test_buffer[m_inToggle],m_inBuffer[m_inToggle],RAW_AUDIO_BLOCK_BYTES);
+		#else
+			assert(m_inISR);
+			(*m_inISR)();
+		#endif
+
 	}
 
-	// set it into the DMA as the next buffer
+	// reset it into the DMA as the next buffer
 	
-	uint32_t *buf = m_inBuffer[ m_inToggle ];
-	m_inControlBlock[m_inToggle].nTransferLength = RAW_AUDIO_BLOCK_BYTES;
-	m_inControlBlock[m_inToggle].nDestinationAddress = BUS_ADDRESS((uintptr)buf);
-	CleanAndInvalidateDataCacheRange((uintptr) buf, RAW_AUDIO_BLOCK_BYTES);
 	CleanAndInvalidateDataCacheRange((uintptr) &m_inControlBlock[m_inToggle], sizeof (TDMAControlBlock));
 	m_inToggle ^= 1;
 
@@ -651,27 +649,27 @@ void BCM_PCM::updateInput(bool cold)
 
 
 void BCM_PCM::updateOutput(bool cold)
-	// The first two cold calls pass two zeroed bufs to the output DMA.
-	// Subsequently we will call the client isr method and allow them
-	// to fill in the buffers as they choose.  If the client isr is
-	// called, then they MUST call toggleOutput() when the buffer is
-	// ready to be handed to the dma, otherwise, we call it here
+	// cslled twice during setup, on the first interrupt it will
+	// be outputting buffer[1] while we fill in buffer[0]
 {
 	// get the next client output buffer from the client
-	
+
 	if (!cold)
 	{
-		CleanAndInvalidateDataCacheRange((uintptr)  m_outBuffer[ m_outToggle ], RAW_AUDIO_BLOCK_BYTES);
-		assert(m_outISR);
-		(*m_outISR)();
+		#if TEST_SHORT_CIRCUIT_IN_TO_OUT
+			// do nothing, input and output buffers are the same
+		#elif TEST_ROUTE_IN_TO_OUT
+			// copy the 'ready' input buffer to the pending output buffer
+			memcpy(m_outBuffer[m_outToggle],test_buffer[m_inToggle ^ 1],RAW_AUDIO_BLOCK_BYTES);
+		#else
+			assert(m_outISR);
+			(*m_outISR)();
+		#endif
 	}
-
+	
 	// give the output buffer to the DMA to output
 	
-	uint32_t *buf = m_outBuffer[m_outToggle];
-	m_outControlBlock[m_outToggle].nTransferLength = RAW_AUDIO_BLOCK_BYTES;
-	m_outControlBlock[m_outToggle].nSourceAddress = BUS_ADDRESS((uintptr) buf);
-	CleanAndInvalidateDataCacheRange((uintptr) buf, RAW_AUDIO_BLOCK_BYTES);
+	CleanAndInvalidateDataCacheRange((uintptr) m_outBuffer[m_outToggle], RAW_AUDIO_BLOCK_BYTES);
 	CleanAndInvalidateDataCacheRange((uintptr) &m_outControlBlock[m_outToggle], sizeof (TDMAControlBlock));
 	m_outToggle ^= 1;
 	

@@ -168,8 +168,8 @@ private:
 	
 	unsigned 				m_inToggle;		// 0 or 1
 	unsigned 				m_outToggle;	// 0 or 1
-	TDMAControlBlock 		m_inControlBlock[2]   __attribute__ ((aligned (4)));
-	TDMAControlBlock 		m_outControlBlock[2]  __attribute__ ((aligned (4)));
+	TDMAControlBlock 		m_inControlBlock[2]   __attribute__ ((aligned (32)));
+	TDMAControlBlock 		m_outControlBlock[2]  __attribute__ ((aligned (32)));
 																 
 	uint32_t m_inBuffer[2][RAW_AUDIO_BLOCK_SAMPLES] __attribute__ ((aligned (4)));
 	uint32_t m_outBuffer[2][RAW_AUDIO_BLOCK_SAMPLES] __attribute__ ((aligned (4)));
