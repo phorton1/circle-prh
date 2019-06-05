@@ -93,6 +93,10 @@ void AudioStream::initialize_memory(audio_block_t *data, unsigned int num)
 	#ifdef __circle__
 		for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
 		{
+			p->attach();
+		}	
+		for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
+		{
 			p->begin();
 		}	
 	#endif

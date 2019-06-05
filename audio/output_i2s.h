@@ -43,12 +43,14 @@ public:
     
 	AudioOutputI2S(void) : AudioStream(2, inputQueueArray)
     {
-        #ifdef __circle__
-            bcm_pcm.setOutISR(isr);
-        #else
+        #ifndef __circle__
             begin();
         #endif
     }
+    
+    #ifdef __circle__
+        void attach();
+    #endif
     
 	virtual void update(void);
 	void begin(void);
@@ -79,9 +81,7 @@ class AudioOutputI2Sslave : public AudioOutputI2S
 public:
 	AudioOutputI2Sslave(void) : AudioOutputI2S(0)
     {
-        #ifdef __circle__
-            bcm_pcm.setOutISR(isr);
-        #else
+        #ifndef __circle__
             begin();
         #endif
     }

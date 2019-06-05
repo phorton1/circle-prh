@@ -158,7 +158,8 @@ public:
 		}
 		
 	#ifdef __circle__
-		virtual void begin() {};
+		virtual void attach() {}
+		virtual void begin() {}
 	#endif
 	
 	static void initialize_memory(audio_block_t *data, unsigned int num);
