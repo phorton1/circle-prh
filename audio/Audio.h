@@ -24,8 +24,24 @@
  * THE SOFTWARE.
  */
 
+// 2019-06-03 start porting to Circle
+
 #ifndef Audio_h_
 #define Audio_h_
+
+#ifdef __circle__
+
+    #define AudioNoInterrupts() 
+    #define AudioInterrupts()   
+
+    #include "Wire.h"
+    #include "AudioStream.h"
+    #include "control_wm8731.h"
+    #include "input_i2s.h"
+    #include "output_i2s.h"
+    #include "synth_sine.h"
+
+#else
 
 #if TEENSYDUINO < 120
 #error "Teensyduino version 1.20 or later is required to compile the Audio library."
@@ -120,5 +136,7 @@
 #include "synth_simple_drum.h"
 #include "synth_pwm.h"
 #include "synth_wavetable.h"
+
+#endif
 
 #endif

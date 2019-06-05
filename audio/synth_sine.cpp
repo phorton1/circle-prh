@@ -29,8 +29,13 @@
 #include "utility/dspinst.h"
 
 // data_waveforms.c
-extern "C" {
-extern const int16_t AudioWaveformSine[257];
+extern "C"
+{
+	#ifdef __circle__
+		#include "data_waveforms.c"
+	#else
+		extern const int16_t AudioWaveformSine[257];
+	#endif
 }
 
 

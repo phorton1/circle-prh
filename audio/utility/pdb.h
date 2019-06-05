@@ -24,61 +24,50 @@
  * THE SOFTWARE.
  */
 
-#ifndef _input_i2s_h_
-#define _input_i2s_h_
+#ifndef pdb_h_
+#define pdb_h_
 
-#include "Arduino.h"
-#include "AudioStream.h"
+#include "kinetis.h"
 
-#ifdef __circle__
-    #include "bcm_pcm.h"
+// Multiple input & output objects use the Programmable Delay Block
+// to set their sample rate.  They must all configure the same
+// period to avoid chaos.
+
+#define PDB_CONFIG (PDB_SC_TRGSEL(15) | PDB_SC_PDBEN | PDB_SC_CONT | PDB_SC_PDBIE | PDB_SC_DMAEN)
+
+
+#if F_BUS == 120000000
+  #define PDB_PERIOD (2720-1)
+#elif F_BUS == 108000000
+  #define PDB_PERIOD (2448-1)
+#elif F_BUS == 96000000
+  #define PDB_PERIOD (2176-1)
+#elif F_BUS == 90000000
+  #define PDB_PERIOD (2040-1)
+#elif F_BUS == 80000000
+  #define PDB_PERIOD (1813-1)  // small ?? error
+#elif F_BUS == 72000000
+  #define PDB_PERIOD (1632-1)
+#elif F_BUS == 64000000
+  #define PDB_PERIOD (1451-1)  // small ?? error
+#elif F_BUS == 60000000
+  #define PDB_PERIOD (1360-1)
+#elif F_BUS == 56000000
+  #define PDB_PERIOD (1269-1)  // 0.026% error
+#elif F_BUS == 54000000
+  #define PDB_PERIOD (1224-1)
+#elif F_BUS == 48000000
+  #define PDB_PERIOD (1088-1)
+#elif F_BUS == 40000000
+  #define PDB_PERIOD (907-1)  // small ?? error
+#elif F_BUS == 36000000
+  #define PDB_PERIOD (816-1)
+#elif F_BUS == 24000000
+  #define PDB_PERIOD (544-1)
+#elif F_BUS == 16000000
+  #define PDB_PERIOD (363-1)  // 0.092% error
 #else
-    #include "DMAChannel.h"
+  #error "Unsupported F_BUS speed"
 #endif
-
-
-class AudioInputI2S : public AudioStream
-{
-public:
-	AudioInputI2S(void) : AudioStream(0, NULL)
-    {
-        #ifdef __circle__
-            bcm_pcm.setInISR(isr);
-        #else
-            begin();
-        #endif
-    }
-	virtual void update(void);
-	void begin(void);
-protected:	
-	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
-	static bool update_responsibility;
-    
-    #ifndef __circle__
-    	static DMAChannel dma;
-    #endif
-    
-	static void isr(void);
-private:
-	static audio_block_t *block_left;
-	static audio_block_t *block_right;
-	static uint16_t block_offset;
-};
-
-
-class AudioInputI2Sslave : public AudioInputI2S
-{
-public:
-	AudioInputI2Sslave(void) : AudioInputI2S(0)
-    {
-        #ifdef __circle__
-            bcm_pcm.setInISR(isr);
-        #else
-            begin();
-        #endif
-    }
-	void begin(void);
-	friend void dma_ch1_isr(void);
-};
 
 #endif

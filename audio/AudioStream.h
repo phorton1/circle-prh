@@ -31,11 +31,21 @@
 #ifndef AudioStream_h
 #define AudioStream_h
 
-#ifndef __ASSEMBLER__
-#include <stdio.h>  // for NULL
-#include <string.h> // for memcpy
-#include "kinetis.h"
-#endif
+#ifdef __circle__
+
+	#include "Arduino.h"
+	
+	#define AUDIO_BLOCK_SAMPLES  128
+	#define AUDIO_SAMPLE_RATE_EXACT 44117.64706 
+
+#else	// !__circle__
+	#ifndef __ASSEMBLER__
+		#include <stdio.h>  // for NULL
+		#include <string.h> // for memcpy
+		#include "kinetis.h"
+	#endif
+#endif 	// !__circle__
+
 
 // AUDIO_BLOCK_SAMPLES determines how many samples the audio library processes
 // per update.  It may be reduced to achieve lower latency response to events,
@@ -146,6 +156,11 @@ public:
 			cpu_cycles_max = 0;
 			numConnections = 0;
 		}
+		
+	#ifdef __circle__
+		virtual void begin() {};
+	#endif
+	
 	static void initialize_memory(audio_block_t *data, unsigned int num);
 	int processorUsage(void) { return CYCLE_COUNTER_APPROX_PERCENT(cpu_cycles); }
 	int processorUsageMax(void) { return CYCLE_COUNTER_APPROX_PERCENT(cpu_cycles_max); }
@@ -167,7 +182,13 @@ protected:
 	audio_block_t * receiveWritable(unsigned int index = 0);
 	static bool update_setup(void);
 	static void update_stop(void);
-	static void update_all(void) { NVIC_SET_PENDING(IRQ_SOFTWARE); }
+	
+	#ifdef __circle__
+		static void update_all(void);
+	#else
+		static void update_all(void) { NVIC_SET_PENDING(IRQ_SOFTWARE); }
+	#endif
+	
 	friend void software_isr(void);
 	friend class AudioConnection;
 	uint8_t numConnections;

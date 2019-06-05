@@ -24,61 +24,51 @@
  * THE SOFTWARE.
  */
 
-#ifndef _input_i2s_h_
-#define _input_i2s_h_
+#include "sqrt_integer.h"
 
-#include "Arduino.h"
-#include "AudioStream.h"
-
-#ifdef __circle__
-    #include "bcm_pcm.h"
-#else
-    #include "DMAChannel.h"
-#endif
-
-
-class AudioInputI2S : public AudioStream
-{
-public:
-	AudioInputI2S(void) : AudioStream(0, NULL)
-    {
-        #ifdef __circle__
-            bcm_pcm.setInISR(isr);
-        #else
-            begin();
-        #endif
-    }
-	virtual void update(void);
-	void begin(void);
-protected:	
-	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
-	static bool update_responsibility;
-    
-    #ifndef __circle__
-    	static DMAChannel dma;
-    #endif
-    
-	static void isr(void);
-private:
-	static audio_block_t *block_left;
-	static audio_block_t *block_right;
-	static uint16_t block_offset;
+const uint16_t sqrt_integer_guess_table[33] = {
+55109,
+38968,
+27555,
+19484,
+13778,
+ 9742,
+ 6889,
+ 4871,
+ 3445,
+ 2436,
+ 1723,
+ 1218,
+  862,
+  609,
+  431,
+  305,
+  216,
+  153,
+  108,
+   77,
+   54,
+   39,
+   27,
+   20,
+   14,
+   10,
+    7,
+    5,
+    4,
+    3,
+    2,
+    1,
+    0
 };
-
-
-class AudioInputI2Sslave : public AudioInputI2S
-{
-public:
-	AudioInputI2Sslave(void) : AudioInputI2S(0)
-    {
-        #ifdef __circle__
-            bcm_pcm.setInISR(isr);
-        #else
-            begin();
-        #endif
-    }
-	void begin(void);
-	friend void dma_ch1_isr(void);
-};
-
-#endif
+/*
+#! /usr/bin/perl
+use POSIX;
+print "const uint16_t sqrt_integer_guess_table[33] = {\n";
+for ($i=0; $i <= 32; $i++) {
+	printf "%5d", ceil(sqrt((0xFFFFFFFF >> $i) * sqrt(2)/2 ));
+	print "," if $i < 32;
+	print "\n";
+}
+print "};\n";
+*/

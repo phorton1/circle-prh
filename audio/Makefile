@@ -8,14 +8,16 @@ CIRCLEHOME = ../..
 
 
 OBJS	= \
-    LCDWIKI_GUI.o \
-    LCDWIKI_KBV.o \
-    _pins_arduino.o
+    AudioStream.o \
+	Wire.o \
+	bcm_pcm.o \
+	control_wm8731.o \
+	synth_sine.o \
+	input_i2s.o \
+	output_i2s.o \
 	
-# TouchScreen.o \
-		
 
-liblcd.a: $(OBJS)
+libaudio.a: $(OBJS)
 	@echo "  AR    $@"
 	@rm -f $@
 	@$(AR) cr $@ $(OBJS)

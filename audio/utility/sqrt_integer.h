@@ -24,61 +24,30 @@
  * THE SOFTWARE.
  */
 
-#ifndef _input_i2s_h_
-#define _input_i2s_h_
+#include <stdint.h>
 
-#include "Arduino.h"
-#include "AudioStream.h"
-
-#ifdef __circle__
-    #include "bcm_pcm.h"
+#ifdef __cplusplus
+extern "C" const uint16_t sqrt_integer_guess_table[];
 #else
-    #include "DMAChannel.h"
+extern const uint16_t sqrt_integer_guess_table[];
 #endif
 
-
-class AudioInputI2S : public AudioStream
+inline uint32_t sqrt_uint32(uint32_t in) __attribute__((always_inline,unused));
+inline uint32_t sqrt_uint32(uint32_t in)
 {
-public:
-	AudioInputI2S(void) : AudioStream(0, NULL)
-    {
-        #ifdef __circle__
-            bcm_pcm.setInISR(isr);
-        #else
-            begin();
-        #endif
-    }
-	virtual void update(void);
-	void begin(void);
-protected:	
-	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
-	static bool update_responsibility;
-    
-    #ifndef __circle__
-    	static DMAChannel dma;
-    #endif
-    
-	static void isr(void);
-private:
-	static audio_block_t *block_left;
-	static audio_block_t *block_right;
-	static uint16_t block_offset;
-};
+	uint32_t n = sqrt_integer_guess_table[__builtin_clz(in)];
+	n = ((in / n) + n) / 2;
+	n = ((in / n) + n) / 2;
+	n = ((in / n) + n) / 2;
+	return n;
+}
 
-
-class AudioInputI2Sslave : public AudioInputI2S
+inline uint32_t sqrt_uint32_approx(uint32_t in) __attribute__((always_inline,unused));
+inline uint32_t sqrt_uint32_approx(uint32_t in)
 {
-public:
-	AudioInputI2Sslave(void) : AudioInputI2S(0)
-    {
-        #ifdef __circle__
-            bcm_pcm.setInISR(isr);
-        #else
-            begin();
-        #endif
-    }
-	void begin(void);
-	friend void dma_ch1_isr(void);
-};
+	uint32_t n = sqrt_integer_guess_table[__builtin_clz(in)];
+	n = ((in / n) + n) / 2;
+	n = ((in / n) + n) / 2;
+	return n;
+}
 
-#endif

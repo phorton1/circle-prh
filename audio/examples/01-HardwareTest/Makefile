@@ -4,12 +4,18 @@
 
 CIRCLEHOME = ../../../../../circle
 
-OBJS	= main.o kernel.o  touch_pen.o
+OBJS = hardware_test.o
+
+MAKE_LIBS = \
+	../std_kernel.mark \
+	../../libaudio.mark \
+	$(CIRCLEHOME)/lib/sched/libsched.mark \
 
 
 LIBS	= \
+	../std_kernel.a \
+	../../libaudio.a \
 	$(CIRCLEHOME)/lib/libcircle.a \
-	$(CIRCLEHOME)/addon/lcd/liblcd.a \
 	$(CIRCLEHOME)/lib/sched/libsched.a \
 	
 

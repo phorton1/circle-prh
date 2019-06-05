@@ -28,9 +28,14 @@
  * SOFTWARE.
  */
 
-
 #include <Arduino.h>
 #include "AudioStream.h"
+
+#ifdef __circle__
+  #define MAX_AUDIO_MEMORY 229376
+		// prh - pick a number 
+#endif
+
 
 #if defined(__MKL26Z64__)
   #define MAX_AUDIO_MEMORY 6144
@@ -82,6 +87,17 @@ void AudioStream::initialize_memory(audio_block_t *data, unsigned int num)
 	}
 	__enable_irq();
 
+	// on circle we use this opportunity to call begin()
+	// on all the stream nodes
+	
+	#ifdef __circle__
+		for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
+		{
+			p->begin();
+		}	
+	#endif
+	
+	
 }
 
 // Allocate 1 audio data block.  If successful
@@ -294,43 +310,91 @@ bool AudioStream::update_scheduled = false;
 bool AudioStream::update_setup(void)
 {
 	if (update_scheduled) return false;
-	NVIC_SET_PRIORITY(IRQ_SOFTWARE, 208); // 255 = lowest priority
-	NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
+	#ifdef __circle__
+	
+		// PRH TODO: implement scheduling
+		// I am going to try using a scheduler task to replace the interrupt scheme
+		// herein, where the object that has update responsibility merely frees a
+		// bound update() task to continue operating for one cycle. 
+	
+	#else
+		NVIC_SET_PRIORITY(IRQ_SOFTWARE, 208); // 255 = lowest priority
+		NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
+	#endif
+	
 	update_scheduled = true;
 	return true;
 }
 
 void AudioStream::update_stop(void)
 {
-	NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
+	#ifdef __circle__
+		// PRH TODO: implement scheduling
+	#else
+		NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
+	#endif
+	
 	update_scheduled = false;
 }
 
 AudioStream * AudioStream::first_update = NULL;
 
-void software_isr(void) // AudioStream::update_all()
-{
-	AudioStream *p;
+#ifdef __circle__
 
-	ARM_DEMCR |= ARM_DEMCR_TRCENA;
-	ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
-	uint32_t totalcycles = ARM_DWT_CYCCNT;
-	//digitalWriteFast(2, HIGH);
-	for (p = AudioStream::first_update; p; p = p->next_update) {
-		if (p->active) {
-			uint32_t cycles = ARM_DWT_CYCCNT;
-			p->update();
-			// TODO: traverse inputQueueArray and release
-			// any input blocks that weren't consumed?
-			cycles = (ARM_DWT_CYCCNT - cycles) >> 4;
-			p->cpu_cycles = cycles;
-			if (cycles > p->cpu_cycles_max) p->cpu_cycles_max = cycles;
+	// static
+	// prh - for now calling the updates directly from the interrupts
+	// needs to be modified to use a Circle Task and signal it to do
+	// one loop here ...
+	
+	void AudioStream::update_all(void)
+	{
+		uint32_t totalcycles = CTimer::GetClockTicks();
+		for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
+		{
+			if (p->active)
+			{
+				uint32_t cycles =  CTimer::GetClockTicks();
+				p->update();
+				// TODO: traverse inputQueueArray and release
+				// any input blocks that weren't consumed?
+				cycles = ( CTimer::GetClockTicks() - cycles) >> 4;
+				p->cpu_cycles = cycles;
+				if (cycles > p->cpu_cycles_max) p->cpu_cycles_max = cycles;
+			}
 		}
+		//digitalWriteFast(2, LOW);
+		totalcycles = ( CTimer::GetClockTicks() - totalcycles) >> 4;;
+		AudioStream::cpu_cycles_total = totalcycles;
+		if (totalcycles > AudioStream::cpu_cycles_total_max)
+			AudioStream::cpu_cycles_total_max = totalcycles;
 	}
-	//digitalWriteFast(2, LOW);
-	totalcycles = (ARM_DWT_CYCCNT - totalcycles) >> 4;;
-	AudioStream::cpu_cycles_total = totalcycles;
-	if (totalcycles > AudioStream::cpu_cycles_total_max)
-		AudioStream::cpu_cycles_total_max = totalcycles;
-}
 
+#else	// !__circle__
+	
+	void software_isr(void) // AudioStream::update_all()
+	{
+		AudioStream *p;
+	
+		ARM_DEMCR |= ARM_DEMCR_TRCENA;
+		ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
+		uint32_t totalcycles = ARM_DWT_CYCCNT;
+		//digitalWriteFast(2, HIGH);
+		for (p = AudioStream::first_update; p; p = p->next_update) {
+			if (p->active) {
+				uint32_t cycles = ARM_DWT_CYCCNT;
+				p->update();
+				// TODO: traverse inputQueueArray and release
+				// any input blocks that weren't consumed?
+				cycles = (ARM_DWT_CYCCNT - cycles) >> 4;
+				p->cpu_cycles = cycles;
+				if (cycles > p->cpu_cycles_max) p->cpu_cycles_max = cycles;
+			}
+		}
+		//digitalWriteFast(2, LOW);
+		totalcycles = (ARM_DWT_CYCCNT - totalcycles) >> 4;;
+		AudioStream::cpu_cycles_total = totalcycles;
+		if (totalcycles > AudioStream::cpu_cycles_total_max)
+			AudioStream::cpu_cycles_total_max = totalcycles;
+	}
+
+#endif 	// !__circle__

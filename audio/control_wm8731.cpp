@@ -28,6 +28,14 @@
 #include "control_wm8731.h"
 #include "Wire.h"
 
+#ifdef __circle__
+	#include <circle/logger.h>
+	#define log_name "wm8731"
+#else
+	#define LOG(...)
+#endif
+
+
 #define WM8731_I2C_ADDR 0x1A
 //#define WM8731_I2C_ADDR 0x1B
 
@@ -45,6 +53,8 @@
 
 bool AudioControlWM8731::enable(void)
 {
+	LOG("enable()",0);
+	
 	Wire.begin();
 	delay(5);
 	//write(WM8731_REG_RESET, 0);
@@ -70,7 +80,22 @@ bool AudioControlWM8731::enable(void)
 	delay(5);
 	write(WM8731_REG_DIGITAL, 0x00);   // DAC unmuted
 	write(WM8731_REG_ANALOG, 0x10);    // DAC selected
+	
+	#ifdef __circle__
 
+		// I additionally set LHEADOUT and RHEADOUT again
+		// this time with  the "BOTH" bit added to LHEADOUT
+
+		write(WM8731_REG_LHEADOUT, 0x180);      
+			// 0x80 = WM8731_HEADOUT_ZCEN
+			// 0x100 = WM8731_HEADOUT_BOTH
+		write(WM8731_REG_RHEADOUT, 0x80);
+		
+	#endif	
+
+	delay(100); // add'l mysterious delay
+
+	LOG("enable() finished",0);
 	return true;
 }
 
@@ -86,6 +111,8 @@ bool AudioControlWM8731::write(unsigned int reg, unsigned int val)
 
 bool AudioControlWM8731::volumeInteger(unsigned int n)
 {
+	LOG("volumeInteger(%d)",n);
+
 	// n = 127 for max volume (+6 dB)
 	// n = 48 for min volume (-73 dB)
 	// n = 0 to 47 for mute
@@ -99,10 +126,10 @@ bool AudioControlWM8731::volumeInteger(unsigned int n)
 
 bool AudioControlWM8731::inputLevel(float n)
 {
+	LOG("inputLevel(%0.2f)",n);
+
 	// range is 0x00 (min) - 0x1F (max)
-
 	int _level = int(n * 31.f); 
-
 	_level = _level > 0x1F ? 0x1F : _level;
 	write(WM8731_REG_LLINEIN, _level);
 	write(WM8731_REG_RLINEIN, _level);
@@ -111,6 +138,8 @@ bool AudioControlWM8731::inputLevel(float n)
 
 bool AudioControlWM8731::inputSelect(int n)
 {
+	LOG("inputSelect(%d)",n);
+
 	if (n == AUDIO_INPUT_LINEIN) {
 		write(WM8731_REG_ANALOG, 0x12);
 	} else if (n == AUDIO_INPUT_MIC) {
@@ -126,12 +155,16 @@ bool AudioControlWM8731::inputSelect(int n)
 
 bool AudioControlWM8731master::enable(void)
 {
+	LOG("master enable()",0);
+	
 	Wire.begin();
 	delay(5);
 	//write(WM8731_REG_RESET, 0);
 
-	write(WM8731_REG_INTERFACE, 0x42); // I2S, 16 bit, MCLK master
+	write(WM8731_REG_INTERFACE, 0x42); // 0z02=I2S, 0z04=MCLK master,
+		// 16 bit is default 0
 	write(WM8731_REG_SAMPLING, 0x20);  // 256*Fs, 44.1 kHz, MCLK/1
+		// 0x20 == 0x8<<2 with BOSR==0
 
 	// In order to prevent pops, the DAC should first be soft-muted (DACMU),
 	// the output should then be de-selected from the line and headphone output
@@ -139,19 +172,42 @@ bool AudioControlWM8731master::enable(void)
 
 	write(WM8731_REG_DIGITAL, 0x08);   // DAC soft mute
 	write(WM8731_REG_ANALOG, 0x00);    // disable all
-	
 	write(WM8731_REG_POWERDOWN, 0x00); // codec powerdown
-
+		
 	write(WM8731_REG_LHEADOUT, 0x80);      // volume off
+		// 0x80 = WM8731_HEADOUT_ZCEN
 	write(WM8731_REG_RHEADOUT, 0x80);
 
 	delay(100); // how long to power up?
 
 	write(WM8731_REG_ACTIVE, 1);
 	delay(5);
+		
 	write(WM8731_REG_DIGITAL, 0x00);   // DAC unmuted
 	write(WM8731_REG_ANALOG, 0x10);    // DAC selected
+		// 0x10 = WM8731_ANALOG_DACSEL
+	
+	#ifdef __circle__
 
+		// I additionally set LHEADOUT and RHEADOUT again
+		// this time with  the "BOTH" bit added to LHEADOUT
+		
+		// weird ... if this code is not included, the
+		// system hangs with "wire: creating i2cMaster"
+		// and does not get to the below LOG statement,
+		// but adding a 100 ms delay below fixes that ?!?
+	
+		write(WM8731_REG_LHEADOUT, 0x180);      
+			// 0x80 = WM8731_HEADOUT_ZCEN
+			// 0x100 = WM8731_HEADOUT_BOTH
+		write(WM8731_REG_RHEADOUT, 0x80);
+		
+	#endif
+	
+	delay(100);
+		// delay added for mysterious reasons
+	
+	LOG("master enable() finished",0);
 	return true;
 }
 

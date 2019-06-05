@@ -29,12 +29,27 @@
 
 #include "Arduino.h"
 #include "AudioStream.h"
-#include "DMAChannel.h"
+
+#ifdef __circle__
+    #include "bcm_pcm.h"
+#else
+    #include "DMAChannel.h"
+#endif
+
 
 class AudioOutputI2S : public AudioStream
 {
 public:
-	AudioOutputI2S(void) : AudioStream(2, inputQueueArray) { begin(); }
+    
+	AudioOutputI2S(void) : AudioStream(2, inputQueueArray)
+    {
+        #ifdef __circle__
+            bcm_pcm.setOutISR(isr);
+        #else
+            begin();
+        #endif
+    }
+    
 	virtual void update(void);
 	void begin(void);
 	friend class AudioInputI2S;
@@ -44,7 +59,11 @@ protected:
 	static audio_block_t *block_left_1st;
 	static audio_block_t *block_right_1st;
 	static bool update_responsibility;
-	static DMAChannel dma;
+    
+    #ifndef __circle__
+    	static DMAChannel dma;
+    #endif
+    
 	static void isr(void);
 private:
 	static audio_block_t *block_left_2nd;
@@ -58,7 +77,14 @@ private:
 class AudioOutputI2Sslave : public AudioOutputI2S
 {
 public:
-	AudioOutputI2Sslave(void) : AudioOutputI2S(0) { begin(); } ;
+	AudioOutputI2Sslave(void) : AudioOutputI2S(0)
+    {
+        #ifdef __circle__
+            bcm_pcm.setOutISR(isr);
+        #else
+            begin();
+        #endif
+    }
 	void begin(void);
 	friend class AudioInputI2Sslave;
 	friend void dma_ch0_isr(void);
