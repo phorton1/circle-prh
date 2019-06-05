@@ -34,14 +34,19 @@
 //
 // Therefore the "raw" audio blocks passed to and from bcm i2s
 // using dma consist of 32 bit values AND they are interleaved,
-// and the size of a "raw" audio block must be AUDIO_BLOCK_SAMPLES
+// and the size of a "raw" audio block is AUDIO_BLOCK_SAMPLES
 // * sizeof(u32) * 2_for_interleaving = 1024 bytes.
 
 
 #define RAW_AUDIO_BLOCK_SAMPLES   (2 * AUDIO_BLOCK_SAMPLES)
-	// number of u32 samples in a raw audio block
+	// number of u32 samples in am interleaved (raw audio) block
 #define RAW_AUDIO_BLOCK_BYTES 	  (RAW_AUDIO_BLOCK_SAMPLES * sizeof(u32))
 	// number of bytes in a raw audio block
+
+
+#define INCLUDE_ACTIVITY_LEDS	1
+	// set to 1 to output flashing rx and tx leds on GPIO 23 and 24
+	
 
 typedef void audioIRQ();
 
@@ -98,7 +103,8 @@ public:
 	
 	bcmSoundState getState() { return m_state; };
 
-	// the following methods can be called from in_isr and out_isr, respectively.
+	// the following methods can be called from client's in_isr()
+	// and out_isr() methods.
 	//
 	// getInBuffer() returns the input buffer that was just completed
 	// by DMA. A second buffer is currently being filled in. in_isr()
@@ -155,8 +161,10 @@ private:
 	CGPIOPin   m_TXD;
 	CGPIOClock m_BitClock;
 	
-	CGPIOPin   m_RX_ACTIVE;
-	CGPIOPin   m_TX_ACTIVE;
+	#if INCLUDE_ACTIVITY_LEDS
+		CGPIOPin   m_RX_ACTIVE;
+		CGPIOPin   m_TX_ACTIVE;
+	#endif
 	
 	volatile bcmSoundState 	m_state;
 	bool                    m_initialized;

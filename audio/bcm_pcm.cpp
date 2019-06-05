@@ -39,6 +39,7 @@
 #define PIN_FCLK       19		// The L/R frame clock
 #define PIN_RXD		   20       // I2S receive data
 #define PIN_TXD		   21		// I2S transmit data
+
 #define PIN_RX_ACTIVE  23		// a LED to show recv activity
 #define PIN_TX_ACTIVE  24		// a LED to show xmit activity
 
@@ -91,9 +92,11 @@ BCM_PCM::BCM_PCM() :
 		// GPIOClockSourceOscillator = 1,		// 19.2 MHz
 		// GPIOClockSourcePLLC       = 5,		// 1000 MHz (changes with overclock settings)
 		// GPIOClockSourcePLLD       = 6,		// 500 MHz hence the #define CLOCK_FREQ 500000000
-		// GPIOClockSourceHDMI       = 7		// 216 MHz			
-	m_RX_ACTIVE(PIN_RX_ACTIVE, GPIOModeOutput),
-	m_TX_ACTIVE(PIN_TX_ACTIVE, GPIOModeOutput),
+		// GPIOClockSourceHDMI       = 7		// 216 MHz
+	#if INCLUDE_ACTIVITY_LEDS		
+		m_RX_ACTIVE(PIN_RX_ACTIVE, GPIOModeOutput),
+		m_TX_ACTIVE(PIN_TX_ACTIVE, GPIOModeOutput),
+	#endif
 	m_nDMAInChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE)),
 	m_nDMAOutChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE))
 {
@@ -118,8 +121,10 @@ BCM_PCM::BCM_PCM() :
 	
 	initBuffers();
 	
-	m_RX_ACTIVE.Write(1);
-	m_TX_ACTIVE.Write(1);
+	#if INCLUDE_ACTIVITY_LEDS		
+		m_RX_ACTIVE.Write(1);
+		m_TX_ACTIVE.Write(1);
+	#endif
 }
 	
 	
@@ -167,8 +172,10 @@ void BCM_PCM::init(
 		return;		
 	}
 
-	m_RX_ACTIVE.Write(0);
-	m_TX_ACTIVE.Write(0);
+	#if INCLUDE_ACTIVITY_LEDS		
+		m_RX_ACTIVE.Write(0);
+		m_TX_ACTIVE.Write(0);
+	#endif
 		
 	LOG("init(%d,%d,%d,%d,%s) ...",
 		sample_rate,
@@ -524,11 +531,14 @@ void BCM_PCM::start()
 	}
 	
 	PCM_LOG("start() ...",0);
-	if (m_inISR)
-		m_RX_ACTIVE.Write(1);
-	if (m_outISR)
-		m_TX_ACTIVE.Write(1);
-
+	
+	#if INCLUDE_ACTIVITY_LEDS		
+		if (m_inISR)
+			m_RX_ACTIVE.Write(1);
+		if (m_outISR)
+			m_TX_ACTIVE.Write(1);
+	#endif
+	
 	// re-initialize the memory buffers
 	
 	initBuffers();		
@@ -715,13 +725,15 @@ void BCM_PCM::audioInIRQ(void)
 	write32(ARM_DMACHAN_CS(m_nDMAInChannel), nCS);	// reset CS_INT
 	PeripheralExit();
 	
-	static u32 rx_count = 0;
-	rx_count++;
-	if (rx_count > 16)		// about 20 times a second
-	{
-		rx_count = 0;
-		m_RX_ACTIVE.Invert();
-	}
+	#if INCLUDE_ACTIVITY_LEDS		
+		static u32 rx_count = 0;
+		rx_count++;
+		if (rx_count > 16)		// about 20 times a second
+		{
+			rx_count = 0;
+			m_RX_ACTIVE.Invert();
+		}
+	#endif
 
 	if (m_state != bcmSoundRunning)
 		return;
@@ -801,14 +813,16 @@ void BCM_PCM::audioOutIRQ(void)
 	write32(ARM_DMACHAN_CS(m_nDMAOutChannel), nCS);	// reset CS_INT
 	PeripheralExit();
 	
-	static u32 tx_count = 0;
-	tx_count++;
-	if (tx_count > 16)		// about 20 times a second
-	{
-		tx_count = 0;
-		m_TX_ACTIVE.Invert();
-	}
-
+	#if INCLUDE_ACTIVITY_LEDS		
+		static u32 tx_count = 0;
+		tx_count++;
+		if (tx_count > 16)		// about 20 times a second
+		{
+			tx_count = 0;
+			m_TX_ACTIVE.Invert();
+		}
+	#endif
+	
 	if (m_state != bcmSoundRunning)
 		return;
 	
