@@ -26,6 +26,11 @@
 #include <circle/logger.h>
 #include <circle/machineinfo.h>
 
+#define OPTIMIZED_IRQS	0
+	// removes uncessary asserts and register accesses
+	// from the irq routines (while leaving asserts in
+	// the reset of the code)
+
 #define log_name "bcm_pcm"
 
 #if 0
@@ -146,6 +151,7 @@ void BCM_PCM::initBuffers()
 		memset(m_outBuffer[i],0,RAW_AUDIO_BLOCK_BYTES);
 	}
 	
+	wrong_irq_count	= 0;
 	in_block_count 	= 0;
 	out_block_count = 0;
 	underflow_count = 0;
@@ -645,7 +651,9 @@ void BCM_PCM::updateInput(bool cold)
 			// copy input to intermediate buffer for output
 			memcpy(test_buffer[m_inToggle],m_inBuffer[m_inToggle],RAW_AUDIO_BLOCK_BYTES);
 		#else
-			assert(m_inISR);
+			#if !OPTIMIZED_IRQS
+				assert(m_inISR);
+			#endif
 			(*m_inISR)();
 		#endif
 	}
@@ -669,7 +677,9 @@ void BCM_PCM::updateOutput(bool cold)
 			// copy the 'ready' input buffer to the pending output buffer
 			memcpy(m_outBuffer[m_outToggle],test_buffer[m_inToggle ^ 1],RAW_AUDIO_BLOCK_BYTES);
 		#else
-			assert(m_outISR);
+			#if !OPTIMIZED_IRQS
+				assert(m_outISR);
+			#endif
 			(*m_outISR)();
 		#endif
 	}
@@ -686,34 +696,39 @@ void BCM_PCM::updateOutput(bool cold)
 
 void BCM_PCM::audioInIRQStub(void *pParam)
 {
-	BCM_PCM *p_this = (BCM_PCM *) pParam;
-	assert(p_this != 0);
-	p_this->audioInIRQ();
+	#if !OPTIMIZED_IRQS
+		assert(pParam);
+	#endif
+	((BCM_PCM *) pParam)->audioInIRQ();
 }
 
 void BCM_PCM::audioOutIRQStub(void *pParam)
 {
-	BCM_PCM *p_this = (BCM_PCM *) pParam;
-	assert(p_this != 0);
-	p_this->audioOutIRQ();
+	#if !OPTIMIZED_IRQS
+		assert(pParam);
+	#endif
+	((BCM_PCM *) pParam)->audioOutIRQ();
 }
 
 
 void BCM_PCM::audioInIRQ(void)
 {
-	if (m_state != bcmSoundRunning)
-		printf("inIRQ!!\n");
-	
 	PeripheralEntry();
-	u32 nIntStatus = read32(ARM_DMA_INT_STATUS);
 	u32 nIntMask = 1 << m_nDMAInChannel;
-	
-	assert(nIntStatus & nIntMask);
-	in_block_count++;
+
+	#if !OPTIMIZED_IRQS
+		u32 nIntStatus = read32(ARM_DMA_INT_STATUS);
+		assert(nIntStatus & nIntMask);
+		in_block_count++;
+	#endif
 	
 	write32(ARM_DMA_INT_STATUS, nIntMask);
 	u32 nCS = read32(ARM_DMACHAN_CS(m_nDMAInChannel));
-	assert(nCS & CS_INT);
+	
+	#if !OPTIMIZED_IRQS
+		assert(nCS & CS_INT);
+	#endif
+	
 	write32(ARM_DMACHAN_CS(m_nDMAInChannel), nCS);	// reset CS_INT
 	PeripheralExit();
 	
@@ -727,13 +742,10 @@ void BCM_PCM::audioInIRQ(void)
 		}
 	#endif
 
-	if (m_state != bcmSoundRunning)
-		return;
-	
 	if (nCS & CS_ERROR)
 	{
 		m_state = bcmSoundError;
-		printf("CS_ERROR in audioInIRQ()");
+		LOG_ERROR("CS_ERROR in audioInIRQ()",0);
 		return;
 	}
 
@@ -769,14 +781,8 @@ void BCM_PCM::audioInIRQ(void)
 
 void BCM_PCM::audioOutIRQ(void)
 {
-	if (m_state != bcmSoundRunning)
-		printf("outIRQ!!\n");
-
 	PeripheralEntry();
-	assert(m_state != bcmSoundIdle);
-
 	u32 nIntStatus = read32(ARM_DMA_INT_STATUS);
-	u32 nIntMask = 1 << m_nDMAOutChannel;
 	
 	// there is some kind of bug in the rPi or the circle interrupt
 	// or DMA handlers that causes THIS routine to be called in
@@ -788,20 +794,29 @@ void BCM_PCM::audioOutIRQ(void)
 		u32 nOtherMask = 1 << m_nDMAInChannel;
 		if (nIntStatus & nOtherMask)
 		{
+			#if !OPTIMIZED_IRQS
+				wrong_irq_count++;
+			#endif
 			PeripheralExit();
 			audioInIRQ();
 			return;
 		}
 	#endif
 	
-	out_block_count++;
-	
 	// continuing regular code ...
 	
-	assert(nIntStatus & nIntMask);
+	u32 nIntMask = 1 << m_nDMAOutChannel;
+	
+	#if !OPTIMIZED_IRQS
+		assert(nIntStatus & nIntMask);
+		out_block_count++;
+	#endif
+	
 	write32(ARM_DMA_INT_STATUS, nIntMask);
 	u32 nCS = read32(ARM_DMACHAN_CS(m_nDMAOutChannel));
-	assert(nCS & CS_INT);
+	#if !OPTIMIZED_IRQS
+		assert(nCS & CS_INT);
+	#endif
 	write32(ARM_DMACHAN_CS(m_nDMAOutChannel), nCS);	// reset CS_INT
 	PeripheralExit();
 	
@@ -815,12 +830,9 @@ void BCM_PCM::audioOutIRQ(void)
 		}
 	#endif
 	
-	if (m_state != bcmSoundRunning)
-		return;
-	
 	if (nCS & CS_ERROR)
 	{
-		printf("CS_ERROR in audioOutIRQ()");
+		LOG_ERROR("CS_ERROR in audioOutIRQ()",0);
 		m_state = bcmSoundError;
 		return;
 	}

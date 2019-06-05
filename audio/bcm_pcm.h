@@ -184,10 +184,11 @@ private:
 	
 	CSpinLock 				m_SpinLock;
 
-	u32			in_block_count;
-	u32 		out_block_count;
-	u32         underflow_count;
-	u32         overflow_count;
+	u32	wrong_irq_count;
+	u32	in_block_count;
+	u32 out_block_count;
+	u32 underflow_count;
+	u32 overflow_count;
 };
 
 
