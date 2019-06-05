@@ -81,20 +81,6 @@ bool AudioControlWM8731::enable(void)
 	write(WM8731_REG_DIGITAL, 0x00);   // DAC unmuted
 	write(WM8731_REG_ANALOG, 0x10);    // DAC selected
 	
-	#ifdef __circle__
-
-		// I additionally set LHEADOUT and RHEADOUT again
-		// this time with  the "BOTH" bit added to LHEADOUT
-
-		write(WM8731_REG_LHEADOUT, 0x180);      
-			// 0x80 = WM8731_HEADOUT_ZCEN
-			// 0x100 = WM8731_HEADOUT_BOTH
-		write(WM8731_REG_RHEADOUT, 0x80);
-		
-	#endif	
-
-	delay(100); // add'l mysterious delay
-
 	LOG("enable() finished",0);
 	return true;
 }
