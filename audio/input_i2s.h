@@ -42,14 +42,12 @@ class AudioInputI2S : public AudioStream
 public:
 	AudioInputI2S(void) : AudioStream(0, NULL)
     {
-        #ifndef __circle__
+        #ifdef __circle__
+            bcm_pcm.setInISR(isr);
+        #else
             begin();
         #endif
     }
-    #ifdef __circle__
-        void attach();
-    #endif
-    
 	virtual void update(void);
 	void begin(void);
 protected:	
@@ -73,7 +71,9 @@ class AudioInputI2Sslave : public AudioInputI2S
 public:
 	AudioInputI2Sslave(void) : AudioInputI2S(0)
     {
-        #ifndef __circle__
+        #ifdef __circle__
+            bcm_pcm.setInISR(isr);
+        #else
             begin();
         #endif
     }

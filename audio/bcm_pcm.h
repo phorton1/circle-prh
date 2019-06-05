@@ -62,10 +62,6 @@ enum bcmSoundState
 class BCM_PCM
 {
 public:
-	
-	static BCM_PCM *Get();
-		// create if necessary, and return a pointer to the
-		// single instance object
 
 	BCM_PCM();
 	~BCM_PCM();
@@ -75,8 +71,8 @@ public:
 	// then init() and start() can be called by either device
 	// and it will cause both directions to be setup as needed.
 	
-	void setInISR(audioIRQ 	*in_isr);
-	void setOutISR(audioIRQ *out_isr);
+	void setInISR(audioIRQ 	*in_isr)  { m_inISR = in_isr; }
+	void setOutISR(audioIRQ *out_isr) { m_outISR = out_isr; }
 	
 	// by the time the teensy calls init(), we must know if the
 	// bcm_pcm will be used for one way or two way i2s, as
@@ -187,5 +183,6 @@ private:
 };
 
 
+extern BCM_PCM bcm_pcm;
 
 #endif	

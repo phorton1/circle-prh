@@ -38,13 +38,6 @@
 		#define I2O_LOG(...)
 	#endif
 	
-    void AudioOutputI2S::attach()
-	{
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-		bcm_pcm->setOutISR(isr);
-	}
-	
 #else
 	#define I2O_LOG(...)
 	#include "memcpy_audio.h"
@@ -72,9 +65,7 @@ void AudioOutputI2S::begin(void)
 		block_right_1st = NULL;
 		config_i2s();
 		update_responsibility = update_setup();
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-		bcm_pcm->start();
+		bcm_pcm.start();
 		I2O_LOG("begin() finished",0);
 	
 	#else
@@ -115,14 +106,11 @@ void AudioOutputI2S::isr(void)
 {
 	#ifdef __circle__
 	
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-	
 		// get a pointer to the buffer that we need to fill in
 		// before the next DMA interrupt
 		
 		u16 len = AUDIO_BLOCK_SAMPLES;
-		uint32_t *dest = bcm_pcm->getOutBuffer();
+		uint32_t *dest = bcm_pcm.getOutBuffer();
 		
 		// if we have update responsibility, call the client update methods
 		
@@ -432,9 +420,7 @@ void AudioOutputI2S::config_i2s(void)
 {
 	#ifdef __circle__
 	
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-		bcm_pcm->init(44100,16,32,false);
+		bcm_pcm.init(44100,16,32,false);
 	
 	#else	// !__circle__
 		
@@ -492,9 +478,7 @@ void AudioOutputI2Sslave::begin(void)
 		block_right_1st = NULL;
 		AudioOutputI2Sslave::config_i2s();
 		update_responsibility = update_setup();
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-		bcm_pcm->start();
+		bcm_pcm.start();
 		I2O_LOG("slave begin() finished",0);
 		
 	#else	// !__circle__
@@ -537,9 +521,7 @@ void AudioOutputI2Sslave::config_i2s(void)
 {
 	#ifdef __circle__
 	
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-		bcm_pcm->init(44100,16,32,true);
+		bcm_pcm.init(44100,16,32,true);
 	
 	#else	// !__circle__
 	

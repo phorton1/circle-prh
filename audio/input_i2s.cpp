@@ -38,13 +38,6 @@
 		#define I2I_LOG(...)
 	#endif
 	
-    void AudioInputI2S::attach()
-	{
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-		bcm_pcm->setInISR(isr);
-	}
-	
 #else
 	#define I2I_LOG(...)
 	DMAChannel AudioInputI2S::dma(false);
@@ -65,9 +58,16 @@ void AudioInputI2S::begin(void)
 		I2I_LOG("begin()",0);
 		AudioOutputI2S::config_i2s();
 		update_responsibility = update_setup();
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-		bcm_pcm->start();
+		
+		// allocate the left and right user blocks
+		// 
+		// AudioInputI2S::block_left = allocate();
+		// AudioInputI2S::block_right = allocate();
+		// assert(AudioInputI2S::block_left);
+		// assert(AudioInputI2S::block_right);
+		
+		bcm_pcm.start();
+		
 		I2I_LOG("begin() finished",0);
 
 	#else	// !__cirle__
@@ -110,13 +110,10 @@ void AudioInputI2S::isr(void)
 {
 	#ifdef __circle__
 		
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-		
 		// get the uint32 'ready' input dma buffer from the bcm_pcm
 		
 		u16 len = AUDIO_BLOCK_SAMPLES;
-		uint32_t *src = bcm_pcm->getInBuffer();
+		uint32_t *src = bcm_pcm.getInBuffer();
 		
 		// we always do a full buffer at a time, so
 		// block_offset is always AUDIO_BLOCK_SAMPLES
@@ -326,9 +323,7 @@ void AudioInputI2Sslave::begin(void)
 		I2I_LOG("slave begin()",0);
 		AudioOutputI2Sslave::config_i2s();
 		update_responsibility = update_setup();
-		BCM_PCM *bcm_pcm = BCM_PCM::Get();
-		assert(bcm_pcm);
-		bcm_pcm->start();
+		bcm_pcm.start();
 		I2I_LOG("slave begin() finished",0);
 	
 	#else	// !__circle__

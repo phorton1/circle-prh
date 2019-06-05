@@ -10,7 +10,7 @@
 
 #define log_name "bcm_pcm"
 
-#if 0
+#if 1
 	#define PCM_LOG(f,...)           CLogger::Get()->Write(log_name,LogNotice,f,__VA_ARGS__)
 #else
 	#define PCM_LOG(...)
@@ -34,40 +34,17 @@
 	// THIS IS ALWAYS TWO (2) FOR I2S
 
 
-//-------------------------------------------
-// static instance and early init methods
-//-------------------------------------------
+// static instance
 
-BCM_PCM *bcm_pcm = 0;
+BCM_PCM bcm_pcm;
 
-BCM_PCM *BCM_PCM::Get()
-{
-	if (!bcm_pcm)
-	{
-		PCM_LOG("Constructing BCM_PCM",0);
-		bcm_pcm = new BCM_PCM();
-	}
-	assert(bcm_pcm);
-	return bcm_pcm;
-}
-
-void BCM_PCM::setInISR(audioIRQ 	*in_isr)
-{
-	PCM_LOG("setInISR(0x%08x)",(u32) in_isr);
-	m_inISR = in_isr;
-}
-void BCM_PCM::setOutISR(audioIRQ *out_isr)
-{
-	PCM_LOG("setOutISR(0x%08x)",(u32) out_isr);
-	m_outISR = out_isr;
-}
 
 //--------------------------------
 // ctor
 //--------------------------------
 
 BCM_PCM::BCM_PCM() :
-	m_pInterruptSystem(CInterruptSystem::Get()),
+	m_pInterruptSystem(0),
 	m_BCLK(PIN_BCLK, GPIOModeAlternateFunction0),
 	m_FCLK(PIN_FCLK, GPIOModeAlternateFunction0),
 	m_RXD(PIN_RXD, 	 GPIOModeAlternateFunction0),
@@ -82,14 +59,19 @@ BCM_PCM::BCM_PCM() :
 	m_nDMAInChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE)),
 	m_nDMAOutChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE))
 {
-	assert(m_pInterruptSystem);
-	
 	m_SAMPLE_RATE = 0;
 	m_SAMPLE_SIZE = 0;
 	m_CHANNEL_LENGTH = 0;
 	m_as_slave = false;
-	m_inISR = 0;
-	m_outISR = 0;
+	
+	// we rely on bss initialization to set these members
+	// of the static bcm_pcm object to zero. Otherwise,
+	// it *may* happen that the ctor of this is called
+	// AFTER the ctor's of the teensy objects, and the
+	// stashed pointers get wiped out ...
+	// 
+	// m_inISR = 0;
+	// m_outISR = 0;
 	
 	m_state = bcmSoundIdle;
 	m_initialized = false;
@@ -163,6 +145,9 @@ void BCM_PCM::init(
 	PCM_LOG("inDMAChannel=%d outDMAChannel=%d",
 		m_nDMAInChannel,
 		m_nDMAOutChannel);
+	
+	m_pInterruptSystem = CInterruptSystem::Get();
+	assert(m_pInterruptSystem);
 
 	if (m_initialized)
 	{
