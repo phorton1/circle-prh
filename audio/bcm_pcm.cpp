@@ -393,6 +393,8 @@ void BCM_PCM::initDMA(
 	pb[id].nReserved[0]	       		= 0;
 	pb[id].nReserved[1]	       		= 0;
 	pb[id].nNextControlBlockAddress = BUS_ADDRESS((uintptr) &pb[other_id]);
+	
+	CleanAndInvalidateDataCacheRange((uintptr) &pb[id], sizeof (TDMAControlBlock));
 
 }	// initDMA
 	
@@ -632,9 +634,9 @@ void BCM_PCM::updateInput(bool cold)
 	// filled. 
 {
 	// pass the finished ready buffer to client
+	// and reset it into the DMA as the next buffer
 
 	CleanAndInvalidateDataCacheRange((uintptr) m_inBuffer[m_inToggle], RAW_AUDIO_BLOCK_BYTES);
-	
 	if (!cold)
 	{
 		#if TEST_SHORT_CIRCUIT_IN_TO_OUT
@@ -646,15 +648,9 @@ void BCM_PCM::updateInput(bool cold)
 			assert(m_inISR);
 			(*m_inISR)();
 		#endif
-
 	}
-
-	// reset it into the DMA as the next buffer
-	
-	CleanAndInvalidateDataCacheRange((uintptr) &m_inControlBlock[m_inToggle], sizeof (TDMAControlBlock));
 	m_inToggle ^= 1;
-
-}	// updateInput()
+}
 
 
 
@@ -663,7 +659,8 @@ void BCM_PCM::updateOutput(bool cold)
 	// be outputting buffer[1] while we fill in buffer[0]
 {
 	// get the next client output buffer from the client
-
+	// and give the output buffer to the DMA to output
+	
 	if (!cold)
 	{
 		#if TEST_SHORT_CIRCUIT_IN_TO_OUT
@@ -676,14 +673,9 @@ void BCM_PCM::updateOutput(bool cold)
 			(*m_outISR)();
 		#endif
 	}
-	
-	// give the output buffer to the DMA to output
-	
 	CleanAndInvalidateDataCacheRange((uintptr) m_outBuffer[m_outToggle], RAW_AUDIO_BLOCK_BYTES);
-	CleanAndInvalidateDataCacheRange((uintptr) &m_outControlBlock[m_outToggle], sizeof (TDMAControlBlock));
 	m_outToggle ^= 1;
-	
-}	// updateOutput()
+}	
 
 
 
