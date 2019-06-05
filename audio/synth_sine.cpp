@@ -47,6 +47,10 @@ void AudioSynthWaveformSine::update(void)
 
 	if (magnitude) {
 		block = allocate();
+		#ifdef __circle__
+			assert(block);
+		#endif
+		
 		if (block) {
 			ph = phase_accumulator;
 			inc = phase_increment;
@@ -57,9 +61,14 @@ void AudioSynthWaveformSine::update(void)
 				scale = (ph >> 8) & 0xFFFF;
 				val2 *= scale;
 				val1 *= 0x10000 - scale;
-#if defined(KINETISK)
+				
+				// prh - I can use either of these, so in general
+				// the KINETISK assembly code is working, and I assume
+				// it is faster.
+				
+#if defined(KINETISK) || defined(__circle__)
 				block->data[i] = multiply_32x32_rshift32(val1 + val2, magnitude);
-#elif defined(KINETISL)
+#elif defined(KINETISL) 
 				block->data[i] = (((val1 + val2) >> 16) * magnitude) >> 16;
 #endif
 				ph += inc;
