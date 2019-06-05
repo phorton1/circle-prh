@@ -4,9 +4,10 @@
 // note that you must use 'master' control devices
 // if you use 'slave' i2s devices.
 
-#define USE_SYNTH   0
+#define USE_SYNTH   1
 
 #if USE_SYNTH
+    AudioSynthWaveformSine  synth;
     AudioSynthWaveformSine  input;
 #endif
 
@@ -28,7 +29,7 @@
 
 
 AudioConnection             patchCord1(input, 0, output, 0);
-AudioConnection             patchCord2(input, 1, output, 1);
+AudioConnection             patchCord2(input, 0, output, 1);
 
 
 
@@ -36,7 +37,9 @@ void setup()
 {
     printf("hardware_test::setup()\n");
 
+
     #if USE_SYNTH
+        synth.frequency(440.0);
         input.frequency(440.0);
     #endif
 
@@ -45,13 +48,13 @@ void setup()
     // There is a question of whether this should be done
     // BEFORE or AFTER the wm8731 is setup.
 
-    AudioMemory(10);
     
     control.enable();
     control.inputSelect(AUDIO_INPUT_LINEIN);
     control.inputLevel(1.0);
     control.volume(1.0);
 
+    AudioMemory(10);
     
     printf("hardware_test::setup() finished\n");
 }

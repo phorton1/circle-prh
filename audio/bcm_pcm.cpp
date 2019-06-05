@@ -1,3 +1,21 @@
+// nuther panic checking .. something is weird here
+// like the serial port interrupts are hooked to the
+// dma interrupts ... it's a bitch just to get the 
+// dma irq routines called once ... but if I include
+// a certain printf() in the methods, then it starts
+// looping and flashing like the DMA interrupts are 
+// working, though I have my doubts and think it is
+// probably the serial interrupts getting munged.
+// 
+// In addition there seems to be some initialization
+// that is not being performed correctly, as sometimes
+// it doesn't happen on a freshly booted rPi until AFTER 
+// I re-run my old program.
+// 
+// Something is smelly in denmark, and I have to 
+// figure it out.  May need to go back to basics
+// and a single kernel implementation of i2s for
+// testing.
 
 #include "BCM_PCM.h"
 #include "bcm_pcm_defines.h"
@@ -145,6 +163,20 @@ void BCM_PCM::init(
 	PCM_LOG("inDMAChannel=%d outDMAChannel=%d",
 		m_nDMAInChannel,
 		m_nDMAOutChannel);
+	
+	PCM_LOG("m_inControlBlock[0]=0x%08x",&m_inControlBlock[0]);
+	PCM_LOG("m_inControlBlock[1]=0x%08x",&m_inControlBlock[1]);
+	PCM_LOG("m_outControlBlock[0]=0x%08x",&m_outControlBlock[0]);
+	PCM_LOG("m_outControlBlock[1]=0x%08x",&m_outControlBlock[1]);
+	PCM_LOG("m_inBuffer[0]=0x%08x",m_inBuffer[0]);
+	PCM_LOG("m_inBuffer[1]=0x%08x",m_inBuffer[1]);
+	PCM_LOG("m_outBuffer[0]=0x%08x",m_outBuffer[0]);
+	PCM_LOG("m_outBuffer[1]=0x%08x",m_outBuffer[1]);
+	
+	u32 addr = BUS_ADDRESS((uintptr)&m_inControlBlock[0]);
+	PCM_LOG("BUS_ADDRESS(0x%08x)=0x%08x",(u32)&m_inControlBlock[0],addr);
+	// PCM_LOG("BUS_ADDRESS(0x%08x)=0x%08x",(u32)&m_inControlBlock[0],BUS_ADDRESS((uintptr)&m_inControlBlock[0]));
+	
 	
 	m_pInterruptSystem = CInterruptSystem::Get();
 	assert(m_pInterruptSystem);
@@ -471,22 +503,9 @@ void BCM_PCM::start()
 	if (m_outISR)
 		m_TX_ACTIVE.Write(1);
 
-	// we are running ..
-
-	m_state = bcmSoundRunning;
-
 	// re-initialize the memory buffers
 	
 	initBuffers();		
-
-	// Initial call to setup DMA buffers
-	// These calls give the 0th buffer to the 0th control block
-	// for each direction.
-	
-	if (m_inISR)	
-		updateInput(true);
-	if (m_outISR)
-		updateOutput(true);
 
 	// connect IRQs
 	
@@ -503,15 +522,33 @@ void BCM_PCM::start()
 		m_bOutIRQConnected = true;
 	}
 
+	// Initial call to setup DMA buffers
+	// These calls give the 0th buffer to the 0th control block
+	// for each direction.
+
+	PeripheralEntry();
+	
+	if (m_inISR)
+	{
+		updateInput(true);
+		updateInput(true);
+	}
+	if (m_outISR)
+	{
+		updateOutput(true);
+		updateOutput(true);
+	}
+
 	// enable I2S DMA operation
 	
-	PeripheralEntry();
 	write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_DMAEN);
 
 	// start DMA
 	
 	if (m_inISR)
 	{
+		// PCM_LOG("BUS_ADDRESS(0x%08x)=0x%08x",(u32)&m_inControlBlock[0],BUS_ADDRESS((uintptr)&m_inControlBlock[0]));
+		
 		write32(ARM_DMACHAN_CONBLK_AD(m_nDMAInChannel),
 			BUS_ADDRESS((uintptr) &m_inControlBlock[0]));
 	
@@ -557,15 +594,21 @@ void BCM_PCM::start()
 	// can use the data in the input buffer, and/or fill
 	// fill in for the subsequent interrupt(s)
 	
-	if (m_inISR)
-		updateInput(true);	
-	if (m_outISR)
-		updateOutput(true);
+	// if (m_inISR)
+	// 	updateInput(true);	
+	// if (m_outISR)
+	// 	updateOutput(true);
 
 		
 	// PCM_LOG("start() finished",0);
 	// m_RX_ACTIVE.Write(0);
 	// m_TX_ACTIVE.Write(0);
+	
+
+	// we are running ..
+
+	m_state = bcmSoundRunning;
+	
 }
 
 
@@ -658,9 +701,8 @@ void BCM_PCM::audioOutIRQStub(void *pParam)
 
 void BCM_PCM::audioInIRQ(void)
 {
-	printf("inIRQ!!\n");
 	if (m_state != bcmSoundRunning)
-		return;
+		printf("inIRQ!!\n");
 	
 	PeripheralEntry();
 	u32 nIntStatus = read32(ARM_DMA_INT_STATUS);
@@ -683,6 +725,9 @@ void BCM_PCM::audioInIRQ(void)
 		m_RX_ACTIVE.Invert();
 	}
 
+	if (m_state != bcmSoundRunning)
+		return;
+	
 	if (nCS & CS_ERROR)
 	{
 		m_state = bcmSoundError;
@@ -722,9 +767,8 @@ void BCM_PCM::audioInIRQ(void)
 
 void BCM_PCM::audioOutIRQ(void)
 {
-	printf("outIRQ!!\n");
 	if (m_state != bcmSoundRunning)
-		return;
+		printf("outIRQ!!\n");
 
 	PeripheralEntry();
 	assert(m_state != bcmSoundIdle);
@@ -767,6 +811,9 @@ void BCM_PCM::audioOutIRQ(void)
 		m_TX_ACTIVE.Invert();
 	}
 
+	if (m_state != bcmSoundRunning)
+		return;
+	
 	if (nCS & CS_ERROR)
 	{
 		printf("CS_ERROR in audioOutIRQ()");

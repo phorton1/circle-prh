@@ -238,9 +238,13 @@ void AudioInputI2S::update(void)
 		}
 	}
 	#ifdef __circle__
-	else
+	else if (!new_left)
 	{
-		assert(new_left);
+		static int count = 0;
+		if (!count++)
+		{
+			assert(new_left);
+		}
 	}
 	#endif
 
