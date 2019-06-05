@@ -133,15 +133,15 @@ void AudioInputI2S::isr(void)
 		{
 			while (len--)
 			{
-				*dest_left++ = *(int16_t *) *src++;
-				*dest_right++ = *(int16_t *) *src++;
+				*dest_left++ = *(int16_t *) src++;
+				*dest_right++ = *(int16_t *) src++;
 			}
 		}
 		else if (left)
 		{
 			while (len--)
 			{
-				*dest_left++ = *(int16_t *) *src++;
+				*dest_left++ = *(int16_t *) src++;
 				src++;
 			}
 		}
@@ -150,7 +150,7 @@ void AudioInputI2S::isr(void)
 			while (len--)
 			{
 				src++;
-				*dest_right++ = *(int16_t *) *src++;
+				*dest_right++ = *(int16_t *) src++;
 			}
 		}
 		

@@ -62,7 +62,7 @@
 	// guaranteed to have sub-6ms latency, or it wouldn't work
 	// without more buffers!
 
-#define TEST_ROUTE_IN_TO_OUT    1
+#define TEST_ROUTE_IN_TO_OUT    0
 	// If 1 the "teensy client" isr routines will not be called.
 	// A pair of buffers are used to move data from the input DMA
 	// to the output DMA.  PROBABLY has sub 6ms latancy.

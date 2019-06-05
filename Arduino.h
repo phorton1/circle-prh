@@ -21,8 +21,8 @@
 
 #define F_CPU   600000000
 
-#define __enable_irq()      EnableIRQs()
-#define __disable_irq()	    DisableIRQs()
+#define __enable_irq()      // EnableIRQs()
+#define __disable_irq()	    // DisableIRQs()
 
 #define delay(ms)   (CTimer::Get()->MsDelay(ms))
 
