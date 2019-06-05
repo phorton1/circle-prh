@@ -86,7 +86,7 @@ void AudioSynthWaveformSine::update(void)
 
 
 
-#if defined(KINETISK)
+#if defined(KINETISK)  || defined(__circle__)
 // High accuracy 11th order Taylor Series Approximation
 // input is 0 to 0xFFFFFFFF, representing 0 to 360 degree phase
 // output is 32 bit signed integer, top 25 bits should be very good
@@ -118,7 +118,7 @@ static int32_t taylor(uint32_t ph)
 
 void AudioSynthWaveformSineHires::update(void)
 {
-#if defined(KINETISK)
+#if defined(KINETISK)  || defined(__circle__)
 	audio_block_t *msw, *lsw;
 	uint32_t i, ph, inc;
 	int32_t val;
@@ -152,7 +152,7 @@ void AudioSynthWaveformSineHires::update(void)
 
 
 
-#if defined(KINETISK)
+#if defined(KINETISK)  || defined(__circle__)
 
 void AudioSynthWaveformSineModulated::update(void)
 {
