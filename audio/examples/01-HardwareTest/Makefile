@@ -9,7 +9,8 @@ OBJS = hardware_test.o
 MAKE_LIBS = \
 	../std_kernel.mark \
 	../../libaudio.mark \
-	$(CIRCLEHOME)/lib/sched/libsched.mark \
+
+#	$(CIRCLEHOME)/lib/sched/libsched.mark \
 
 
 LIBS	= \
