@@ -26,6 +26,7 @@
 #include <circle/logger.h>
 #include <circle/machineinfo.h>
 
+
 #define OPTIMIZED_IRQS	0
 	// removes uncessary asserts and register accesses
 	// from the irq routines (while leaving asserts in
@@ -49,11 +50,17 @@
 #define PIN_TX_ACTIVE  24		// a LED to show xmit activity
 
 
+// This CLOCK_FREQ is used if we are the i2s master.
+// I think the proper value is dependent on the actual system clock
+// speed, but the constant 500Mhz worked well for A440 when circle's
+// CCPUThrottle was reporting 600 Mhz.
+
 #define CLOCK_FREQ		500000000
-	// This is probably wrong.
-	// #define CLOCK_FREQ  	303408000	
+
+
+// NUM_HW_CHANNELS is ALWAYS two (2) for i2s
+	
 #define NUM_HW_CHANNELS  2
-	// THIS IS ALWAYS TWO (2) FOR I2S
 
 
 // Test Routings and latency
@@ -238,7 +245,7 @@ void BCM_PCM::init(
 	
 	if (!m_as_slave)
 	{
-		PCM_LOG("starting BCLK ...",0);
+		LOG("starting BCLK ...",0);
 		assert(CLOCK_FREQ % (NUM_HW_CHANNELS * NUM_HW_CHANNELS) == 0);
 		unsigned nDivI = CLOCK_FREQ / (NUM_HW_CHANNELS * m_CHANNEL_LENGTH) / m_SAMPLE_RATE;
 		unsigned nTemp = CLOCK_FREQ / (NUM_HW_CHANNELS * m_CHANNEL_LENGTH) % m_SAMPLE_RATE;
