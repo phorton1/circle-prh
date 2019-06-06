@@ -21,7 +21,7 @@ OBJS	= \
 	arm_add_q31.o \
 	arm_q31_to_q15.o \
 	arm_float_to_q31.o \
-	
+	mixer.o \
 	
 
 libaudio.a: $(OBJS)

@@ -48,6 +48,9 @@
     #define FINAL_CH1    INPUT_CH1
 #endif
 
+AudioMixer4 mixer1;
+AudioMixer4 mixer2;
+
 #if I2S_MASTER
     AudioOutputI2S output;
     AudioControlWM8731 control;
@@ -56,8 +59,15 @@
     AudioControlWM8731master control;
 #endif
 
-AudioConnection  c3(FINAL_INPUT0, INPUT_CH0, output, 0);
-AudioConnection  c4(FINAL_INPUT1, INPUT_CH1, output, 1);
+
+
+AudioConnection  c3(FINAL_INPUT0, FINAL_CH0, mixer1, 0);
+AudioConnection  c4(INPUT0,       INPUT_CH0, mixer1, 1);
+AudioConnection  c5(FINAL_INPUT0, FINAL_CH0, mixer2, 0);
+AudioConnection  c6(INPUT0,       INPUT_CH0, mixer2, 1);
+
+AudioConnection  c7(mixer1, 0, output, 0);
+AudioConnection  c8(mixer2, 0, output, 1);
 
 
 
@@ -73,7 +83,7 @@ void setup()
     #endif
     
     #if USE_REVERB
-        reverb1.reverbTime(0.4);
+        reverb1.reverbTime(0.6);
     #endif
     
 
@@ -90,6 +100,11 @@ void setup()
     #else
         control.volume(1.0);
     #endif
+    
+    mixer1.gain(0, 0.3);
+    mixer1.gain(1, 0.5);
+    mixer2.gain(0, 0.3);
+    mixer2.gain(1, 0.5);
     
     printf("hardware_test::setup() finished\n");
 }
