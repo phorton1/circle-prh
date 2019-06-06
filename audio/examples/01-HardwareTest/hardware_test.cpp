@@ -4,37 +4,60 @@
 // note that you must use 'master' control devices
 // if you use 'slave' i2s devices.
 
-#define USE_SYNTH   1
+#define I2S_MASTER  0
+    // I am now getting NOISE on the rpi-as-master input right channel
+    
+#define USE_SYNTH   0
+#define USE_REVERB  1
+
 
 #if USE_SYNTH
-    AudioSynthWaveformSine           modulate;
-    AudioSynthWaveformSineModulated  input;
-    AudioConnection                  patchCord(modulate, 0, input, 0);
-#endif
-
-#if 1
-    // rpi master, codec slave
-    AudioControlWM8731          control;
-    #if !USE_SYNTH
-        AudioInputI2S           input;
-    #endif
-    AudioOutputI2S              output;
+    AudioSynthWaveformSine modulate;
+    AudioSynthWaveformSineModulated input;
+    AudioConnection c0(modulate, 0, input, 0);
+    #define INPUT0 input
+    #define INPUT1 input
+    #define INPUT_CH0 0
+    #define INPUT_CH1 0
 #else
-    // rpi slave, codec master
-    AudioControlWM8731master    control;
-    #if !USE_SYNTH
-        AudioInputI2Sslave      input;
+    #if I2S_MASTER
+        AudioInputI2S input;
+    #else
+        AudioInputI2Sslave input;
     #endif
-    AudioOutputI2Sslave         output;
+    #define INPUT0      input
+    #define INPUT1      input
+    #define INPUT_CH0   0
+    #define INPUT_CH1   1
 #endif
 
-
-AudioConnection             patchCord1(input, 0, output, 0);
-#if USE_SYNTH
-    AudioConnection         patchCord2(input, 0, output, 1);
+#if USE_REVERB
+    // can only have ONE reverb and ONLY on the LEFT channel ?!?!
+    AudioEffectReverb   reverb1;
+    AudioEffectReverb   reverb2;
+    AudioConnection     c1(INPUT0, INPUT_CH0, reverb1, 0);
+    AudioConnection     c2(INPUT1, INPUT_CH1, reverb2, 0);
+    #define FINAL_INPUT0 reverb1
+    #define FINAL_INPUT1 reverb2
+    #define FINAL_CH0    0
+    #define FINAL_CH1    0
 #else
-    AudioConnection         patchCord2(input, 1, output, 1);
+    #define FINAL_INPUT0 INPUT0
+    #define FINAL_INPUT1 INPUT1
+    #define FINAL_CH0    INPUT_CH0
+    #define FINAL_CH1    INPUT_CH1
 #endif
+
+#if I2S_MASTER
+    AudioOutputI2S output;
+    AudioControlWM8731 control;
+#else
+    AudioOutputI2Sslave output;
+    AudioControlWM8731master control;
+#endif
+
+AudioConnection  c3(FINAL_INPUT0, INPUT_CH0, output, 0);
+AudioConnection  c4(FINAL_INPUT1, INPUT_CH1, output, 1);
 
 
 
@@ -48,11 +71,16 @@ void setup()
         modulate.frequency(0);
         input.frequency(440.0);
     #endif
+    
+    #if USE_REVERB
+        reverb1.reverbTime(0.4);
+    #endif
+    
 
     // my version of AudioMemory() also calls the
     // register() and begin() methods on each object.
 
-    AudioMemory(10);
+    AudioMemory(20);
     
     control.enable();
     control.inputSelect(AUDIO_INPUT_LINEIN);
@@ -60,7 +88,7 @@ void setup()
     #if USE_SYNTH
         control.volume(0.0);
     #else
-        control.volume(1,0);
+        control.volume(1.0);
     #endif
     
     printf("hardware_test::setup() finished\n");
@@ -68,21 +96,20 @@ void setup()
 
 
 
-int counter = 0;
-
 void loop()
 {
     #if USE_SYNTH
-    if (counter++ < 6)
-    {
-        control.volume(counter & 1 ? 0.6 : 0.00);
-        delay(500);
-    }
-    else
-    {
-        counter = 0;
-        delay(2000);
-    }
+        static int counter = 0;
+        if (counter++ < 6)
+        {
+            control.volume(counter & 1 ? 0.6 : 0.00);
+            delay(500);
+        }
+        else
+        {
+            counter = 0;
+            delay(2000);
+        }
     #endif
 }
 

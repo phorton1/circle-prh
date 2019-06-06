@@ -40,6 +40,7 @@
     #include "input_i2s.h"
     #include "output_i2s.h"
     #include "synth_sine.h"
+    #include "effect_reverb.h"
 
 #else
 
