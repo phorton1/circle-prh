@@ -4,7 +4,7 @@
 
 CIRCLEHOME = ../../../../../circle
 
-OBJS = hardware_test.o
+OBJS = 01-HardwareTest.o
 
 MAKE_LIBS = \
 	../std_kernel.mark \

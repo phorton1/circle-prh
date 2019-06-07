@@ -4,7 +4,7 @@
 
 CIRCLEHOME = ../../../../../circle
 
-OBJS = reverb_test.o
+OBJS = 02-StereoPassThru.o
 
 MAKE_LIBS = \
 	../std_kernel.mark \

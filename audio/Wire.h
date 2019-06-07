@@ -21,7 +21,7 @@ public:
     void end();
     
     void beginTransmission(u8 addr);
-    void endTransmission();
+    int endTransmission();
     
 	size_t write(u8 value);
     

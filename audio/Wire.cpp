@@ -51,14 +51,17 @@ void CWire::beginTransmission(u8 addr)
     m_addr = addr;
 }
 
-void CWire::endTransmission()
+int CWire::endTransmission()
 {
+    size_t rslt = 0;
     if (m_len)
     {
-        size_t rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len);
+        rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len);
         assert(rslt == m_len);
         m_len = 0;
     }
+	return rslt;
+    
 }
 
 

@@ -4,7 +4,7 @@
 
 CIRCLEHOME = ../../../../../circle
 
-OBJS = freeverb_test.o
+OBJS = 03-FeeverbTest.o
 
 MAKE_LIBS = \
 	../std_kernel.mark \
