@@ -41,6 +41,7 @@
     #include "output_i2s.h"
     #include "synth_sine.h"
     #include "effect_reverb.h"
+    #include "effect_freeverb.h"
     #include "mixer.h"
     
 
