@@ -442,7 +442,7 @@ void BCM_PCM::initI2S()
 		| (set_extended_bit ? TXC_A_CH1WEX : 0) 	// Set the "extended width" bit (if width is 16+)
 		| (use_width << TXC_A_CH1WID__SHIFT)		// Set the low 4 channel width bits
 		| TXC_A_CH2EN								// Same for channel 2 
-		| ((m_CHANNEL_LENGTH+1) << TXC_A_CH2POS__SHIFT)
+		| ((m_CHANNEL_LENGTH+2) << TXC_A_CH2POS__SHIFT)		// 2 = skip another bit in the 2nd half frame as well
 		| (set_extended_bit ? TXC_A_CH2WEX : 0)
 		| (use_width << TXC_A_CH2WID__SHIFT);
 
@@ -455,7 +455,8 @@ void BCM_PCM::initI2S()
 
 	u32 pcm_mode = 0;
 	pcm_mode |= MODE_A_CLKI;			// Invert the BCLK signal sense
-	pcm_mode |= MODE_A_FSI;				// Frame Sync Invert
+	// pcm_mode |= MODE_A_FSI;				// Frame Sync Invert
+	
 	if (m_as_slave)
 	{
 		pcm_mode |= MODE_A_CLKM;	// BCLK is an input
