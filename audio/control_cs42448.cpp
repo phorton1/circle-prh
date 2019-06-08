@@ -79,8 +79,13 @@
 //    9. Normal operation begins.
 
 static const uint8_t default_config[] = {
-	0xF4, // CS42448_Functional_Mode = slave mode, MCLK 25.6 MHz max
-	0x76, // CS42448_Interface_Formats = TDM mode
+	#if 1
+		0x04, // CS42448_Functional_Mode = master mode, MCLK 25.6 MHz max
+		0x51, // CS42448_Interface_Formats = i2s mode
+	#else
+		0xF4, // CS42448_Functional_Mode = slave mode, MCLK 25.6 MHz max
+		0x76, // CS42448_Interface_Formats = TDM mode
+	#endif
 	0x1C, // CS42448_ADC_Control_DAC_DeEmphasis = single ended ADC
 	0x63, // CS42448_Transition_Control = soft vol control
 	0xFF  // CS42448_DAC_Channel_Mute = all outputs mute
