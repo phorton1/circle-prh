@@ -28,6 +28,13 @@
 #include "control_cs42448.h"
 #include "Wire.h"
 
+#ifdef __circle__
+    #include <circle/timer.h>
+
+    #include <circle/logger.h>
+    #define log_name "cm42448"
+#endif
+
 
 #define CS42448_Chip_ID				0x01
 #define CS42448_Power_Control			0x02
@@ -80,24 +87,62 @@
 
 static const uint8_t default_config[] = {
 	#if 1
-		0x04, // CS42448_Functional_Mode = master mode, MCLK 25.6 MHz max
+		// 0x04, // CS42448_Functional_Mode = master mode, MCLK 25.6 MHz max
+		0xF4, // CS42448_Functional_Mode = slave mode, MCLK 25.6 MHz max
 		0x51, // CS42448_Interface_Formats = i2s mode
+        0x1C, // CS42448_ADC_Control_DAC_DeEmphasis = single ended ADC
+        0x63, // CS42448_Transition_Control = soft vol control
+        0xFF  // CS42448_DAC_Channel_Mute = all outputs mute
 	#else
 		0xF4, // CS42448_Functional_Mode = slave mode, MCLK 25.6 MHz max
 		0x76, // CS42448_Interface_Formats = TDM mode
+        0x1C, // CS42448_ADC_Control_DAC_DeEmphasis = single ended ADC
+        0x63, // CS42448_Transition_Control = soft vol control
+        0xFF  // CS42448_DAC_Channel_Mute = all outputs mute
 	#endif
-	0x1C, // CS42448_ADC_Control_DAC_DeEmphasis = single ended ADC
-	0x63, // CS42448_Transition_Control = soft vol control
-	0xFF  // CS42448_DAC_Channel_Mute = all outputs mute
 };
+
+
 
 bool AudioControlCS42448::enable(void)
 {
 	Wire.begin();
+	
+	#ifdef __circle__
+    
+		LOG("identifying chip",0);
+        
+        // I get all the proper defaults except the chip revision appears
+        // to be 0x04 instead of documented 0x01
+        
+		LOG("Chip_ID                    = 0x%02x",read(CS42448_Chip_ID));
+		LOG("Power_Control              = 0x%02x",read(CS42448_Power_Control));
+		LOG("Functional_Mode            = 0x%02x",read(CS42448_Functional_Mode));
+		LOG("Interface_Formats          = 0x%02x",read(CS42448_Interface_Formats));
+		LOG("ADC_Control_DAC_DeEmphasis = 0x%02x",read(CS42448_ADC_Control_DAC_DeEmphasis));
+		LOG("Transition_Control         = 0x%02x",read(CS42448_Transition_Control));
+		LOG("ADC_Control_DAC_DeEmphasis = 0x%02x",read(CS42448_ADC_Control_DAC_DeEmphasis));
+		LOG("DAC_Channel_Mute           = 0x%02x",read(CS42448_DAC_Channel_Mute));
+		LOG("ADC_Control_DAC_DeEmphasis = 0x%02x",read(CS42448_ADC_Control_DAC_DeEmphasis));
+		LOG("Status_Control             = 0x%02x",read(CS42448_Status_Control));
+		LOG("Status                     = 0x%02x",read(CS42448_Status));
+
+        // test a read write operation, worked
+        
+        write(CS42448_Power_Control,0x11);
+		LOG("Power_Control2              = 0x%02x",read(CS42448_Power_Control));
+	#endif
+	
+	
 	// TODO: wait for reset signal high??
+    
 	if (!write(CS42448_Power_Control, 0xFF)) return false; // power down
+		LOG("Power_Control3              = 0x%02x",read(CS42448_Power_Control));
+    
 	if (!write(CS42448_Functional_Mode, default_config, sizeof(default_config))) return false;
+    
 	if (!write(CS42448_Power_Control, 0)) return false; // power up
+    
 	return true;
 }
 
@@ -151,4 +196,20 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
 	return false;
 }
 
+
+#ifdef __circle__
+	u8 AudioControlCS42448::read(u8 address)
+		// read the value of a register
+	{
+		u8 buf[2];
+        buf[0] = 0;
+        Wire.beginTransmission(i2c_addr);
+        Wire.write(address);
+        Wire.endTransmission();
+        CTimer::Get()->usDelay(100);
+		Wire.read(i2c_addr,buf,1);
+        CTimer::Get()->usDelay(1200);
+		return buf[0];
+	}
+#endif
 

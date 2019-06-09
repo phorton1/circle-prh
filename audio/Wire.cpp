@@ -52,15 +52,16 @@ void CWire::beginTransmission(u8 addr)
 }
 
 int CWire::endTransmission()
+    // returns 0 on success
 {
     size_t rslt = 0;
     if (m_len)
     {
-        rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len);
-        assert(rslt == m_len);
-        m_len = 0;
+        rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len) == m_len;
+        assert(rslt);
+        return rslt ? 0 : 1;
     }
-	return rslt;
+	return 0;
     
 }
 
@@ -72,4 +73,10 @@ size_t CWire::write(u8 value)
 }
     
 
+size_t CWire::read(u8 addr, u8 *buf, u8 len)
+{
+    size_t rslt = m_pI2CMaster->Read(addr, buf, len);
+    assert(rslt == len);
+    return rslt;
+}
 

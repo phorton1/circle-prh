@@ -30,6 +30,7 @@
 #include "AudioControl.h"
 #include <math.h>
 
+
 class AudioControlCS42448 : public AudioControl
 {
 public:
@@ -77,6 +78,11 @@ private:
 	}
 	bool write(uint32_t address, uint32_t data);
 	bool write(uint32_t address, const void *data, uint32_t len);
+
+	#ifdef __circle__
+		u8 read(u8 address);
+	#endif
+	
 	uint8_t i2c_addr;
 	bool muted;
 };
