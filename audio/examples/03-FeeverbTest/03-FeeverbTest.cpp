@@ -7,7 +7,7 @@
 // There is a funny twang every so often in FreeVerb,
 // maybe having to do with integer overflows.
 
-#define I2S_MASTER      1
+#define I2S_MASTER      0
 #define USE_MIXER       1
 #define USE_FREEVERB    0
     
@@ -75,14 +75,14 @@
 
 void setup()
 {
-    printf("03-FreeverbTest::setup()\n");
+    printf("03-FreeverbTest::setup(blah)\n");
     
     #if USE_FREEVERB
         reverb.roomsize(0.6);
         reverb.damping(0.5);
     #else
-        reverb1.reverbTime(0.6);
-        reverb2.reverbTime(0.6);
+        reverb1.reverbTime(0.8);
+        reverb2.reverbTime(0.8);
     #endif
     
     AudioMemory(20);
@@ -94,9 +94,9 @@ void setup()
 
     #if USE_MIXER
         mixer1.gain(0, 0.6);
-        mixer1.gain(1, 0.3);
-        mixer2.gain(0, 0.3);
-        mixer2.gain(1, 0.6);
+        mixer1.gain(1, 0.35);
+        mixer2.gain(0, 0.6);
+        mixer2.gain(1, 0.35);
     #endif
     
     printf("03-FreeverbTest::setup() finished\n");

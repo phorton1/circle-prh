@@ -1,8 +1,8 @@
 
 #include <audio\Audio.h>
 
-#define USE_CS42448  0
-#define I2S_MASTER   0
+#define USE_CS42448  1
+#define I2S_MASTER   1
 
 #if USE_CS42448
 
