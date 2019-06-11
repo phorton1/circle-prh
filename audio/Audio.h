@@ -41,8 +41,10 @@
     #include "effect_reverb.h"
     #include "effect_freeverb.h"
     #include "input_i2s.h"
+    #include "input_tdm.h"
     #include "mixer.h"
     #include "output_i2s.h"
+    #include "output_tdm.h"
     #include "synth_sine.h"
 
     // #include "output_tdm.h"
@@ -109,7 +111,6 @@
 #include "input_adc.h"
 #include "input_adcs.h"
 #include "input_i2s_quad.h"
-#include "input_tdm.h"
 #include "input_pdm.h"
 #include "output_dac.h"
 #include "output_dacs.h"

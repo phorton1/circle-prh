@@ -21,8 +21,10 @@ OBJS	= \
 	effect_freeverb.o \
 	effect_reverb.o \
 	input_i2s.o \
+	input_tdm.o \
 	mixer.o \
 	output_i2s.o \
+	output_tdm.o \
 	synth_sine.o \
 	
 

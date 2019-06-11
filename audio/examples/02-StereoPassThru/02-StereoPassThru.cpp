@@ -2,21 +2,16 @@
 #include <audio\Audio.h>
 
 #define USE_CS42448  1
-#define I2S_MASTER   1
 
 #if USE_CS42448
 
-    #if I2S_MASTER
-        AudioInputI2S input;
-        AudioOutputI2S output;
-    #else
-        AudioInputI2Sslave input;
-        AudioOutputI2Sslave output;
-    #endif
-    
+    AudioInputTDM input;
+    AudioOutputTDM output;
     AudioControlCS42448 control;
 
 #else
+
+    #define I2S_MASTER   1
 
     // There seems to be some noise on the right channel
     // with the rpi in master mode with the wm8731 
@@ -31,12 +26,11 @@
         AudioControlWM8731master control;
     #endif
 
-
 #endif
 
-    AudioConnection  c0(input, 0, output, 0);
-    AudioConnection  c1(input, 1, output, 1);
 
+AudioConnection  c0(input, 0, output, 0);
+AudioConnection  c1(input, 1, output, 1);
 
 
 
@@ -45,7 +39,7 @@ void setup()
 {
     printf("02-StereoPassThru::setup()\n");
 
-    AudioMemory(20);
+    AudioMemory(80);
     
     control.enable();
     control.volume(1.0);

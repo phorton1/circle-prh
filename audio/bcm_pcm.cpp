@@ -46,21 +46,13 @@
 #define PIN_RXD		   20       // I2S receive data
 #define PIN_TXD		   21		// I2S transmit data
 
-#define PIN_RX_ACTIVE  23		// a LED to show recv activity
-#define PIN_TX_ACTIVE  24		// a LED to show xmit activity
+#define PIN_RX_ACTIVE  12		// a LED to show recv activity
+#define PIN_TX_ACTIVE  16		// a LED to show xmit activity
 
 
 // This CLOCK_FREQ is used if we are the i2s master.
-// I think the proper value is dependent on the actual system clock
-// speed, but the constant 500Mhz worked well for A440 when circle's
-// CCPUThrottle was reporting 600 Mhz.
 
-#define CLOCK_FREQ		500000000
-
-
-// NUM_HW_CHANNELS is ALWAYS two (2) for i2s
-	
-#define NUM_HW_CHANNELS  2
+#define CLOCK_FREQ		   500000000
 
 
 // Test Routings and latency
@@ -80,8 +72,14 @@
 	// A pair of buffers are used to move data from the input DMA
 	// to the output DMA.  PROBABLY has sub 6ms latancy.
 
+#define OUTPUT_DISTINCTIVE_PATTERN  0
+	// Used for debuging frames.  If set,
+	// will output a distinctive pattern of samples.
+
+
 #if TEST_ROUTE_IN_TO_OUT
-	u32 test_buffer[2][RAW_AUDIO_BLOCK_SAMPLES];
+	u32 *test_buffer[2];
+	u8  *test_alloc[2];
 #endif
 
 
@@ -96,7 +94,7 @@ BCM_PCM bcm_pcm;
 
 BCM_PCM::BCM_PCM() :
 	m_pInterruptSystem(0),
-	m_BCLK(PIN_BCLK, GPIOModeAlternateFunction0),
+	m_BCLK(PIN_BCLK, GPIOModeAlternateFunction0),	// GPIOModeOutput GPIOModeInput	GPIOModeAlternateFunction0
 	m_FCLK(PIN_FCLK, GPIOModeAlternateFunction0),
 	m_RXD(PIN_RXD, 	 GPIOModeAlternateFunction0),
 	m_TXD(PIN_TXD, 	 GPIOModeAlternateFunction0),
@@ -112,10 +110,11 @@ BCM_PCM::BCM_PCM() :
 	m_nDMAInChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE)),
 	m_nDMAOutChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE))
 {
+	m_as_slave = false;
 	m_SAMPLE_RATE = 0;
 	m_SAMPLE_SIZE = 0;
-	m_CHANNEL_LENGTH = 0;
-	m_as_slave = false;
+	m_NUM_CHANNELS = 0;
+	m_CHANNEL_WIDTH = 0;
 	
 	// we rely on bss initialization to set these members
 	// of the static bcm_pcm object to zero. Otherwise,
@@ -131,13 +130,29 @@ BCM_PCM::BCM_PCM() :
 	m_bInIRQConnected = false;
 	m_bOutIRQConnected = false;
 	
-	initBuffers();
+	m_inToggle = 0;
+	m_outToggle = 0;
+	
+	for (u8 i=0; i<2; i++)
+	{
+		m_inBuffer[i] = 0;
+		m_outBuffer[i] = 0;
+		m_allocInBuffer[i] = 0;
+		m_allocOutBuffer[i] = 0;
+	}
+	
+	wrong_irq_count	= 0;
+	in_block_count 	= 0;
+	out_block_count = 0;
+	underflow_count = 0;
+	overflow_count 	= 0;	
 	
 	#if INCLUDE_ACTIVITY_LEDS		
 		m_RX_ACTIVE.Write(1);
 		m_TX_ACTIVE.Write(1);
-	#endif
+	#endif	
 }
+
 	
 	
 BCM_PCM::~BCM_PCM()
@@ -145,6 +160,23 @@ BCM_PCM::~BCM_PCM()
 	if (m_initialized)
 		terminate();
 	m_pInterruptSystem = 0;
+	
+	for (int i=0; i<2; i++)
+	{
+		if (m_allocInBuffer[i])
+			delete m_allocInBuffer[i];
+		if (m_allocOutBuffer[i])
+			delete m_allocOutBuffer[i];
+		#if TEST_ROUTE_IN_TO_OUT
+			if (test_alloc[i])
+				delete test_alloc[i];
+		#endif
+
+		m_inBuffer[i] = 0;
+		m_outBuffer[i] = 0;
+		m_allocInBuffer[i] = 0;
+		m_allocOutBuffer[i] = 0;
+	}
 }
 
 
@@ -152,8 +184,19 @@ void BCM_PCM::initBuffers()
 {
 	m_inToggle = 0;
 	m_outToggle = 0;
+	
 	for (int i=0; i<2; i++)
 	{
+		if (!m_inBuffer[i])
+			m_inBuffer[i] = allocateRawAudioBlock(&m_allocInBuffer[i]);
+		if (!m_outBuffer[i])
+			m_outBuffer[i] = allocateRawAudioBlock(&m_allocOutBuffer[i]);
+			
+		#if TEST_ROUTE_IN_TO_OUT
+			if (!test_buffer[i])
+				test_buffer[i] = allocateRawAudioBlock(&test_alloc[i]);
+		#endif
+			
 		memset(m_inBuffer[i],0,RAW_AUDIO_BLOCK_BYTES);
 		memset(m_outBuffer[i],0,RAW_AUDIO_BLOCK_BYTES);
 	}
@@ -166,35 +209,65 @@ void BCM_PCM::initBuffers()
 }
 
 
+uint32_t *BCM_PCM::allocateRawAudioBlock(u8 **allocBlock)
+	// allocate a raw audio block.
+	// Note that these are passed to DMA and MUST be on 32 bit boundaries.,
+	// so we over-allocate the memory into allocBlock* and then take the 32
+	// bit boundry address with that.
+{
+	assert(allocBlock);
+	u8 *buf = (u8 *) malloc(RAW_AUDIO_BLOCK_BYTES + 3);
+	assert(buf);
+	u32 addr = (u32) buf;
+	uint32_t *rslt = (uint32_t *) (addr & 0xfffffff0);
+	PCM_LOG("allocateRawAudioBlock(0x%08x)=0x%08x",(u32)buf,(u32)rslt);
+	assert(rslt);
+	*allocBlock	= buf;
+	return rslt;
+}
+
+
 //-----------------------------
 // initialization
 //-----------------------------
 
 	
 void BCM_PCM::init(
+		bool  	  as_slave,
 		u32   	  sample_rate,
 		u8    	  sample_size,
-		u8    	  channel_length,
-		bool  	  as_slave)
+		u8		  num_channels,
+		u8    	  channel_width)
 {
 	assert(m_inISR || m_outISR);
+	// channel_width = 24;
 
 	if (m_state >= bcmSoundRunning)
 	{
 		PCM_LOG("BCM_PCM::init(%d) returning because state=%d",as_slave,m_state);
 		return;		
 	}
+	
+	m_as_slave = as_slave;		
+	m_SAMPLE_RATE = sample_rate;
+	m_SAMPLE_SIZE = sample_size;
+	m_NUM_CHANNELS = num_channels;
+	m_CHANNEL_WIDTH = channel_width;
+		
+	m_pInterruptSystem = CInterruptSystem::Get();
+	assert(m_pInterruptSystem);
 
 	#if INCLUDE_ACTIVITY_LEDS		
 		m_RX_ACTIVE.Write(0);
 		m_TX_ACTIVE.Write(0);
 	#endif
 		
-	LOG("init(%d,%d,%d,%d,%s) ...",
-		sample_rate,
-		sample_size,
-		channel_length,
-		as_slave,
+	LOG("init(%d,%d,%d,%d,%d,%s) ...",
+		m_as_slave,
+		m_SAMPLE_RATE,
+		m_SAMPLE_SIZE,
+		m_NUM_CHANNELS,
+		m_CHANNEL_WIDTH,
 		((u32)m_inISR) & ((u32)m_outISR) ? "BOTH" :
 		((u32)m_inISR) ? "INPUT" :
 		((u32)m_outISR) ? "OUTPUT" :
@@ -203,19 +276,20 @@ void BCM_PCM::init(
 	PCM_LOG("inDMAChannel=%d outDMAChannel=%d",
 		m_nDMAInChannel,
 		m_nDMAOutChannel);
-	
 	PCM_LOG("m_inControlBlock[0]=0x%08x",&m_inControlBlock[0]);
 	PCM_LOG("m_inControlBlock[1]=0x%08x",&m_inControlBlock[1]);
 	PCM_LOG("m_outControlBlock[0]=0x%08x",&m_outControlBlock[0]);
 	PCM_LOG("m_outControlBlock[1]=0x%08x",&m_outControlBlock[1]);
+	
+	// initialize the memory buffers
+	
+	initBuffers();
 	PCM_LOG("m_inBuffer[0]=0x%08x",m_inBuffer[0]);
 	PCM_LOG("m_inBuffer[1]=0x%08x",m_inBuffer[1]);
 	PCM_LOG("m_outBuffer[0]=0x%08x",m_outBuffer[0]);
 	PCM_LOG("m_outBuffer[1]=0x%08x",m_outBuffer[1]);
 	PCM_LOG("BUS_ADDRESS(0x%08x)=0x%08x",(u32)&m_inControlBlock[0],BUS_ADDRESS((uintptr)&m_inControlBlock[0]));
 	
-	m_pInterruptSystem = CInterruptSystem::Get();
-	assert(m_pInterruptSystem);
 
 	if (m_initialized)
 	{
@@ -223,11 +297,6 @@ void BCM_PCM::init(
 		terminate();
 	}
 
-	m_SAMPLE_RATE = sample_rate;
-	m_SAMPLE_SIZE = sample_size;
-	m_CHANNEL_LENGTH = channel_length;
-	m_as_slave = as_slave;		
-	
 	PCM_LOG("setting up DMA control blocks ...",0);
 
 	if (m_inISR)
@@ -245,10 +314,26 @@ void BCM_PCM::init(
 	
 	if (!m_as_slave)
 	{
-		LOG("starting BCLK ...",0);
-		assert(CLOCK_FREQ % (NUM_HW_CHANNELS * NUM_HW_CHANNELS) == 0);
-		unsigned nDivI = CLOCK_FREQ / (NUM_HW_CHANNELS * m_CHANNEL_LENGTH) / m_SAMPLE_RATE;
-		unsigned nTemp = CLOCK_FREQ / (NUM_HW_CHANNELS * m_CHANNEL_LENGTH) % m_SAMPLE_RATE;
+		// Teensy Logic analyzer reads about 1.665 times too slow.
+		// Hooking the octo up with rpi as master messes things up.
+		//
+		// Master TDM (same as on working Raspian Octo):
+		//
+		//     BCLK = 11.2 MHz (logic 6,812Mhz) = 43750
+		//            FCLK = 176khz
+		// Master I2S:
+		//
+		//     BLCK = 2.82 MHz (logic 1.696Mhz) = 44062
+		//            FCLK = 44.1khz !! yay
+		//
+		// SoundInjector Stereo wm8731 master
+		//
+		//     BCLK = 2.98 Mhz (logic 1.801Mhz) = 46565
+		//            FCLK = 46.8khz
+		
+		assert(CLOCK_FREQ % (m_NUM_CHANNELS * m_CHANNEL_WIDTH) == 0);
+		unsigned nDivI = CLOCK_FREQ / (m_NUM_CHANNELS * m_CHANNEL_WIDTH) / m_SAMPLE_RATE;
+		unsigned nTemp = CLOCK_FREQ / (m_NUM_CHANNELS * m_CHANNEL_WIDTH) % m_SAMPLE_RATE;
 		unsigned nDivF = (nTemp * 4096 + m_SAMPLE_RATE/2) / m_SAMPLE_RATE;
 		assert(nDivF <= 4096);
 		
@@ -264,7 +349,7 @@ void BCM_PCM::init(
 	// initialize the I2S peripheral
 	// pre-enable DMA
 	
-	initI2S();
+	initFrame();
 	PeripheralEntry();
 	PCM_LOG("pre-enable DMA ...",0);
 	
@@ -306,7 +391,7 @@ void BCM_PCM::terminate()
 		PCM_LOG("terminate() state=%d after calling stop()",m_state);
 	}
 	
-	stopI2S();
+	stopPCM();
 
 	if (m_inISR)
 	{
@@ -343,7 +428,7 @@ void BCM_PCM::terminate()
 
 	m_SAMPLE_RATE = 0;
 	m_SAMPLE_SIZE = 0;
-	m_CHANNEL_LENGTH = 0;
+	m_CHANNEL_WIDTH = 0;
 	m_as_slave = false;
 	m_inISR = 0;
 	m_outISR = 0;
@@ -413,10 +498,10 @@ void BCM_PCM::initDMA(
 	
 
 
-void BCM_PCM::initI2S()
+void BCM_PCM::initFrame()
 {
 	PeripheralEntry();
-	PCM_LOG("initI2S() ...",0);
+	PCM_LOG("initFrame() ...",0);
 	
 	// Write zero which turns everything off
 	// and clear the PCM peipheral FIFOs
@@ -435,6 +520,10 @@ void BCM_PCM::initI2S()
 		set_extended_bit = 1;							// set the 1 Channel Width Extension bits
 		use_width -= 16;								// and subtract 16
 	}
+	
+	// PRH - NOTE: I HAD TO CHANGE channel 2 width to be
+	// (m_CHANNEL_WIDTH+2) << TXC_A_CH2POS__SHIFT for rpi
+	// master to wm8731 ...
 
 	u32 reg_val =
 		TXC_A_CH1EN									// Enable channel 1
@@ -442,7 +531,7 @@ void BCM_PCM::initI2S()
 		| (set_extended_bit ? TXC_A_CH1WEX : 0) 	// Set the "extended width" bit (if width is 16+)
 		| (use_width << TXC_A_CH1WID__SHIFT)		// Set the low 4 channel width bits
 		| TXC_A_CH2EN								// Same for channel 2 
-		| ((m_CHANNEL_LENGTH+2) << TXC_A_CH2POS__SHIFT)		// 2 = skip another bit in the 2nd half frame as well
+		| ((m_CHANNEL_WIDTH+2) << TXC_A_CH2POS__SHIFT)		// 2 = skip another bit in the 2nd half frame as well
 		| (set_extended_bit ? TXC_A_CH2WEX : 0)
 		| (use_width << TXC_A_CH2WID__SHIFT);
 
@@ -455,18 +544,40 @@ void BCM_PCM::initI2S()
 
 	u32 pcm_mode = 0;
 	pcm_mode |= MODE_A_CLKI;			// Invert the BCLK signal sense
+	
+	// had to comment out to get rpi master working with wm3871
 	// pcm_mode |= MODE_A_FSI;				// Frame Sync Invert
+	
 	
 	if (m_as_slave)
 	{
 		pcm_mode |= MODE_A_CLKM;	// BCLK is an input
 		pcm_mode |= MODE_A_FSM;		// FCLK is an input
 	}
-	else
+
+	#if 0
+		// When the octo is not hooked up, the following creates a frame
+		// that looks exactly like the one coming from the raspian working octo.
+		// However, for the octo we set both the codec, and the bcm to slave
+		// modes, so this code is not used
+
+		else if (0)	// TDM experiments
+		{
+			pcm_mode |= MODE_A_FRXP | MODE_A_FTXP;  // frame packed mode              (1 << 24)
+			//  pcm_mode |= ((m_NUM_CHANNELS * m_CHANNEL_WIDTH)-1) << MODE_A_FLEN__SHIFT;
+			pcm_mode |= ((2 * m_CHANNEL_WIDTH)-1) << MODE_A_FLEN__SHIFT;
+			pcm_mode |= m_CHANNEL_WIDTH << MODE_A_FSLEN__SHIFT;
+			
+		}	
+	#endif
+	
+	else	// master mode, we set the frame params
 	{
-		pcm_mode |= ((NUM_HW_CHANNELS * m_CHANNEL_LENGTH)-1) << MODE_A_FLEN__SHIFT;
-		pcm_mode |= m_CHANNEL_LENGTH << MODE_A_FSLEN__SHIFT;
+		pcm_mode |= ((2 * m_CHANNEL_WIDTH)-1) << MODE_A_FLEN__SHIFT;
+		// pcm_mode |= ((m_NUM_CHANNELS * m_CHANNEL_WIDTH)-1) << MODE_A_FLEN__SHIFT;
+		pcm_mode |= m_CHANNEL_WIDTH << MODE_A_FSLEN__SHIFT;
 	}
+
 	write32(ARM_PCM_MODE_A,pcm_mode);
 
 	// other PCM_CS_A register settings
@@ -491,14 +602,14 @@ void BCM_PCM::initI2S()
 	}
 
 	PeripheralExit();
-	PCM_LOG("initI2S() finished",0);
+	PCM_LOG("initFrame() finished",0);
 	
 }
 
 
-void BCM_PCM::stopI2S(void)
+void BCM_PCM::stopPCM(void)
 {
-	PCM_LOG("stopI2S() ...",0);
+	PCM_LOG("stopPCM() ...",0);
 	
 	PeripheralEntry();
 	write32(ARM_PCM_CS_A, 0);
@@ -507,7 +618,7 @@ void BCM_PCM::stopI2S(void)
 
 	m_BitClock.Stop();
 
-	PCM_LOG("stopI2S() finished",0);
+	PCM_LOG("stopPCM() finished",0);
 }
 
 
@@ -535,8 +646,6 @@ void BCM_PCM::stop()
 //----------------------------------------
 // running
 //----------------------------------------
-// same old shit ... I'm not getting any interrupts
-
 
 void BCM_PCM::start()
 {
@@ -550,7 +659,7 @@ void BCM_PCM::start()
 	
 	#if INCLUDE_ACTIVITY_LEDS		
 		if (m_inISR)
-			m_RX_ACTIVE.Write(1);
+		 	m_RX_ACTIVE.Write(1);
 		if (m_outISR)
 			m_TX_ACTIVE.Write(1);
 	#endif
@@ -679,12 +788,24 @@ void BCM_PCM::updateOutput(bool cold)
 	
 	if (!cold)
 	{
-		#if TEST_SHORT_CIRCUIT_IN_TO_OUT
+		#if OUTPUT_DISTINCTIVE_PATTERN
+			memset(m_outBuffer[m_outToggle],0,RAW_AUDIO_BLOCK_BYTES);
+			#if 1
+				u32 *p = (u32 *) m_outBuffer[m_outToggle];
+				for (u32 i=0; i<AUDIO_BLOCK_SAMPLES; i++)
+				{
+					*p++ = 0x5555;
+					*p++ = (i<4) ? 1: 0x7fff;
+					p += m_NUM_CHANNELS-2;
+				}
+			#endif
+		#elif TEST_SHORT_CIRCUIT_IN_TO_OUT
 			// do nothing, input and output buffers are the same
 		#elif TEST_ROUTE_IN_TO_OUT
 			// copy the 'ready' input buffer to the pending output buffer
 			memcpy(m_outBuffer[m_outToggle],test_buffer[m_inToggle ^ 1],RAW_AUDIO_BLOCK_BYTES);
 		#else
+			memset(m_outBuffer[m_outToggle],0,RAW_AUDIO_BLOCK_BYTES);
 			#if !OPTIMIZED_IRQS
 				assert(m_outISR);
 			#endif
@@ -746,7 +867,7 @@ void BCM_PCM::audioInIRQ(void)
 		if (rx_count > 16)		// about 20 times a second
 		{
 			rx_count = 0;
-			m_RX_ACTIVE.Invert();
+			// Jm_RX_ACTIVE.Invert();
 		}
 	#endif
 

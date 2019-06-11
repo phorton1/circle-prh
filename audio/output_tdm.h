@@ -24,8 +24,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef _input_tdm_h_
-#define _input_tdm_h_
+#ifndef output_tdm_h_
+#define output_tdm_h_
 
 #include "Arduino.h"
 #include "AudioStream.h"
@@ -45,13 +45,13 @@
 #endif
 
 
-class AudioInputTDM : public AudioStream
+class AudioOutputTDM : public AudioStream
 {
 public:
-	AudioInputTDM(void) : AudioStream(0, NULL)
+	AudioOutputTDM(void) : AudioStream (NUM_TDM_CHANNELS, inputQueueArray)
     {
         #ifdef __circle__
-            bcm_pcm.setInISR(isr);
+            bcm_pcm.setOutISR(isr);
         #else
             begin();
         #endif
@@ -59,14 +59,18 @@ public:
     
 	virtual void update(void);
 	void begin(void);
-protected:	
+	friend class AudioInputTDM;
+protected:
+	static void config_tdm(void);
+	static audio_block_t *block_input[NUM_TDM_CHANNELS];
 	static bool update_responsibility;
     #ifndef __circle__
-    	static DMAChannel dma;
+        static DMAChannel dma;
     #endif
 	static void isr(void);
 private:
-	static audio_block_t *block_incoming[NUM_TDM_CHANNELS];
+	audio_block_t *inputQueueArray[NUM_TDM_CHANNELS];
 };
+
 
 #endif

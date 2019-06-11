@@ -29,6 +29,11 @@
 #define CS_A_RXON		        (1 << 1)
 #define CS_A_EN			        (1 << 0)
         
+#define MODE_A_CLK_DIS          (1 << 28)
+#define MODE_A_PDMN             (1 << 27)
+#define MODE_A_PDME             (1 << 26)
+#define MODE_A_FRXP             (1 << 25)
+#define MODE_A_FTXP             (1 << 24)
 #define MODE_A_CLKM		        (1 << 23)		// prh added - slave bit clock mode
 #define MODE_A_CLKI		        (1 << 22)
 #define MODE_A_FSM              (1 << 21)		// prh added - slave frame mode

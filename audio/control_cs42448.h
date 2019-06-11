@@ -30,14 +30,23 @@
 #include "AudioControl.h"
 #include <math.h>
 
+#ifdef __circle__
+    #define AUDIO_INJECTOR_OCTO 
+        // The only cs42448 device I have is the Audio Injector Octo
+        // It uses an additional 5 gpio pins for reset and rate setting.
+#endif
+
 
 class AudioControlCS42448 : public AudioControl
 {
 public:
 	AudioControlCS42448(void) : i2c_addr(0x48), muted(true) { }
-	void setAddress(uint8_t addr) {
+	
+	void setAddress(uint8_t addr)
+	{
 		i2c_addr = 0x48 | (addr & 3);
 	}
+	
 	bool enable(void);
 	bool disable(void) {
 		return false;
@@ -59,6 +68,16 @@ public:
 		if (channel < 1 || channel > 6) return false;
 		return inputLevelInteger(channel, inputlevelbyte(level));
 	}
+	
+	#ifdef AUDIO_INJECTOR_OCTO
+		// __circle__ only at this time
+		void reset();
+			// called once
+		void setSampleRate(u32 rate);
+			// called each time the device is started or stopped
+			// call with 0 to stop, or with sample rate (i.e. 44100)
+	#endif
+		
 private:
 	bool volumeInteger(uint32_t n);
 	bool volumeInteger(int channel, uint32_t n);
