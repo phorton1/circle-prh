@@ -87,8 +87,11 @@ TShutdownMode CKernel::Run(void)
 
 	m_Timer.MsDelay(500);
 	printf("ready ...\n");
-	CGPIOPin toTeensy(25,GPIOModeOutput);
-	toTeensy.Write(1);
+	
+	#if 1
+		CGPIOPin toTeensy(25,GPIOModeOutput);
+		toTeensy.Write(1);
+	#endif
 	
 	while (1)
 	{

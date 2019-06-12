@@ -49,6 +49,7 @@
     
     CGPIOPin *octo_reset;
     CGPIOPin *octo_mult[4];
+    
 #endif
 
 
@@ -80,28 +81,7 @@
 #define CS42448_Status_Mask			    0x1A
 #define CS42448_MUTEC_Pin_Control		0x1B
 
-
-// 4.9 Recommended Power-Up Sequence
-//    1. Hold RST low until the power supply and clocks are stable. In this state,
-//       the control port is reset to its default settings and VQ will remain low.
-//    2. Bring RST high. The device will initially be in a low power state with VQ
-//       low. All features will default as described in the "Register Quick Reference"
-//       on page 40.
-//    3. Perform a write operation to the Power Control register ("Power Control
-//       (Address 02h)" on page 43) to set bit 0 to a '1'b.  This will place the
-//       device in a power down state.
-//    4. Load the desired register settings while keeping the PDN bit set to '1'b.
-//    5. Mute all DACs. Muting the DACs suppresses any noise associated with the
-//       CODEC's first initialization after power is applied.
-//    6. Set the PDN bit in the power control register to '0'b. VQ will ramp to
-//       approximately VA/2 according to the Popguard specification in section
-//       "Popguard" on page 29.
-//    7. Following approximately 2000 LRCK cycles, the device is initialized and
-//       ready for normal operation.
-//    8. After the CODEC is initialized, wait ~90 LRCK cycles (~1.9 ms @48 kHz) and
-//       then un-mute the DACs.
-//    9. Normal operation begins.
-
+// register values
 
 #define FM_MCLK_1_TO_12_MHZ             (0x0 << 1)
 #define FM_MCLK_2_TO_25_MHZ             (0x2 << 1) 
@@ -116,7 +96,6 @@
 #define FM_DAC_SPEED_DOUBLE             (0x1 << 6)
 #define FM_DAC_SPEED_QUAD               (0x2 << 6)
 #define FM_DAC_SPEED_AUTO_SLAVE         (0x3 << 6)
-
 
 #define INTFC_ADC_LEFTJ                 (0 << 0)
 #define INTFC_ADC_I2S                   (1 << 0)
@@ -157,6 +136,121 @@
 #define TRANS_DAC_SZC1                  (1 << 6)
 #define TRANS_DAC_SNGVOL                (1 << 7)
 
+    
+#ifdef SHORT_START
+
+
+    u8 raspian_default_regmap[] = {
+        0xFF,   // Power Control 
+        0xF0,   // Functional Mode 
+        0x46,   // Interface Formats 
+            // prh THIS DEFAULT IS WRONG
+            // 0x46 == DAC_DIF_LEFTJ | ADC_DIF_TDM | AUX_I2S
+            // The actual default is
+            // 0x36 = DAC_DIF_TDM | ADC_DIF_TDM
+        0x00,   // ADC Control & DAC De-Emphasis */
+        0x10,   // Transition Control */
+        0xFF,   // DAC Channel Mute
+            // he sends out 0xff for this
+            // although the actual default is
+            // 0x00,   
+        0x00,   // Volume Control AOUT1
+        0x00,   // Volume Control AOUT2
+        0x00,   // Volume Control AOUT3
+        0x00,   // Volume Control AOUT4
+        0x00,   // Volume Control AOUT5
+        0x00,   // Volume Control AOUT6
+        0x00,   // Volume Control AOUT7
+        0x00,   // Volume Control AOUT8
+        0x00,   // DAC Channel Invert
+        0x00,   // Volume Control AIN1
+        0x00,   // Volume Control AIN2
+        0x00,   // Volume Control AIN3
+        0x00,   // Volume Control AIN4
+        0x00,   // Volume Control AIN5
+        0x00,   // Volume Control AIN6
+        0x00,   // ADC Channel Invert 
+        0x00,   // Status Control
+        0x00,   // Status Mask 
+        0x00,   // MUTEC Pin Control 
+    };
+
+    u8 two_zeros[] = {0,0};
+
+    bool AudioControlCS42448::shortStart()
+    {
+        LOG("shortStart()",0);
+        
+        // This method attempt to emulate exactly the i2c signals
+        // sent when starting an MP3 the first time on Raspian.
+        
+        // It appears as if he starts by sending the default regmap,
+        // with power control and DAC mute set to 0xFF, without setting
+        // the increment bit.  By spec this is undefined.
+        
+        if (!write(CS42448_Power_Control,raspian_default_regmap,sizeof(raspian_default_regmap),false))
+            return false;
+        CTimer::Get()->usDelay(70);
+
+        // Then, for some reason, it looks like it outputs two bytes of zeros
+        // for the status mask, although it does not set
+        // the increment bit
+        
+        if (!write(CS42448_Status_Mask, two_zeros, 2,false))      // 0x1a
+            return false;
+        delay(2);
+
+        // then it sets the interface formats with a 50us delay
+
+        if (!write(CS42448_Interface_Formats,               // 0x04
+            INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S)) // 0x76
+            return false;
+        CTimer::Get()->usDelay(50);
+        
+        // and the functional mode with a 2ms delay
+        // ITS FUCKING WORKING!!
+        
+        if (!write(CS42448_Functional_Mode,         // 0x03
+            FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_4_TO_51_MHZ))  // 0xF8
+           return false;
+        delay(2);
+        
+        // then a bunch of 3 settings, starting with power down
+        // all but not the chip
+        
+        if (!write(CS42448_Power_Control, 0xfe))    // 0x02
+                return false; 
+            
+        // then another power E0, with a little extra delay
+        
+        if (!write(CS42448_Power_Control, 0xE0))    // 0x02
+                return false;
+        CTimer::Get()->usDelay(50);
+        
+        // followed by channel mute 0, a 200 us delay
+        // and a repeat
+        
+        if (!write(CS42448_DAC_Channel_Mute, 0x00)) // 0x07
+            return false;
+        CTimer::Get()->usDelay(200);
+        if (!write(CS42448_DAC_Channel_Mute, 0x00)) // 0x07
+            return false;
+
+        // then approximately 60ms later the clock is started
+
+        delay(60);        
+        if (1)
+        {
+            octo_mult[2]->Write(1);
+        }
+        else
+        {
+            setSampleRate(44100);
+        }
+        return true;
+    }
+#endif
+
 
 static const uint8_t default_config[] = {
     // by a bug it started working
@@ -172,34 +266,38 @@ static const uint8_t default_config[] = {
     //      adc_control     0x63
     
 #if 1
-    // from bug:
-    // FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_DOUBLE,
-    // single or double sort of work, single sounds the best
-    FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_SINGLE | FM_DAC_SPEED_SINGLE,
-    // FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_DOUBLE | FM_DAC_SPEED_DOUBLE,
+
+    // Slave does not work:
+    // FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE,
+    //
+    // single or double sort of work
     // quad does not work:
+    //    
+    // FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_SINGLE | FM_DAC_SPEED_SINGLE,
+    FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_DOUBLE | FM_DAC_SPEED_DOUBLE,
     // FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_QUAD   | FM_DAC_SPEED_QUAD,
+
+    // TDM does not fucking work.
+    // INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S, 
+    //
+    // i2s, rjust, maybe ljust interfaces produce noise but cannot
+    // be correct since the codec MUST be in a multi-channel mode ..
+    //
+    // That leaves oneline1 and 2
+    // Oneline2 sounds better
+    //    
+    INTFC_ADC_ONELINE_2 | INTFC_DAC_ONELINE_2 | INTFC_AUX_I2S,
+    
 #else
     // slave does not work
     FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE,
         // 0xF4, // CS42448_Functional_Mode = slave mode, MCLK 25.6 MHz max
-#endif
 
-    // i2s, rjust, maybe ljust interfaces produce results but
-    // cannot be right
-    //
     // TDM does not work.
-    // That leaves oneline1 and 2
-    // Oneline2 sounds better
-    //
-    // It's unreliable .. upon reboot sometimes it sounds better, or worse
-    // but TDM never works
-    
-    INTFC_ADC_ONELINE_2 | INTFC_DAC_ONELINE_2 | INTFC_AUX_I2S,
-    
-    // old teensy setting:
-    // INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S, 
+    INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S, 
         // 0x76, // CS42448_Interface_Formats = TDM mode + aux I2s
+        
+#endif
 
     // the rest is unchanged from the original teensy settings
     
@@ -209,10 +307,9 @@ static const uint8_t default_config[] = {
     TRANS_ADC_SZC0 | TRANS_ADC_SZC1 | TRANS_DAC_SZC0 | TRANS_DAC_SZC1,
         // 0x63, // CS42448_Transition_Control = soft vol control
         
-    #ifdef __circle
-        0x00
+    #ifdef __circle__
+        0x00    // except that I unmute all here 
     #else
-        // muting all the channels proves that volume control is not working
         0xff  // CS42448_DAC_Channel_Mute = all outputs mute
     #endif
 };
@@ -224,28 +321,50 @@ bool AudioControlCS42448::enable(void)
 	LOG("enable()",0);
     
 	Wire.begin();
-	
-	#if 0
+
+	#if __circle__
        // __circle__ sanity check code to make sure I am talking i2c
         // I get all the proper defaults except the chip revision appears
         // to be 0x04 instead of documented 0x01
 		LOG("identifying chip",0);
 		LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
-		LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
-		LOG("0x03. Functional_Mode    = 0x%02x",read(CS42448_Functional_Mode));
-		LOG("0x04. Interface_Formats  = 0x%02x",read(CS42448_Interface_Formats));
-		LOG("0x05. ADC_Control        = 0x%02x",read(CS42448_ADC_Control));
-		LOG("0x06. Transition_Control = 0x%02x",read(CS42448_Transition_Control));
-		LOG("0x07. DAC_Channel_Mute   = 0x%02x",read(CS42448_DAC_Channel_Mute));
-		LOG("0x10. DAC_Channel_Invert = 0x%02x",read(CS42448_DAC_Channel_Invert));
-		LOG("0x17. ADC_Channel_Invert = 0x%02x",read(CS42448_ADC_Channel_Invert));
-		LOG("0x18. Status_Control     = 0x%02x",read(CS42448_Status_Control));
-		LOG("0x19. Status             = 0x%02x",read(CS42448_Status));
-		LOG("0x1A. Status_Mask        = 0x%02x",read(CS42448_Status_Mask));
-		LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
-        // test a read write operation
-        if (!write(CS42448_Power_Control,0x11)) return false;
-        assert(read(CS42448_Power_Control) == 0x11);
+        
+        #ifdef SHORT_START
+            return true;
+        #endif
+        
+        #if 1
+            LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
+            LOG("0x03. Functional_Mode    = 0x%02x",read(CS42448_Functional_Mode));
+            LOG("0x04. Interface_Formats  = 0x%02x",read(CS42448_Interface_Formats));
+            LOG("0x05. ADC_Control        = 0x%02x",read(CS42448_ADC_Control));
+            LOG("0x06. Transition_Control = 0x%02x",read(CS42448_Transition_Control));
+            LOG("0x07. DAC_Channel_Mute   = 0x%02x",read(CS42448_DAC_Channel_Mute));
+            LOG("0x10. DAC_Channel_Invert = 0x%02x",read(CS42448_DAC_Channel_Invert));
+            LOG("0x17. ADC_Channel_Invert = 0x%02x",read(CS42448_ADC_Channel_Invert));
+            LOG("0x18. Status_Control     = 0x%02x",read(CS42448_Status_Control));
+            LOG("0x19. Status             = 0x%02x",read(CS42448_Status));
+            LOG("0x1A. Status_Mask        = 0x%02x",read(CS42448_Status_Mask));
+            LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
+            
+            // raspian does not appear to set ANYTHING,
+            // though I can't quite figure out WHY it does not
+            // set TDM modes .. becuase it's default regmap is
+            // WRONG so it should .. it THINKS the default intfc
+            // is DAC_LJUST | ADC_TDM ... and I THINK it is being
+            // set to TDM/TDM but I cannot see any i2c traffic that
+            // indicates it is actually happening ... even for 10 seconds.
+            // so
+            //
+            //    return true;
+            //
+            // here *should* act the same as raspian, though it, of
+            // course doesn't.
+        
+            // test a read write operation
+            if (!write(CS42448_Power_Control,0x11)) return false;
+            assert(read(CS42448_Power_Control) == 0x11);
+        #endif
 	#endif
 	
 	if (!write(CS42448_Power_Control, 0xFF)) return false; // power down
@@ -253,11 +372,11 @@ bool AudioControlCS42448::enable(void)
 
     if (!write(CS42448_Functional_Mode, default_config, sizeof(default_config))) return false;
     delay(100);
-    
+
 	if (!write(CS42448_Power_Control, 0)) return false; // power up
     delay(500);
     
-	#if 0   // def __circle__
+	#if 1   // def __circle__
 		LOG("cs42448 settings",0);
 		LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
 		LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
@@ -274,7 +393,7 @@ bool AudioControlCS42448::enable(void)
 		LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
         delay(200);
 	#endif
-
+    
 	return true;
 }
 
@@ -328,14 +447,25 @@ bool AudioControlCS42448::write(uint32_t address, uint32_t data)
 	Wire.write(address);
 	Wire.write(data);
 	if (Wire.endTransmission() == 0) return true;
+    CTimer::Get()->usDelay(50);
+    
 	return false;
 }
 
 
-bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len)
+bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len, bool auto_inc)
 {
 	Wire.beginTransmission(i2c_addr);
-	Wire.write(address | 0x80);
+    
+    if (auto_inc)
+    {
+        Wire.write(address | 0x80); // 0x80 = auto increment bit
+    }
+    else
+    {
+        Wire.write(address); // he incorrectly does not set increment bit
+    }
+    
 	const uint8_t *p = (const uint8_t *)data;
 	const uint8_t *end = p + len;
 	while (p < end)
@@ -346,6 +476,7 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
 	if (Wire.endTransmission() == 0) return true;
 	return false;
 }
+
 
 
 #ifdef __circle__
@@ -386,7 +517,7 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
         
         LOG("reset()",0);
         octo_reset->Write(1);
-        delay(200);
+        delay(1000);
         octo_reset->Write(0);
         delay(200);
         octo_reset->Write(1);

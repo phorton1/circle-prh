@@ -34,6 +34,7 @@
     #define AUDIO_INJECTOR_OCTO 
         // The only cs42448 device I have is the Audio Injector Octo
         // It uses an additional 5 gpio pins for reset and rate setting.
+	#define SHORT_START
 #endif
 
 
@@ -76,6 +77,9 @@ public:
 		void setSampleRate(u32 rate);
 			// called each time the device is started or stopped
 			// call with 0 to stop, or with sample rate (i.e. 44100)
+		#ifdef SHORT_START
+		    bool shortStart();
+		#endif
 	#endif
 		
 private:
@@ -96,7 +100,7 @@ private:
 		return roundf(log10f(level) * 40.0);
 	}
 	bool write(uint32_t address, uint32_t data);
-	bool write(uint32_t address, const void *data, uint32_t len);
+	bool write(uint32_t address, const void *data, uint32_t len, bool auto_inc=true);
 
 	#ifdef __circle__
 		u8 read(u8 address);

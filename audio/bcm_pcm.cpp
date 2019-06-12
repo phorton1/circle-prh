@@ -26,6 +26,11 @@
 #include <circle/logger.h>
 #include <circle/machineinfo.h>
 
+#include "control_cs42448.h"
+extern AudioControlCS42448 *pControl;
+
+
+
 
 #define OPTIMIZED_IRQS	0
 	// removes uncessary asserts and register accesses
@@ -78,7 +83,7 @@
 
 
 #if TEST_ROUTE_IN_TO_OUT
-	u32 *test_buffer[2];
+	uint32_t *test_buffer[2];
 	u8  *test_alloc[2];
 #endif
 
@@ -590,17 +595,20 @@ void BCM_PCM::initFrame()
 	CTimer::Get()->usDelay(50);
 	write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_EN);
 	CTimer::Get()->usDelay(10);
-	if (m_inISR)
-	{
-		write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_RXON);
-		CTimer::Get()->usDelay(10);
-	}
-	if (m_outISR)
-	{
-		write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_TXON);
-		CTimer::Get()->usDelay(10);
-	}
-
+	
+	#if 0 // trying at end of "start()"
+		if (m_inISR)
+		{
+			write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_RXON);
+			CTimer::Get()->usDelay(10);
+		}
+		if (m_outISR)
+		{
+			write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_TXON);
+			CTimer::Get()->usDelay(10);
+		}
+	#endif
+	
 	PeripheralExit();
 	PCM_LOG("initFrame() finished",0);
 	
@@ -703,7 +711,7 @@ void BCM_PCM::start()
 	PeripheralEntry();
 	write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_DMAEN);
 	PeripheralExit();
-	
+
 	// start DMA
 	
 	PeripheralEntry();
@@ -735,8 +743,31 @@ void BCM_PCM::start()
 
 	PeripheralExit();
 
-	// we are running ..
 
+	// added last minute "trigger" code
+	// start the clock
+	
+	#ifdef SHORT_START
+		pControl->shortStart();
+	#else
+		pControl->setSampleRate(m_SAMPLE_RATE);
+	#endif
+	
+
+	if (m_inISR)
+	{
+		write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_RXON);
+		CTimer::Get()->usDelay(10);
+	}
+	if (m_outISR)
+	{
+		write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_TXON);
+		CTimer::Get()->usDelay(10);
+	}
+
+	
+	// we are running ..
+	
 	m_state = bcmSoundRunning;
 	
 }
@@ -810,6 +841,19 @@ void BCM_PCM::updateOutput(bool cold)
 				assert(m_outISR);
 			#endif
 			(*m_outISR)();
+		#endif
+	}
+	else
+	{
+		memset(m_outBuffer[m_outToggle],0,RAW_AUDIO_BLOCK_BYTES);
+		#if 1
+			u32 *p = (u32 *) m_outBuffer[m_outToggle];
+			for (u32 i=0; i<AUDIO_BLOCK_SAMPLES; i++)
+			{
+				*p++ = 0x5555;
+				*p++ = (i<4) ? 1: 0x7fff;
+				p += m_NUM_CHANNELS-2;
+			}
 		#endif
 	}
 	CleanAndInvalidateDataCacheRange((uintptr) m_outBuffer[m_outToggle], RAW_AUDIO_BLOCK_BYTES);

@@ -30,7 +30,7 @@
 
     AudioOutputTDM output;
     AudioControlCS42448 control;
-
+    AudioControlCS42448 *pControl;
 #else
 
     #define I2S_MASTER   1
@@ -59,7 +59,7 @@
     
     AudioConnection  c0(input, 0, output, 0);
 
-    #if 0    
+    #if 1    
         AudioConnection  c1(input, 0, output, 1);
         AudioConnection  c2(input, 0, output, 2);
         AudioConnection  c3(input, 0, output, 3);
@@ -98,6 +98,7 @@ void setup()
     // retain the simplicity of static declarations.
     
     #if USE_CS42448
+        pControl = &control;
         control.reset();    // the reset must be done before enable
     #endif
     
@@ -111,22 +112,28 @@ void setup()
     // AudioMemory() not only allocates the memory, but starts the
     // devices.
     
-    control.setSampleRate(44100);
+    // control.setSampleRate(44100);
         // this needs to be done as soon after bcm_pcm::start() as
         // possible for reproducable frame synchronization, as
         // it starts the clocks that trigger the DMAs that were
         // just setup in "AudioMemory()" (bcm_pcm::start())
         
     #if USE_CS42448
-        control.volume(1.0);
-        // individual channels not implemented yet
-        // control.volume(1,1.0);
-        // control.volume(2,1.0);
-        // control.volume(3,1.0);
-        // control.volume(4,1.0);
-        // control.volume(5,1.0);
-        // control.volume(6,1.0);
-        // control.volume(7,1.0);
+        #if 0
+            control.volume(1.0);
+
+            // control.inputLevel(1,1.0);
+            // control.inputLevel(2,1.0);
+
+            // individual channels not implemented yet
+            // control.volume(1,1.0);
+            // control.volume(2,1.0);
+            // control.volume(3,1.0);
+            // control.volume(4,1.0);
+            // control.volume(5,1.0);
+            // control.volume(6,1.0);
+            // control.volume(7,1.0);
+        #endif
     #else
         control.volume(0.0);
             // we'll toggle it on and off in loop()

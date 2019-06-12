@@ -8,6 +8,7 @@
     AudioInputTDM input;
     AudioOutputTDM output;
     AudioControlCS42448 control;
+    AudioControlCS42448 *pControl;
 
 #else
 
@@ -39,6 +40,11 @@ void setup()
 {
     printf("02-StereoPassThru::setup()\n");
 
+    #if USE_CS42448
+        pControl = &control;
+        control.reset();    // the reset must be done before enable
+    #endif
+    
     AudioMemory(80);
     
     control.enable();
