@@ -34,7 +34,7 @@
     #define AUDIO_INJECTOR_OCTO 
         // The only cs42448 device I have is the Audio Injector Octo
         // It uses an additional 5 gpio pins for reset and rate setting.
-	#define SHORT_START
+	// #define SHORT_START
 #endif
 
 

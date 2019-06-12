@@ -31,7 +31,7 @@
 
 
 AudioConnection  c0(input, 0, output, 0);
-AudioConnection  c1(input, 1, output, 1);
+AudioConnection  c1(input, 0, output, 1);
 
 
 
@@ -44,18 +44,21 @@ void setup()
         pControl = &control;
         control.reset();    // the reset must be done before enable
     #endif
+
+    control.enable();
     
     AudioMemory(80);
     
-    control.enable();
-    control.volume(1.0);
-    
     #if USE_CS42448
-        control.volume(1,1.0);
-        control.volume(2,1.0);
-        control.inputLevel(1,1.0);
-        control.inputLevel(2,1.0);
+        #if 0
+            control.volume(1.0);
+            control.volume(1,1.0);
+            control.volume(2,1.0);
+            control.inputLevel(1,1.0);
+            control.inputLevel(2,1.0);
+        #endif
     #else
+        control.volume(1.0);
         control.inputSelect(AUDIO_INPUT_LINEIN);
         control.inputLevel(1.0);
     #endif

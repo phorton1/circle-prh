@@ -59,7 +59,7 @@
     
     AudioConnection  c0(input, 0, output, 0);
 
-    #if 1    
+    #if 0    
         AudioConnection  c1(input, 0, output, 1);
         AudioConnection  c2(input, 0, output, 2);
         AudioConnection  c3(input, 0, output, 3);

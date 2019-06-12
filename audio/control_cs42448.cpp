@@ -209,6 +209,7 @@
         
         // and the functional mode with a 2ms delay
         // ITS FUCKING WORKING!!
+        // IT REQUIRED FM_MCLK_4_TO_51_MHZ below
         
         if (!write(CS42448_Functional_Mode,         // 0x03
             FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_4_TO_51_MHZ))  // 0xF8
@@ -265,7 +266,7 @@ static const uint8_t default_config[] = {
     //          INTFC_DAC_RJUST16   = 0x18
     //      adc_control     0x63
     
-#if 1
+#if 0
 
     // Slave does not work:
     // FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE,
@@ -290,7 +291,7 @@ static const uint8_t default_config[] = {
     
 #else
     // slave does not work
-    FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE,
+    FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_4_TO_51_MHZ,
         // 0xF4, // CS42448_Functional_Mode = slave mode, MCLK 25.6 MHz max
 
     // TDM does not work.
