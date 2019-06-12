@@ -221,9 +221,11 @@ static const uint8_t default_config[] = {
 
 bool AudioControlCS42448::enable(void)
 {
+	LOG("enable()",0);
+    
 	Wire.begin();
 	
-	#if 1
+	#if 0
        // __circle__ sanity check code to make sure I am talking i2c
         // I get all the proper defaults except the chip revision appears
         // to be 0x04 instead of documented 0x01
@@ -255,7 +257,7 @@ bool AudioControlCS42448::enable(void)
 	if (!write(CS42448_Power_Control, 0)) return false; // power up
     delay(500);
     
-	#if 1   // def __circle__
+	#if 0   // def __circle__
 		LOG("cs42448 settings",0);
 		LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
 		LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
@@ -272,7 +274,7 @@ bool AudioControlCS42448::enable(void)
 		LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
         delay(200);
 	#endif
-    
+
 	return true;
 }
 
@@ -321,7 +323,7 @@ bool AudioControlCS42448::inputLevelInteger(int chnnel, int32_t n)
 
 bool AudioControlCS42448::write(uint32_t address, uint32_t data)
 {
-    printf("write_reg(0x%02x,0x%02x)\n",address,data);
+    // printf("write_reg(0x%02x,0x%02x)\n",address,data);
 	Wire.beginTransmission(i2c_addr);
 	Wire.write(address);
 	Wire.write(data);
@@ -338,7 +340,7 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
 	const uint8_t *end = p + len;
 	while (p < end)
     {
-        printf("write_bulk(0x%02x,0x%02x)\n",address++,*p);
+        // printf("write_bulk(0x%02x,0x%02x)\n",address++,*p);
 		Wire.write(*p++);
 	}
 	if (Wire.endTransmission() == 0) return true;
@@ -383,14 +385,11 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
         }
         
         LOG("reset()",0);
-        // setSampleRate(0);
-        // delay(200);
         octo_reset->Write(1);
-        delay(500);
+        delay(200);
         octo_reset->Write(0);
-        delay(500);
+        delay(200);
         octo_reset->Write(1);
-        delay(500);
     }
     
     
