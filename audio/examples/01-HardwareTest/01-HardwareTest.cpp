@@ -7,8 +7,8 @@
 #define USE_CS42448  1
 
 #if USE_CS42448
-    #define USE_MODULATION 1
-        // distinctive sound helps with channel debugging
+    #define USE_MODULATION 0
+    #define USE_MUSICAL_SCALE 1
 #else
     #define USE_MODULATION 0
 #endif
@@ -19,6 +19,15 @@
     AudioSynthWaveformSine modulate;
     AudioSynthWaveformSineModulated input;
     AudioConnection  cc(modulate, 0, input, 0);
+#elif USE_MUSICAL_SCALE
+    AudioSynthWaveformSine input0;
+    AudioSynthWaveformSine input1;
+    AudioSynthWaveformSine input2;
+    AudioSynthWaveformSine input3;
+    AudioSynthWaveformSine input4;
+    AudioSynthWaveformSine input5;
+    AudioSynthWaveformSine input6;
+    AudioSynthWaveformSine input7;
 #else
     AudioSynthWaveformSine input;
 #endif
@@ -45,29 +54,26 @@
 #endif
 
 
-#if USE_CS42448
+#if USE_MUSICAL_SCALE
+    AudioConnection  c0(input0, 0, output, 0);
+    AudioConnection  c1(input1, 0, output, 1);
+    AudioConnection  c2(input2, 0, output, 2);
+    AudioConnection  c3(input3, 0, output, 3);
+    AudioConnection  c4(input4, 0, output, 4);
+    AudioConnection  c5(input5, 0, output, 5);
+    AudioConnection  c6(input6, 0, output, 6);
+    AudioConnection  c7(input7, 0, output, 7);
 
-    // At this point I can fairly reliably get noise out of White#1
-    // for output 0, and occasionally get the sound on reboots
-    
-    // I think the interleaving is 0,4,  1,5,  2,6,  3,7
-    // where 0=white #1 and 1=red #1
-    
-    // as when I can see the signal crossing the FCLK and it shows
-    // up in paairs that are always next to each other above (i.e. 4-1
-    // or 1-5)
-    
-    AudioConnection  c0(input, 0, output, 0);
+#elif USE_CS42448
 
-    #if 0    
-        AudioConnection  c1(input, 0, output, 1);
-        AudioConnection  c2(input, 0, output, 2);
-        AudioConnection  c3(input, 0, output, 3);
-        AudioConnection  c4(input, 0, output, 4);
-        AudioConnection  c5(input, 0, output, 5);
-        AudioConnection  c6(input, 0, output, 6);
-        AudioConnection  c7(input, 0, output, 7);
-    #endif
+    AudioConnection  c0(input, 0, output, 0);    // white 1
+    AudioConnection  c1(input, 0, output, 1);    // red   2
+    // AudioConnection  c2(input, 0, output, 2);    // white 2  
+    // AudioConnection  c3(input, 0, output, 3);    // red   3
+    AudioConnection  c4(input, 0, output, 4);    // white 3
+    AudioConnection  c5(input, 0, output, 5);    // red   4
+    // AudioConnection  c6(input, 0, output, 6);    // white 4
+    // AudioConnection  c7(input, 0, output, 7);    // red   1
     
 #else
     AudioConnection  c0(input, 0, output, 0);
@@ -86,8 +92,19 @@ void setup()
         modulate.amplitude(0.50);
     #endif
     
-    input.frequency(440.0);
-
+    #if USE_MUSICAL_SCALE
+        input0.frequency(261.63);
+        input1.frequency(293.66);
+        input2.frequency(329.63);
+        input3.frequency(349.23);
+        input4.frequency(392.00);
+        input5.frequency(440.0);
+        input6.frequency(493.88);
+        input7.frequency(523.25);
+    #else
+        input.frequency(440.0);
+    #endif
+    
     // This order of operations is specific to the Octo
     // There is no "normal" way to do this, we are kludging
     // the static initialization to setup the bcm_pcm and
