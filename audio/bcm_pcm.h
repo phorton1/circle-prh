@@ -10,6 +10,11 @@
 #include <circle/dmachannel.h>
 #include "AudioStream.h"
 
+#define BCM_KNOWS_OCTO  0
+	// vestigial define for experimental code
+	// calls setSampleRate() from start()
+	// if not, you must call setSampleRate() after start
+	
 
 // Teensy definition:
 // AUDIO_BLOCK_SAMPLES  128

@@ -26,9 +26,14 @@
 #include <circle/logger.h>
 #include <circle/machineinfo.h>
 
-#include "control_cs42448.h"
-extern AudioControlCS42448 *pControl;
 
+
+
+#if BCM_KNOWS_OCTO
+	// hopefully vestigial code
+	#include "control_cs42448.h"
+	extern AudioControlCS42448 *pControl;
+#endif
 
 
 
@@ -460,10 +465,12 @@ void BCM_PCM::initDMA(
 
 	// Set output specific Transfer Information bits and pointers to IO
 
+	u8 nBurstLength = 8;
 	if (output)
 	{
-		tInfo |=
-			(DREQSourcePCMTX << TI_PERMAP_SHIFT)
+		tInfo |= 0
+			| (DREQSourcePCMTX << TI_PERMAP_SHIFT)
+			| (nBurstLength << TI_BURST_LENGTH_SHIFT)
 			| TI_SRC_WIDTH
 			| TI_SRC_INC 
 			| TI_DEST_DREQ;
@@ -479,8 +486,9 @@ void BCM_PCM::initDMA(
 	}
 	else	// Set for input (bo is zero)
 	{
-		tInfo |=
-			(DREQSourcePCMRX << TI_PERMAP_SHIFT)
+		tInfo |= 0
+			| (DREQSourcePCMRX << TI_PERMAP_SHIFT)
+			| (nBurstLength << TI_BURST_LENGTH_SHIFT)
 			| TI_DEST_WIDTH
 			| TI_DEST_INC
 			| TI_SRC_DREQ;	// DMA gated by PCM RX signal
@@ -528,15 +536,18 @@ void BCM_PCM::initFrame()
 	
 	// PRH - NOTE: I HAD TO CHANGE channel 2 width to be
 	// (m_CHANNEL_WIDTH+2) << TXC_A_CH2POS__SHIFT for rpi
-	// master to wm8731 ...
+	// master to wm8731 ... and it appears to be louder
+	// with the octo at 0,32 ... so different implementations
+	// of i2s devices may have different requirements and..
+	// I suspect the same with swapping the L$ clock sense.
 
 	u32 reg_val =
 		TXC_A_CH1EN									// Enable channel 1
-		| (1 << TXC_A_CH1POS__SHIFT)				// The channel data starts on first (not 0th) BCLK of the frame
+		| (0 << TXC_A_CH1POS__SHIFT)				// The channel data starts on first (not 0th) BCLK of the frame
 		| (set_extended_bit ? TXC_A_CH1WEX : 0) 	// Set the "extended width" bit (if width is 16+)
 		| (use_width << TXC_A_CH1WID__SHIFT)		// Set the low 4 channel width bits
 		| TXC_A_CH2EN								// Same for channel 2 
-		| ((m_CHANNEL_WIDTH+2) << TXC_A_CH2POS__SHIFT)		// 2 = skip another bit in the 2nd half frame as well
+		| ((m_CHANNEL_WIDTH + 0) << TXC_A_CH2POS__SHIFT)		// 2 = skip another bit in the 2nd half frame as well
 		| (set_extended_bit ? TXC_A_CH2WEX : 0)
 		| (use_width << TXC_A_CH2WID__SHIFT);
 
@@ -548,16 +559,22 @@ void BCM_PCM::initFrame()
 	// set the PCM_MODE_A register
 
 	u32 pcm_mode = 0;
-	pcm_mode |= MODE_A_CLKI;			// Invert the BCLK signal sense
+	// pcm_mode |= MODE_A_CLKI;			// Invert the BCLK signal sense
+		// octo appears to work with either setting of this bit
 	
+	// FCLK invert
 	// had to comment out to get rpi master working with wm3871
-	// pcm_mode |= MODE_A_FSI;				// Frame Sync Invert
+	// but it must be set to get correct channel mapping on octo
+
+	pcm_mode |= MODE_A_FSI;				// Frame Sync Invert
 	
 	
 	if (m_as_slave)
 	{
 		pcm_mode |= MODE_A_CLKM;	// BCLK is an input
 		pcm_mode |= MODE_A_FSM;		// FCLK is an input
+		pcm_mode |= 1 << MODE_A_FSLEN__SHIFT;
+		pcm_mode |= ((2 * m_CHANNEL_WIDTH)-1) << MODE_A_FLEN__SHIFT;
 	}
 
 	#if 0
@@ -744,13 +761,17 @@ void BCM_PCM::start()
 	PeripheralExit();
 
 
-	// added last minute "trigger" code
-	// start the clock
-	
-	#ifdef SHORT_START
-		pControl->shortStart();
-	#else
-		pControl->setSampleRate(m_SAMPLE_RATE);
+	#if BCM_KNOWS_OCTO
+		// If the BCM knows about the OCTO, we call
+		// setSampleRate() here to start the OCTO clock
+		
+		// #ifdef SHORT_START
+		// 	pControl->shortStart();
+		//  #else
+		
+			pControl->setSampleRate(m_SAMPLE_RATE);
+			
+		//  #endif
 	#endif
 	
 
@@ -908,10 +929,11 @@ void BCM_PCM::audioInIRQ(void)
 	#if INCLUDE_ACTIVITY_LEDS		
 		static u32 rx_count = 0;
 		rx_count++;
-		if (rx_count > 16)		// about 20 times a second
+		if (rx_count > 32)
+			// about 10 times a second at 44.1khz with 128 sized buffers
 		{
 			rx_count = 0;
-			// Jm_RX_ACTIVE.Invert();
+			m_RX_ACTIVE.Invert();
 		}
 	#endif
 
@@ -996,7 +1018,7 @@ void BCM_PCM::audioOutIRQ(void)
 	#if INCLUDE_ACTIVITY_LEDS		
 		static u32 tx_count = 0;
 		tx_count++;
-		if (tx_count > 16)		// about 20 times a second
+		if (tx_count > 32)		// about 20 times a second
 		{
 			tx_count = 0;
 			m_TX_ACTIVE.Invert();

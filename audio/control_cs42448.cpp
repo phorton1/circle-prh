@@ -137,8 +137,11 @@
 #define TRANS_DAC_SNGVOL                (1 << 7)
 
     
-#ifdef SHORT_START
+#if  0      
 
+    // This code more or less emulates exactly the i2c signals
+    // and startup sequence sent by Raspian when starting an MP3
+    // the first time.
 
     u8 raspian_default_regmap[] = {
         0xFF,   // Power Control 
@@ -177,26 +180,22 @@
 
     u8 two_zeros[] = {0,0};
 
-    bool AudioControlCS42448::shortStart()
+    bool AudioControlCS42448::raspianStartup()
     {
-        LOG("shortStart()",0);
+        LOG("raspianStartup()",0);
         
-        // This method attempt to emulate exactly the i2c signals
-        // sent when starting an MP3 the first time on Raspian.
-        
-        // It appears as if he starts by sending the default regmap,
-        // with power control and DAC mute set to 0xFF, without setting
-        // the increment bit.  By spec this is undefined.
+        // Raspian starts by sending the default regmap, incorrect
+        // as it is, with power control and DAC mute set to 0xFF,
+        // without setting the increment bit. By spec this is undefined.
         
         if (!write(CS42448_Power_Control,raspian_default_regmap,sizeof(raspian_default_regmap),false))
             return false;
         CTimer::Get()->usDelay(70);
 
-        // Then, for some reason, it looks like it outputs two bytes of zeros
-        // for the status mask, although it does not set
-        // the increment bit
+        // Then it sends outputs two bytes of zeros for the status mask,
+        // also without setting the increment bit
         
-        if (!write(CS42448_Status_Mask, two_zeros, 2,false))      // 0x1a
+        if (!write(CS42448_Status_Mask, two_zeros, 2,false)) // 0x1a
             return false;
         delay(2);
 
@@ -208,10 +207,8 @@
         CTimer::Get()->usDelay(50);
         
         // and the functional mode with a 2ms delay
-        // ITS FUCKING WORKING!!
-        // IT REQUIRED FM_MCLK_4_TO_51_MHZ below
         
-        if (!write(CS42448_Functional_Mode,         // 0x03
+        if (!write(CS42448_Functional_Mode,                 // 0x03
             FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_4_TO_51_MHZ))  // 0xF8
            return false;
         delay(2);
@@ -240,78 +237,40 @@
         // then approximately 60ms later the clock is started
 
         delay(60);        
-        if (1)
-        {
-            octo_mult[2]->Write(1);
-        }
-        else
-        {
-            setSampleRate(44100);
-        }
+        octo_mult[2]->Write(1);
+        // setSampleRate(44100);
+        
         return true;
     }
-#endif
+#endif  // 0 = Raspian startp emulator
 
 
-static const uint8_t default_config[] = {
-    // by a bug it started working
-    // writing:
-    //      functional mode 0x76
-    //          FM_MCLK_2_TO_25_MHZ = 0x04 .. 2 is a reserved value
-    //          FM_ADC_SPEED_AUTO_SLAVE  = 0x30
-    //          FM_DAC_SPEED_DOUBLE = 0x40
-    //
-    //      interface       0x1c
-    //          INTFC_ADC_ONELINE_1 = 0x04
-    //          INTFC_DAC_RJUST16   = 0x18
-    //      adc_control     0x63
-    
-#if 0
+//------------------------------------------------------
+// actual code
+//------------------------------------------------------
 
-    // Slave does not work:
-    // FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE,
-    //
-    // single or double sort of work
-    // quad does not work:
-    //    
-    // FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_SINGLE | FM_DAC_SPEED_SINGLE,
-    FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_DOUBLE | FM_DAC_SPEED_DOUBLE,
-    // FM_MCLK_2_TO_25_MHZ | FM_ADC_SPEED_QUAD   | FM_DAC_SPEED_QUAD,
-
-    // TDM does not fucking work.
-    // INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S, 
-    //
-    // i2s, rjust, maybe ljust interfaces produce noise but cannot
-    // be correct since the codec MUST be in a multi-channel mode ..
-    //
-    // That leaves oneline1 and 2
-    // Oneline2 sounds better
-    //    
-    INTFC_ADC_ONELINE_2 | INTFC_DAC_ONELINE_2 | INTFC_AUX_I2S,
-    
+static const uint8_t default_config[] =
+{
+#ifdef __circle__
+    FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_4_TO_51_MHZ,
+        // CS42448_Functional_Mode = 0xF9 = slave mode, MCLK 51.2 MHz max
 #else
     // slave does not work
-    FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_4_TO_51_MHZ,
-        // 0xF4, // CS42448_Functional_Mode = slave mode, MCLK 25.6 MHz max
-
-    // TDM does not work.
-    INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S, 
-        // 0x76, // CS42448_Interface_Formats = TDM mode + aux I2s
-        
+    FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_2_TO_25_MHZ,
+        // CS42448_Functional_Mode = 0xF6 = slave mode, MCLK 25.6 MHz max
 #endif
-
-    // the rest is unchanged from the original teensy settings
-    
-    ADCC_ADC3_SINGLE | ADCC_ADC2_SINGLE | ADCC_ADC1_SINGLE,
-        // 0x1C, // CS42448_ADC_Control_DAC_DeEmphasis = single ended ADC
-
-    TRANS_ADC_SZC0 | TRANS_ADC_SZC1 | TRANS_DAC_SZC0 | TRANS_DAC_SZC1,
-        // 0x63, // CS42448_Transition_Control = soft vol control
         
-    #ifdef __circle__
-        0x00    // except that I unmute all here 
+    INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S, 
+        // CS42448_Interface_Formats = T0x76 = DM mode + aux I2s
+    ADCC_ADC3_SINGLE | ADCC_ADC2_SINGLE | ADCC_ADC1_SINGLE,
+        // CS42448_ADC_Control_DAC_DeEmphasis = 0x1C = single ended ADC
+    TRANS_ADC_SZC0 | TRANS_ADC_SZC1 | TRANS_DAC_SZC0 | TRANS_DAC_SZC1,
+        // CS42448_Transition_Control = 0x63 = soft vol control
+
+    #if 0
+        0x00    // unmute all for easier testing
     #else
-        0xff  // CS42448_DAC_Channel_Mute = all outputs mute
+        0xff    // CS42448_DAC_Channel_Mute = 0xff = all outputs mute
     #endif
 };
 
@@ -320,21 +279,21 @@ static const uint8_t default_config[] = {
 bool AudioControlCS42448::enable(void)
 {
 	LOG("enable()",0);
+
+    #ifdef __circle__
+        reset();
+    #endif
     
 	Wire.begin();
 
 	#if __circle__
-       // __circle__ sanity check code to make sure I am talking i2c
-        // I get all the proper defaults except the chip revision appears
-        // to be 0x04 instead of documented 0x01
-		LOG("identifying chip",0);
+    
+        // __circle__ sanity check code to make sure I am talking i2c
+        // My chip revision is 0x04 instead of documented 0x01
+
 		LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
         
-        #ifdef SHORT_START
-            return true;
-        #endif
-        
-        #if 1
+        #if 0
             LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
             LOG("0x03. Functional_Mode    = 0x%02x",read(CS42448_Functional_Mode));
             LOG("0x04. Interface_Formats  = 0x%02x",read(CS42448_Interface_Formats));
@@ -347,21 +306,6 @@ bool AudioControlCS42448::enable(void)
             LOG("0x19. Status             = 0x%02x",read(CS42448_Status));
             LOG("0x1A. Status_Mask        = 0x%02x",read(CS42448_Status_Mask));
             LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
-            
-            // raspian does not appear to set ANYTHING,
-            // though I can't quite figure out WHY it does not
-            // set TDM modes .. becuase it's default regmap is
-            // WRONG so it should .. it THINKS the default intfc
-            // is DAC_LJUST | ADC_TDM ... and I THINK it is being
-            // set to TDM/TDM but I cannot see any i2c traffic that
-            // indicates it is actually happening ... even for 10 seconds.
-            // so
-            //
-            //    return true;
-            //
-            // here *should* act the same as raspian, though it, of
-            // course doesn't.
-        
             // test a read write operation
             if (!write(CS42448_Power_Control,0x11)) return false;
             assert(read(CS42448_Power_Control) == 0x11);
@@ -377,7 +321,7 @@ bool AudioControlCS42448::enable(void)
 	if (!write(CS42448_Power_Control, 0)) return false; // power up
     delay(500);
     
-	#if 1   // def __circle__
+	#if 0   // def __circle__
 		LOG("cs42448 settings",0);
 		LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
 		LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
@@ -394,6 +338,18 @@ bool AudioControlCS42448::enable(void)
 		LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
         delay(200);
 	#endif
+    
+    #ifdef __circle__
+        // can't set the sample rate (start the clock) here.
+        // dunno why, but it does not work
+        //
+        //      setSampleRate(44100);
+        //
+        // This must be called after the the DMA is setup, i.e.
+        // after the AudioMemory() macro in the current implementation,
+        // soon after the starts the bcm_pcm i2s device, or more accurately
+        // in the bcm_pcm itself if BCM_KNOWS_OCTO
+    #endif
     
 	return true;
 }
@@ -413,7 +369,7 @@ bool AudioControlCS42448::volumeInteger(uint32_t n)
 bool AudioControlCS42448::volumeInteger(int channel, uint32_t n)
 {
     #ifdef __circle__
-        // was not implemented on teensy
+        assert(false);  // was not implemented on teensy
     #endif
 
 	return true;
@@ -423,7 +379,7 @@ bool AudioControlCS42448::volumeInteger(int channel, uint32_t n)
 bool AudioControlCS42448::inputLevelInteger(int32_t n)
 {
     #ifdef __circle__
-        // was not implemented on teensy
+        assert(false);  // was not implemented on teensy
     #endif
 
 
@@ -434,7 +390,7 @@ bool AudioControlCS42448::inputLevelInteger(int32_t n)
 bool AudioControlCS42448::inputLevelInteger(int chnnel, int32_t n)
 {
     #ifdef __circle__
-        // was not implemented on teensy
+        assert(false);  // was not implemented on teensy
     #endif
 
 	return true;
