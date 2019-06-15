@@ -1,22 +1,41 @@
-#include <Arduino.h>
-    // Arduino.h is not needed but it is fun to list it
-    // here as if it were a real arduino program :-)
-    
+
 #include <audio\Audio.h>
 
 // There is a funny twang every so often in FreeVerb,
 // maybe having to do with integer overflows.
 
-#define I2S_MASTER      0
-#define USE_MIXER       1
+#define USE_MIXER       0
 #define USE_FREEVERB    0
-    
-    
-#if I2S_MASTER
-    AudioInputI2S input;
+
+
+#define USE_CS42448  1
+
+#if USE_CS42448
+
+    AudioInputTDM input;
+    AudioOutputTDM output;
+    AudioControlCS42448 control;
+    AudioControlCS42448 *pControl;
+
 #else
-    AudioInputI2Sslave input;
+
+    #define I2S_MASTER   1
+
+    // There seems to be some noise on the right channel
+    // with the rpi in master mode with the wm8731 
+    
+    #if I2S_MASTER
+        AudioInputI2S input;
+        AudioOutputI2S output;
+        AudioControlWM8731 control;
+    #else
+        AudioInputI2Sslave input;
+        AudioOutputI2Sslave output;
+        AudioControlWM8731master control;
+    #endif
+
 #endif
+
 
 #if USE_FREEVERB
     AudioEffectFreeverbStereo   reverb;
@@ -28,14 +47,6 @@
 #if USE_MIXER
     AudioMixer4 mixer1;
     AudioMixer4 mixer2;
-#endif
-
-#if I2S_MASTER
-    AudioOutputI2S output;
-    AudioControlWM8731 control;
-#else
-    AudioOutputI2Sslave output;
-    AudioControlWM8731master control;
 #endif
 
 
@@ -84,14 +95,22 @@ void setup()
         reverb1.reverbTime(0.8);
         reverb2.reverbTime(0.8);
     #endif
+
+    #if USE_CS42448
+        pControl = &control;
+        control.reset();    // the reset must be done before enable
+    #endif
     
-    AudioMemory(20);
-
     control.enable();
-    control.inputSelect(AUDIO_INPUT_LINEIN);
-    control.inputLevel(1.0);
-    control.volume(1.0);
+        
+    AudioMemory(100);
 
+    #if !USE_CS42448
+        control.inputSelect(AUDIO_INPUT_LINEIN);
+        control.inputLevel(1.0);
+        control.volume(1.0);
+    #endif
+        
     #if USE_MIXER
         mixer1.gain(0, 0.6);
         mixer1.gain(1, 0.35);
@@ -106,6 +125,7 @@ void setup()
 void loop()
 {
 }
+
 
 
 

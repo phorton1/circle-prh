@@ -35,7 +35,7 @@
 
 	#include "Arduino.h"
 	
-	#define AUDIO_BLOCK_SAMPLES  128
+	#define AUDIO_BLOCK_SAMPLES  128	//  32	64  128
 	#define AUDIO_SAMPLE_RATE_EXACT 44117.64706 
 
 #else	// !__circle__

@@ -266,6 +266,7 @@ void AudioOutputTDM::update(void)
 void AudioOutputTDM::config_tdm(void)
 {
 	#ifdef __circle__
+		// bcm_pcm.init(true,88200,16,8,32);
 		bcm_pcm.init(true,44100,16,8,32);
 			// slave at 44.1k with 16 bit samples,
 			// 8 channel TDM with 32 bit channel width
