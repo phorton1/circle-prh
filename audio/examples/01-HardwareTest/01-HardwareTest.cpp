@@ -85,7 +85,7 @@
 
 void setup()
 {
-    printf("01-HardwareTest::setup()\n");
+    printf("01-HardwareTest::setup() version 1.0\n");
     
     // initialize what you can before getting into the grunge.
     
