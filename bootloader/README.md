@@ -7,8 +7,6 @@ It is compiled within the Circle framework to allow it access to circle's standa
 
 Please see the source code in **kernel.h** and **kernel.cpp** for various compile flags you can change to change it's behavior.
 
-<br>
-
 History
 -------
 
@@ -24,10 +22,8 @@ So far, the iterations of rPi bare metal bootloaders has been
 		
 Although I used the Circle bootloader with TFTP as is (with only minor mods) for quite a while, since the rPi zero does not have an ethernet port, at some point I decided to go back through to dave welch's stuff (SREC) and ended up adding my own **binary protocol** which is documented in the source code.
 
-<br>
-
-Perl console.pm program
------------------------
+console.pm
+----------
 
 Although any serial console program (i.e. Putty) is compatible with this rPi bootloader (i.e. with XMODEM) at some point I decided also to write my own serial monitor program.   I am including a (denormalized) copy of this program in the source directory.  It normally lives, on my machine, in a folder **base/bat** which is in my **path** variable
 
@@ -42,7 +38,6 @@ The perl code also references a file **$registry_filename** = "/base/bat/console
 
 Once again, please see the source for **console.pm** for details on the binary protocol and usage scheme.
 
-<br>
 
 TeensyPi.ino
 ------------
@@ -53,7 +48,6 @@ I present TeensyPi, and the associated circuit that I use separately, as a Hacka
 
     http:://blah.blah
     
-<br>
     
 Previous Notes on the Circle Bootloader
 ---------------------------------------
