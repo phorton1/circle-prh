@@ -30,7 +30,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#define WRITE_KERNEL 		 0
+#define WRITE_KERNEL 		 1
 #define SHOW_ROOT_DIRECTORY  0
 
 #include "kernel.h"
@@ -536,7 +536,7 @@ boolean CKernel::Initialize(void)
 
 void CKernel::waitForUpload()
 {
-	#define REBOOT_TIME   15
+	#define REBOOT_TIME   3			// just enough time for my perl script to see it
 	#define TIME_SCALE    150		// this many ticks per second, really
 	
 	m_ActLED.Toggle();
