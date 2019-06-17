@@ -29,6 +29,7 @@
 #include "Wire.h"
 
 #ifdef __circle__
+    #include <audio/bcm_pcm.h>
 	#include <circle/logger.h>
 	#define log_name "wm8731"
 #else
@@ -50,6 +51,32 @@
 #define WM8731_REG_SAMPLING	8
 #define WM8731_REG_ACTIVE	9
 #define WM8731_REG_RESET	15
+
+
+
+#ifdef __circle__
+	AudioControlWM8731::AudioControlWM8731()
+	{
+		// the frame parameters for this were determined empirically.
+		// the rpi does better as a slave to the wm8731 than as a master
+		// 2,2 channel offsets is definitely non-standard and a kludge,
+		// but was required to get even nominally good sound as master.
+		// Everything looks correct on the logic analayzer, I'm not sure
+		// what is going on here.
+		
+		bcm_pcm.static_init(
+			false,			// bcm_pcm is master device
+			44100,          // sample_rate
+			16,             // sample_size
+			2,              // num_channels
+			32,             // channel_width
+			2,2,            // channel offsets 2,2 kludge required for master bcm_pcm
+			0,				// don't invert BCLK
+			1,              // do invert FCLK
+			0);             // no callback to start the clock
+	}                       
+#endif
+
 
 bool AudioControlWM8731::enable(void)
 {
@@ -136,7 +163,32 @@ bool AudioControlWM8731::inputSelect(int n)
 	return true;
 }
 
+
+
+
 /******************************************************************/
+
+#ifdef __circle__
+	AudioControlWM8731master::AudioControlWM8731master()
+	{
+		// the rpi as a slave (wm8731 as master) works better
+		// these are, to the best of my knowledge, the standard
+		// i2s frame settings ... 1 bit offsets without inverting
+		// clocks.
+		
+		bcm_pcm.static_init(
+			true,			// bcm_pcm is slave device
+			44100,          // sample_rate
+			16,             // sample_size
+			2,              // num_channels
+			32,             // channel_width
+			1,1,            // normal offset settings if the wm8731 is the master clock
+			0,				// don't invert BCLK
+			0,              // don't invert FCLK
+			0);             // no callback to start the clock		
+	}
+#endif
+
 
 
 bool AudioControlWM8731master::enable(void)

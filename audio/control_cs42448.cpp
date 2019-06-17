@@ -38,6 +38,7 @@
     #include <circle/timer.h>
     #include <circle/gpiopin.h>
     #include <circle/logger.h>
+    #include <audio/bcm_pcm.h>
     
     #define log_name "cm42448"
 
@@ -49,6 +50,7 @@
     
     CGPIOPin *octo_reset;
     CGPIOPin *octo_mult[4];
+    u32  g_sample_rate;
     
 #endif
 
@@ -136,118 +138,34 @@
 #define TRANS_DAC_SZC1                  (1 << 6)
 #define TRANS_DAC_SNGVOL                (1 << 7)
 
-    
-#if  0      
 
-    // This code more or less emulates exactly the i2c signals
-    // and startup sequence sent by Raspian when starting an MP3
-    // the first time.
+//------------------------------------------------------------------------
+// construction and initialization
+//------------------------------------------------------------------------
 
-    u8 raspian_default_regmap[] = {
-        0xFF,   // Power Control 
-        0xF0,   // Functional Mode 
-        0x46,   // Interface Formats 
-            // prh THIS DEFAULT IS WRONG
-            // 0x46 == DAC_DIF_LEFTJ | ADC_DIF_TDM | AUX_I2S
-            // The actual default is
-            // 0x36 = DAC_DIF_TDM | ADC_DIF_TDM
-        0x00,   // ADC Control & DAC De-Emphasis */
-        0x10,   // Transition Control */
-        0xFF,   // DAC Channel Mute
-            // he sends out 0xff for this
-            // although the actual default is
-            // 0x00,   
-        0x00,   // Volume Control AOUT1
-        0x00,   // Volume Control AOUT2
-        0x00,   // Volume Control AOUT3
-        0x00,   // Volume Control AOUT4
-        0x00,   // Volume Control AOUT5
-        0x00,   // Volume Control AOUT6
-        0x00,   // Volume Control AOUT7
-        0x00,   // Volume Control AOUT8
-        0x00,   // DAC Channel Invert
-        0x00,   // Volume Control AIN1
-        0x00,   // Volume Control AIN2
-        0x00,   // Volume Control AIN3
-        0x00,   // Volume Control AIN4
-        0x00,   // Volume Control AIN5
-        0x00,   // Volume Control AIN6
-        0x00,   // ADC Channel Invert 
-        0x00,   // Status Control
-        0x00,   // Status Mask 
-        0x00,   // MUTEC Pin Control 
-    };
-
-    u8 two_zeros[] = {0,0};
-
-    bool AudioControlCS42448::raspianStartup()
+#ifdef __circle__
+	AudioControlCS42448::AudioControlCS42448(void)
+		: i2c_addr(0x48), muted(true) 
     {
-        LOG("raspianStartup()",0);
+        g_sample_rate = 44100;
         
-        // Raspian starts by sending the default regmap, incorrect
-        // as it is, with power control and DAC mute set to 0xFF,
-        // without setting the increment bit. By spec this is undefined.
-        
-        if (!write(CS42448_Power_Control,raspian_default_regmap,sizeof(raspian_default_regmap),false))
-            return false;
-        CTimer::Get()->usDelay(70);
+		bcm_pcm.static_init(
+            true,               // bcm_pcm is slave device
+            g_sample_rate,      // sample_rate
+            16,                 // sample_size
+            8,                  // num_channels
+            32,                 // channel_width
+            0,0,                // channel offsets must be zero for Octo
+            0,                  // don't invert BCLK
+            1,                  // do invert FCLK
+            &startClock);       // callback to start the clock
 
-        // Then it sends outputs two bytes of zeros for the status mask,
-        // also without setting the increment bit
-        
-        if (!write(CS42448_Status_Mask, two_zeros, 2,false)) // 0x1a
-            return false;
-        delay(2);
-
-        // then it sets the interface formats with a 50us delay
-
-        if (!write(CS42448_Interface_Formats,               // 0x04
-            INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S)) // 0x76
-            return false;
-        CTimer::Get()->usDelay(50);
-        
-        // and the functional mode with a 2ms delay
-        
-        if (!write(CS42448_Functional_Mode,                 // 0x03
-            FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_4_TO_51_MHZ))  // 0xF8
-           return false;
-        delay(2);
-        
-        // then a bunch of 3 settings, starting with power down
-        // all but not the chip
-        
-        if (!write(CS42448_Power_Control, 0xfe))    // 0x02
-                return false; 
-            
-        // then another power E0, with a little extra delay
-        
-        if (!write(CS42448_Power_Control, 0xE0))    // 0x02
-                return false;
-        CTimer::Get()->usDelay(50);
-        
-        // followed by channel mute 0, a 200 us delay
-        // and a repeat
-        
-        if (!write(CS42448_DAC_Channel_Mute, 0x00)) // 0x07
-            return false;
-        CTimer::Get()->usDelay(200);
-        if (!write(CS42448_DAC_Channel_Mute, 0x00)) // 0x07
-            return false;
-
-        // then approximately 60ms later the clock is started
-
-        delay(60);        
-        octo_mult[2]->Write(1);
-        // setSampleRate(44100);
-        
-        return true;
+        // This is not true TDM, but, rather, an Octo specific I2s variant,
+        // synchronized by starting the clock correctly.
     }
-#endif  // 0 = Raspian startp emulator
-
-
-//------------------------------------------------------
-// actual code
-//------------------------------------------------------
+#endif
+    
+    
 
 static const uint8_t default_config[] =
 {
@@ -274,7 +192,7 @@ static const uint8_t default_config[] =
     #endif
 };
 
-
+            
 
 bool AudioControlCS42448::enable(void)
 {
@@ -286,7 +204,7 @@ bool AudioControlCS42448::enable(void)
     
 	Wire.begin();
 
-	#if __circle__
+	#ifdef __circle__
     
         // __circle__ sanity check code to make sure I am talking i2c
         // My chip revision is 0x04 instead of documented 0x01
@@ -321,7 +239,7 @@ bool AudioControlCS42448::enable(void)
 	if (!write(CS42448_Power_Control, 0)) return false; // power up
     delay(500);
     
-	#if 0   // def __circle__
+	#if 0   // #ifdef __circle__
 		LOG("cs42448 settings",0);
 		LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
 		LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
@@ -339,21 +257,13 @@ bool AudioControlCS42448::enable(void)
         delay(200);
 	#endif
     
-    #ifdef __circle__
-        // can't set the sample rate (start the clock) here.
-        // dunno why, but it does not work
-        //
-        //      setSampleRate(44100);
-        //
-        // This must be called after the the DMA is setup, i.e.
-        // after the AudioMemory() macro in the current implementation,
-        // soon after the starts the bcm_pcm i2s device, or more accurately
-        // in the bcm_pcm itself if BCM_KNOWS_OCTO
-    #endif
-    
-	return true;
+    return true;
 }
 
+
+//------------------------------
+// supported methods
+//------------------------------
 
 bool AudioControlCS42448::volumeInteger(uint32_t n)
 {
@@ -366,13 +276,18 @@ bool AudioControlCS42448::volumeInteger(uint32_t n)
 }
 
 
+
+
+//------------------------------
+// unsupported methods
+//------------------------------
+
 bool AudioControlCS42448::volumeInteger(int channel, uint32_t n)
 {
     #ifdef __circle__
         assert(false);  // was not implemented on teensy
     #endif
-
-	return true;
+    return true;
 }
 
 
@@ -381,8 +296,6 @@ bool AudioControlCS42448::inputLevelInteger(int32_t n)
     #ifdef __circle__
         assert(false);  // was not implemented on teensy
     #endif
-
-
 	return true;
 }
 
@@ -392,10 +305,13 @@ bool AudioControlCS42448::inputLevelInteger(int chnnel, int32_t n)
     #ifdef __circle__
         assert(false);  // was not implemented on teensy
     #endif
-
 	return true;
 }
 
+
+//------------------------------
+// low level utilities
+//------------------------------
 
 bool AudioControlCS42448::write(uint32_t address, uint32_t data)
 {
@@ -453,8 +369,15 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
 #endif
 
 
+
+//------------------------------
+// Octo specific GPIO 
+//------------------------------
+
 #ifdef AUDIO_INJECTOR_OCTO
     // __circle__ only at this time
+    
+    // static
     void AudioControlCS42448::reset()
     {
         if (!octo_reset)
@@ -481,13 +404,14 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
     }
     
     
-    void AudioControlCS42448::setSampleRate(u32 rate)
+    // static
+    void AudioControlCS42448::startClock()
     {
         u8 mult[4];
         memset(mult,0,4);
-        LOG("setSamnpleRate(%d)",rate);
+        LOG("setSamnpleRate(%d)",g_sample_rate);
     
-		switch (rate)
+		switch (g_sample_rate)
         {
             case 96000:
                 mult[3] = 1;

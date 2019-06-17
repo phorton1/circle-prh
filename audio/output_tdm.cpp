@@ -266,11 +266,9 @@ void AudioOutputTDM::update(void)
 void AudioOutputTDM::config_tdm(void)
 {
 	#ifdef __circle__
-		// bcm_pcm.init(true,88200,16,8,32);
-		bcm_pcm.init(true,44100,16,8,32);
-			// slave at 44.1k with 16 bit samples,
-			// 8 channel TDM with 32 bit channel width
 	
+		bcm_pcm.init();
+		
 	#else	// !__circle__	#else
 		SIM_SCGC6 |= SIM_SCGC6_I2S;
 		SIM_SCGC7 |= SIM_SCGC7_DMA;

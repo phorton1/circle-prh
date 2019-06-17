@@ -10,11 +10,6 @@
 #include <circle/dmachannel.h>
 #include "AudioStream.h"
 
-#define BCM_KNOWS_OCTO  0
-	// vestigial define for experimental code
-	// calls setSampleRate() from start()
-	// if not, you must call setSampleRate() after start
-	
 
 // Teensy definition:
 // AUDIO_BLOCK_SAMPLES  128
@@ -29,7 +24,7 @@
 // audio block buffer, in bytes, is AUDIO_BLOCK_SAMPLES * 2
 // = 256 bytes
 //
-// With i2s a block contains both the Left and Right channels
+// With i2s, a block contains both the Left and Right channels
 // with the data interleaved (LRLRLR). On the bcm283x, using dma,
 // the individual samples will be 32 bits wide, regardless of the
 // chosen is2s sample size or channel width. This is because the
@@ -54,7 +49,7 @@
 	// set to 1 to output flashing rx and tx leds on GPIO 23 and 24
 	
 
-typedef void audioIRQ();
+typedef void voidMethod();
 
 
 enum bcmSoundState
@@ -77,21 +72,43 @@ public:
 	BCM_PCM();
 	~BCM_PCM();
 
+	// STATIC INITIALIZATION METHODS
 	// these methods may be called statically by the individual
-	// teensy i2s input and output devices during construction.
-	// then init() and start() can be called by either device
-	// and it will cause both directions to be setup as needed.
+	// teensy i2s control and/or input and output devices during
+	// construction. Then init() and start() can be called by any
+	// device and everything should work as expected
 	
-	void setInISR(audioIRQ 	*in_isr)  { m_inISR = in_isr; }
-	void setOutISR(audioIRQ *out_isr) { m_outISR = out_isr; }
+	void setInISR(voidMethod  *in_isr)  { m_inISR = in_isr; }
+	void setOutISR(voidMethod *out_isr) { m_outISR = out_isr; }
+		// these are called by the input and output devices
+		
+	void static_init(
+		bool		as_slave,
+		u32   		sample_rate,
+		u8    		sample_size,
+		u8			num_channels,
+		u8    		channel_width,
+		u8			channel1_offset = 1,
+		u8			channel2_offset = 1,
+		u8			invert_bclk = 0,
+		u8          invert_fclk = 0,
+		voidMethod  *startClockMethod = 0)
+	{
+		m_as_slave = as_slave;		
+		m_SAMPLE_RATE = sample_rate;
+		m_SAMPLE_SIZE = sample_size;
+		m_NUM_CHANNELS = num_channels;
+		m_CHANNEL_WIDTH = channel_width;
+		m_CHANNEL1_OFFSET = channel1_offset;
+		m_CHANNEL2_OFFSET = channel1_offset;
+		m_INVERT_BCLK = invert_bclk;
+		m_INVERT_FCLK = invert_fclk;
+		m_startClock = startClockMethod;
+	}
 	
-	// by the time the teensy calls init(), we must know if the
-	// bcm_pcm will be used for one way or two way i2s, as
-	// there is only one combined setup for the pcm peripheral.
-	// If there is only one direction, only one isr will be set.
-	// If it is bi-directional, then both isr's will be set.
-	
-	// init() sets up the frame and DMA for the bcm PCM/I2S peripheral
+	// static_init() sets up the frame and DMA for the bcm PCM/I2S peripheral.
+	// It may be called by the AudioControl device or, if there is no AudioControl
+	// device, an AudioStream, as needed.
 	//
 	//     as_slave = whether the bcm_pcm (rpi) will act as the
 	//        master, or slave, in communicating with the other
@@ -153,19 +170,51 @@ public:
 	//        even allows for channel lengths less than the sample size
 	//        by stating that subsequent missing bits shall be set to 0.
 	//
+	//    channel1_offset & channel2_offset
+	//
+	//        How many BCLK cycles to skip at the start of a frame, and
+	//        upon the LR switch after channel_width BLCKS, respectively.
+	//        The default values for i2s are to skip one BCLK at the
+	//        the start of the frame, and one after the LR change, but
+	//        certain devices may require other fine tuning of the
+	//        channel offsets. For instance the Octo actually uses 0,0
+	//        grabbing bits on the 0th BCLK cycle.
+	//
+	//     invert_bclk and invert_fclk
+	//
+	//        The sense of the BCLK and FCLK signals can be reversed.
+	//        Needed for certain devices, these *should* not be needed
+	//        for correct i2c.
+	//
 	// Together these vsriables determine the RAW_AUDIO_BLOCK_SIZE, DMA setup
 	// and, if !as_slave, the BCLK frequency.
+	//
+	//    startClockMethod = a static void method to be called to start
+	//        the master clock. This method will be called from start()
+	//        after everything is ready, just before we turn on the DMA.
+	//        It is needed, for example, for the Octo, which must start
+	//        its clock at the right time in order to be synchronized.
 
-	void init(
-		bool		as_slave,
-		u32   		sample_rate,		// Fs == number of full samples per second
-		u8    		sample_size,
-		u8			num_channels,
-		u8    		channel_width);
 	
+	// DYNAMIC INITIALIZATION
+	//
+	// This call sets up the memory buffers, DMA control blocks,
+	// and does the basic initialization of the bcm pcm (i2s) device.
+	// It must be called AFTER the kernel is initialized and before start().
+	// It may be called more than once, but will only really start things
+	// on the first call, so it can be called from AudioStream begin()
+	// methods.
+	// 
+	// By the time init() is called we must know if the bcm_pcm will
+	// be used for one way or two way i2s, as there is only one combined
+	// setup for the pcm peripheral. If there is only one direction, only
+	// one call to setInISR() will have occurred. If it is bi-directional,
+	// then both isr's will be set.
+	
+	void init();
 	void terminate();
 	
-	// once the device is initialize, you call start() to begin
+	// once the device is initialized, you call start() to begin
 	// receiving or sending buffers ... the device can be started
 	// or stopped multiple times
 	
@@ -207,9 +256,14 @@ private:
 	u8		   	m_SAMPLE_SIZE;
 	u8			m_NUM_CHANNELS;
 	u8         	m_CHANNEL_WIDTH;
+	u8			m_CHANNEL1_OFFSET;
+	u8			m_CHANNEL2_OFFSET;
+	u8		    m_INVERT_BCLK;
+	u8			m_INVERT_FCLK;
 
-	audioIRQ 	*m_inISR;
-	audioIRQ 	*m_outISR;
+	voidMethod 	*m_inISR;
+	voidMethod 	*m_outISR;
+	voidMethod  *m_startClock;
 
 	void initBuffers();
 	uint32_t *allocateRawAudioBlock(u8 **allocBlock);

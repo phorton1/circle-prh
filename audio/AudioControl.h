@@ -42,7 +42,7 @@
 //
 // Derived teensy AudioStreams typically have a begin() method that they
 // called from their constructors.  For Circle we removed the calls from
-// the ctorrs, and made begin() and offical AudioStream base class method,
+// the ctors, and made begin() an official AudioStream base class method,
 // and call the begin() methods for all AudioStreams() in setup() after
 // the kernel is initialized.
 //
@@ -51,21 +51,16 @@
 // begin() methods for all stream objects in the order they were statically
 // declared (the order they were added to the base "update list").
 //
-// It turns out the interaction between the codecs and streams must be
-// more rigorously defined, the exmaple being that the audio injector
-// OCTO clocks must be started in precision synhcrnonization with the
-// bcm DMA in order to consistently get the channel interleaving correct.
+// What is missing from the Teensy API, for example, is the fact that usually,
+// often, the AudioControl device IS the i2s device and it needs to know the
+// sample rate and sample size (frame configuration) to be initialized properly.
 //
-// At that point I leave the existing AudioControlCS42448 object and
-// AudioInputTDM/AudioOutputTDM objects as untested "generic" backup
-// objects. The TDM object has a different interleaving than the OCTO,
-// and the CS42448 *might* work as is.
+// Especially if the AudioControl device just happens to also be the i2s clock master.
 //
-// I will now create an AudioInjectorOctoControl device that works
-// with AudioInjectorOctoInput and Output specific devices to deal with
-// the non-standard frames and the fpga within the context of the existing
-// bcm_pcm code, somehow.
-
+// The existing Teensy source also assumes that you can just start the clock on
+// the device at any-old-time (during static construction), but certain soundcards
+// (the Octo) must more precisely interact with the i2s DMA startup in coordinating
+// the clock startup.
 
 
 

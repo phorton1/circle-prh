@@ -11,10 +11,11 @@
 
 #else
 
-    #define I2S_MASTER   1
-
-    // There seems to be some noise on the right channel
-    // with the rpi in master mode with the wm8731 
+    #define I2S_MASTER   0
+        // is the BCM_PCM the master or slave device
+        // Paul usually thinks the teensy is the master device,
+        // and adds suffixes to the class names when it's not.
+        // The rpi behaves better as the i2s clave than as the master.
     
     #if I2S_MASTER
         AudioInputI2S input;
@@ -43,9 +44,7 @@ void setup()
     
     AudioMemory(80);
     
-    #if USE_CS42448
-        control.setSampleRate(44100);
-    #else
+    #if !USE_CS42448
         control.inputSelect(AUDIO_INPUT_LINEIN);
         control.inputLevel(1.0);
     #endif

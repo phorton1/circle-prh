@@ -32,6 +32,10 @@
 class AudioControlWM8731 : public AudioControl
 {
 public:
+    #ifdef __circle__
+        AudioControlWM8731();
+    #endif
+    
 	bool enable(void);
 	bool disable(void) { return false; }
 	bool volume(float n) { return volumeInteger(n * 80.0 + 47.499); }
@@ -45,6 +49,10 @@ protected:
 class AudioControlWM8731master : public AudioControlWM8731
 {
 public:
+    #ifdef __circle__
+        AudioControlWM8731master();
+    #endif
+
 	bool enable(void);
 };
 

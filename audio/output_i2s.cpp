@@ -424,7 +424,7 @@ void AudioOutputI2S::config_i2s(void)
 {
 	#ifdef __circle__
 	
-		bcm_pcm.init(false,44100,16,2,32);
+		bcm_pcm.init();
 	
 	#else	// !__circle__
 		
@@ -525,7 +525,7 @@ void AudioOutputI2Sslave::config_i2s(void)
 {
 	#ifdef __circle__
 	
-		bcm_pcm.init(true,44100,16,2,32);
+		bcm_pcm.init();
 	
 	#else	// !__circle__
 	

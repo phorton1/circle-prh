@@ -27,16 +27,6 @@
 #include <circle/machineinfo.h>
 
 
-
-
-#if BCM_KNOWS_OCTO
-	// hopefully vestigial code
-	#include "control_cs42448.h"
-	extern AudioControlCS42448 *pControl;
-#endif
-
-
-
 #define OPTIMIZED_IRQS	0
 	// removes uncessary asserts and register accesses
 	// from the irq routines (while leaving asserts in
@@ -120,42 +110,50 @@ BCM_PCM::BCM_PCM() :
 	m_nDMAInChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE)),
 	m_nDMAOutChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE))
 {
-	m_as_slave = false;
-	m_SAMPLE_RATE = 0;
-	m_SAMPLE_SIZE = 0;
-	m_NUM_CHANNELS = 0;
-	m_CHANNEL_WIDTH = 0;
+	#ifdef DYNAMIC_INITIALIZATION
+		// If the object is statically initialized, we depend on BSS
+		// initialization to set everything to zero.  
 	
-	// we rely on bss initialization to set these members
-	// of the static bcm_pcm object to zero. Otherwise,
-	// it *may* happen that the ctor of this is called
-	// AFTER the ctor's of the teensy objects, and the
-	// stashed pointers get wiped out ...
-	// 
-	// m_inISR = 0;
-	// m_outISR = 0;
-	
-	m_state = bcmSoundIdle;
-	m_initialized = false;
-	m_bInIRQConnected = false;
-	m_bOutIRQConnected = false;
-	
-	m_inToggle = 0;
-	m_outToggle = 0;
-	
-	for (u8 i=0; i<2; i++)
-	{
-		m_inBuffer[i] = 0;
-		m_outBuffer[i] = 0;
-		m_allocInBuffer[i] = 0;
-		m_allocOutBuffer[i] = 0;
-	}
-	
-	wrong_irq_count	= 0;
-	in_block_count 	= 0;
-	out_block_count = 0;
-	underflow_count = 0;
-	overflow_count 	= 0;	
+		m_as_slave = false;
+		m_SAMPLE_RATE = 0;
+		m_SAMPLE_SIZE = 0;
+		m_NUM_CHANNELS = 0;
+		m_CHANNEL_WIDTH = 0;
+		m_CHANNEL1_OFFSET = 1;
+		m_CHANNEL2_OFFSET = 1;
+		m_startClock = 0
+
+		// we rely on bss initialization to set these members
+		// of the static bcm_pcm object to zero. Otherwise,
+		// it *may* happen that the ctor of this is called
+		// AFTER the ctor's of the teensy objects, and the
+		// stashed pointers get wiped out ...
+		// 
+		// m_inISR = 0;
+		// m_outISR = 0;
+		
+		m_state = bcmSoundIdle;
+		m_initialized = false;
+		m_bInIRQConnected = false;
+		m_bOutIRQConnected = false;
+		
+		m_inToggle = 0;
+		m_outToggle = 0;
+		
+		for (u8 i=0; i<2; i++)
+		{
+			m_inBuffer[i] = 0;
+			m_outBuffer[i] = 0;
+			m_allocInBuffer[i] = 0;
+			m_allocOutBuffer[i] = 0;
+		}
+		
+		wrong_irq_count	= 0;
+		in_block_count 	= 0;
+		out_block_count = 0;
+		underflow_count = 0;
+		overflow_count 	= 0;	
+	#endif
 	
 	#if INCLUDE_ACTIVITY_LEDS		
 		m_RX_ACTIVE.Write(1);
@@ -242,12 +240,7 @@ uint32_t *BCM_PCM::allocateRawAudioBlock(u8 **allocBlock)
 //-----------------------------
 
 	
-void BCM_PCM::init(
-		bool  	  as_slave,
-		u32   	  sample_rate,
-		u8    	  sample_size,
-		u8		  num_channels,
-		u8    	  channel_width)
+void BCM_PCM::init()
 {
 	assert(m_inISR || m_outISR);
 	// channel_width = 24;
@@ -258,11 +251,11 @@ void BCM_PCM::init(
 		return;		
 	}
 	
-	m_as_slave = as_slave;		
-	m_SAMPLE_RATE = sample_rate;
-	m_SAMPLE_SIZE = sample_size;
-	m_NUM_CHANNELS = num_channels;
-	m_CHANNEL_WIDTH = channel_width;
+	// m_as_slave = as_slave;		
+	// m_SAMPLE_RATE = sample_rate;
+	// m_SAMPLE_SIZE = sample_size;
+	// m_NUM_CHANNELS = num_channels;
+	// m_CHANNEL_WIDTH = channel_width;
 		
 	m_pInterruptSystem = CInterruptSystem::Get();
 	assert(m_pInterruptSystem);
@@ -272,12 +265,16 @@ void BCM_PCM::init(
 		m_TX_ACTIVE.Write(0);
 	#endif
 		
-	LOG("init(%d,%d,%d,%d,%d,%s) ...",
+	LOG("init(%d,%d,%d,%d,%d,%d,%d,%d,%d.%s) ...",
 		m_as_slave,
 		m_SAMPLE_RATE,
 		m_SAMPLE_SIZE,
 		m_NUM_CHANNELS,
 		m_CHANNEL_WIDTH,
+		m_CHANNEL1_OFFSET,
+		m_CHANNEL2_OFFSET,
+		m_INVERT_BCLK,
+		m_INVERT_FCLK,
 		((u32)m_inISR) & ((u32)m_outISR) ? "BOTH" :
 		((u32)m_inISR) ? "INPUT" :
 		((u32)m_outISR) ? "OUTPUT" :
@@ -341,6 +338,7 @@ void BCM_PCM::init(
 		//     BCLK = 2.98 Mhz (logic 1.801Mhz) = 46565
 		//            FCLK = 46.8khz
 		
+		LOG("starting pcm BCLK",0);
 		assert(CLOCK_FREQ % (m_NUM_CHANNELS * m_CHANNEL_WIDTH) == 0);
 		unsigned nDivI = CLOCK_FREQ / (m_NUM_CHANNELS * m_CHANNEL_WIDTH) / m_SAMPLE_RATE;
 		unsigned nTemp = CLOCK_FREQ / (m_NUM_CHANNELS * m_CHANNEL_WIDTH) % m_SAMPLE_RATE;
@@ -439,6 +437,8 @@ void BCM_PCM::terminate()
 	m_SAMPLE_RATE = 0;
 	m_SAMPLE_SIZE = 0;
 	m_CHANNEL_WIDTH = 0;
+	m_CHANNEL1_OFFSET = 0;
+	m_CHANNEL2_OFFSET = 0;
 	m_as_slave = false;
 	m_inISR = 0;
 	m_outISR = 0;
@@ -534,20 +534,26 @@ void BCM_PCM::initFrame()
 		use_width -= 16;								// and subtract 16
 	}
 	
-	// PRH - NOTE: I HAD TO CHANGE channel 2 width to be
-	// (m_CHANNEL_WIDTH+2) << TXC_A_CH2POS__SHIFT for rpi
-	// master to wm8731 ... and it appears to be louder
-	// with the octo at 0,32 ... so different implementations
-	// of i2s devices may have different requirements and..
-	// I suspect the same with swapping the L$ clock sense.
+	// Different devices may uses different CHANNEL_OFFSET values.
+	// At this time, I know of
+	//
+	//      1,1 = "standard" i2s
+	//            wm8731 (audioInjector Stereo) slave
+	//            sgtl5000 (teensy audio card) master & slave
+	//      1,2 = kludge to fix wm8731 with pi as master
+	//      0,0 = audioInjector Octo (cs42448, sort of)
+	//
+	// Dunno why, not sure I care, but I found I had to
+	// set 1,2 with the audioInjector Stereo card with
+	// the rPi running as the master, or I got bad noise.
 
 	u32 reg_val =
-		TXC_A_CH1EN									// Enable channel 1
-		| (0 << TXC_A_CH1POS__SHIFT)				// The channel data starts on first (not 0th) BCLK of the frame
-		| (set_extended_bit ? TXC_A_CH1WEX : 0) 	// Set the "extended width" bit (if width is 16+)
-		| (use_width << TXC_A_CH1WID__SHIFT)		// Set the low 4 channel width bits
-		| TXC_A_CH2EN								// Same for channel 2 
-		| ((m_CHANNEL_WIDTH + 0) << TXC_A_CH2POS__SHIFT)		// 2 = skip another bit in the 2nd half frame as well
+		TXC_A_CH1EN										// Enable channel 1
+		| (m_CHANNEL1_OFFSET << TXC_A_CH1POS__SHIFT)	// the BCLK on which the channel data starts
+		| (set_extended_bit ? TXC_A_CH1WEX : 0) 		// Set the "extended width" bit (if width is 16+)
+		| (use_width << TXC_A_CH1WID__SHIFT)			// Set the low 4 channel width bits
+		| TXC_A_CH2EN									// Same for channel 2 
+		| ((m_CHANNEL_WIDTH + m_CHANNEL2_OFFSET) << TXC_A_CH2POS__SHIFT) // i2s standard skips 1 bit after LR change
 		| (set_extended_bit ? TXC_A_CH2WEX : 0)
 		| (use_width << TXC_A_CH2WID__SHIFT);
 
@@ -557,42 +563,22 @@ void BCM_PCM::initFrame()
 		write32(ARM_PCM_RXC_A,reg_val);
 	
 	// set the PCM_MODE_A register
+	// Invert BCLK and/or FCLK
+	// See devices for required settings
 
 	u32 pcm_mode = 0;
-	// pcm_mode |= MODE_A_CLKI;			// Invert the BCLK signal sense
-		// octo appears to work with either setting of this bit
+	if (m_INVERT_BCLK)
+		pcm_mode |= MODE_A_CLKI;	// Invert the BCLK signal sense
+	if (m_INVERT_FCLK)
+		pcm_mode |= MODE_A_FSI;		// Frame Sync Invert
 	
-	// FCLK invert
-	// had to comment out to get rpi master working with wm3871
-	// but it must be set to get correct channel mapping on octo
-
-	pcm_mode |= MODE_A_FSI;				// Frame Sync Invert
+	// set slave or master mode
 	
-	
-	if (m_as_slave)
+	if (m_as_slave)	
 	{
 		pcm_mode |= MODE_A_CLKM;	// BCLK is an input
 		pcm_mode |= MODE_A_FSM;		// FCLK is an input
-		pcm_mode |= 1 << MODE_A_FSLEN__SHIFT;
-		pcm_mode |= ((2 * m_CHANNEL_WIDTH)-1) << MODE_A_FLEN__SHIFT;
 	}
-
-	#if 0
-		// When the octo is not hooked up, the following creates a frame
-		// that looks exactly like the one coming from the raspian working octo.
-		// However, for the octo we set both the codec, and the bcm to slave
-		// modes, so this code is not used
-
-		else if (0)	// TDM experiments
-		{
-			pcm_mode |= MODE_A_FRXP | MODE_A_FTXP;  // frame packed mode              (1 << 24)
-			//  pcm_mode |= ((m_NUM_CHANNELS * m_CHANNEL_WIDTH)-1) << MODE_A_FLEN__SHIFT;
-			pcm_mode |= ((2 * m_CHANNEL_WIDTH)-1) << MODE_A_FLEN__SHIFT;
-			pcm_mode |= m_CHANNEL_WIDTH << MODE_A_FSLEN__SHIFT;
-			
-		}	
-	#endif
-	
 	else	// master mode, we set the frame params
 	{
 		pcm_mode |= ((2 * m_CHANNEL_WIDTH)-1) << MODE_A_FLEN__SHIFT;
@@ -613,22 +599,8 @@ void BCM_PCM::initFrame()
 	write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_EN);
 	CTimer::Get()->usDelay(10);
 	
-	#if 0 // trying at end of "start()"
-		if (m_inISR)
-		{
-			write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_RXON);
-			CTimer::Get()->usDelay(10);
-		}
-		if (m_outISR)
-		{
-			write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_TXON);
-			CTimer::Get()->usDelay(10);
-		}
-	#endif
-	
 	PeripheralExit();
 	PCM_LOG("initFrame() finished",0);
-	
 }
 
 
@@ -723,6 +695,13 @@ void BCM_PCM::start()
 		updateOutput(true);
 	}
 
+	// start the clock HERE if needed
+	
+	#ifdef __circle__
+		if (m_startClock)
+			(*m_startClock)();
+	#endif
+	
 	// enable I2S DMA operation
 	
 	PeripheralEntry();
@@ -760,21 +739,6 @@ void BCM_PCM::start()
 
 	PeripheralExit();
 
-
-	#if BCM_KNOWS_OCTO
-		// If the BCM knows about the OCTO, we call
-		// setSampleRate() here to start the OCTO clock
-		
-		// #ifdef SHORT_START
-		// 	pControl->shortStart();
-		//  #else
-		
-			pControl->setSampleRate(m_SAMPLE_RATE);
-			
-		//  #endif
-	#endif
-	
-
 	if (m_inISR)
 	{
 		write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_RXON);
@@ -785,7 +749,6 @@ void BCM_PCM::start()
 		write32(ARM_PCM_CS_A, read32(ARM_PCM_CS_A) | CS_A_TXON);
 		CTimer::Get()->usDelay(10);
 	}
-
 	
 	// we are running ..
 	
