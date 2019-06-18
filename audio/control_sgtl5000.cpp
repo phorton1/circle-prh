@@ -516,11 +516,7 @@
 	AudioControlSGTL5000::AudioControlSGTL5000()
         : i2c_addr(0x0A)
 	{
-<<<<<<< HEAD
         // The teensy audio shield SGTL5000 *REQUIRES* an MCLK !
-=======
-        // The teensy audio shield SGTL5000 REQUIRES an MCLK !
->>>>>>> cbd763292cb610a0c446c1fbd0f2c531206d2903
         // It has no crystal or internal clock, only dividers.
         //
         // For FCLK=44.1khz, MCLK=11.289Mhz and BCLK=2.82Mhz.
@@ -532,11 +528,7 @@
         //
         // So, barring additional hardware, the rPi cannot
         // act as a master to the SGTL5000, and this code
-<<<<<<< HEAD
         // will not work.  There is an assert in enable().
-=======
-        // will not work.
->>>>>>> cbd763292cb610a0c446c1fbd0f2c531206d2903
 		
 		bcm_pcm.static_init(
 			false,			// bcm_pcm is master device
@@ -570,10 +562,7 @@ bool AudioControlSGTL5000::enable(void)
     
     LOG("AudioControlSGTL5000::enable()",0);
     #ifdef __circle__
-<<<<<<< HEAD
         // see ctor for comments
-=======
->>>>>>> cbd763292cb610a0c446c1fbd0f2c531206d2903
         assert(false && "the rpi cannot be a master to the sgtl5000!");
         return false;
     #endif
@@ -1103,11 +1092,7 @@ void calcBiquad(uint8_t filtertype, float fC, float dB_Gain, float Q, uint32_t q
 //-------------------------------------------------
 // The rPi MUST be a slave to an sgtl5000, as it cannot provide 3 clocks.
 // Even so, the rPi must generate MCLK, as the sgtl5000 has no crystal.
-<<<<<<< HEAD
 // So, we generate MCLK on GPIO4, send it to the teensy audio shield,
-=======
-// So, we generate MCLK on GPION, send it to the teensy audio shield,
->>>>>>> cbd763292cb610a0c446c1fbd0f2c531206d2903
 // which then generaets BCLK and MCLK and sends them back to us.
 
 #ifdef __circle__
