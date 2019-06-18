@@ -18,6 +18,7 @@ OBJS	= \
 	bcm_pcm.o \
 	control_wm8731.o \
 	control_cs42448.o \
+	control_sgtl5000.o \
 	effect_freeverb.o \
 	effect_reverb.o \
 	input_i2s.o \
