@@ -1,7 +1,7 @@
 #include "Wire.h"
 #include <circle/logger.h>
 
-#define I2C_CLOCK_SPEED     	100
+#define I2C_CLOCK_SPEED     	100000
 
 
 #define log_name "wire"
@@ -57,9 +57,14 @@ int CWire::endTransmission()
     size_t rslt = 0;
     if (m_len)
     {
-        rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len) == m_len;
-        assert(rslt);
-        return rslt ? 0 : 1;
+        // printf("Wire endTransmission addr(0x%02x) len=%d data=0x%02x 0x%02x \n",m_addr,m_len,m_buf[0],m_buf[1]);
+        rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len);
+        assert(rslt == m_len);
+        // if (rslt != m_len)
+        // {
+        //     printf("got error result %d\n",m_len);
+        // }
+        return (rslt == m_len) ? 0 : 1;
     }
 	return 0;
     

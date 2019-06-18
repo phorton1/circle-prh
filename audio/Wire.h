@@ -22,12 +22,14 @@ public:
     
     void beginTransmission(u8 addr);
     int endTransmission();
+    // int endTransmission(u8 send_stop);
     
 	size_t write(u8 value);
     // u8 requestFrom(u8 addr, u8 len);
     // u8 available(void);
-    // u8 read(void);
+    
     size_t read(u8 addr, u8 *buf, u8 len);
+    // u8 read(void);
     
     
 private:
