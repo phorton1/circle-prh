@@ -4,8 +4,8 @@
 // note that you must use 'master' control devices
 // if you use 'slave' i2s devices.
 
-#define USE_CS42448             0
-#define USE_TEENSY_QUAD_SLAVE   1
+#define USE_CS42448             1
+#define USE_TEENSY_QUAD_SLAVE   0
 
 
 #if USE_CS42448
@@ -119,20 +119,6 @@ void setup()
     #endif
     
     AudioMemory(20);        // Also setups and starts DMA for bcm_pcm devices
-    
-    // The bcm_pcm io devices require complicated setup that must
-    // be performed after the kernel is initialized, so it cannot
-    // be done on static objects like in the teensy. The call to
-    // AudioMemory() not only allocates the memory, but starts the
-    // devices.  
-        
-    #if USE_CS42448
-        control.setSampleRate(44100);
-            // this needs to be done as soon after bcm_pcm::start() as
-            // possible for reproducable frame synchronization, as
-            // it starts the clocks that trigger the DMAs that were
-            // just setup in "AudioMemory()" (bcm_pcm::start())
-    #endif
     
     #if !USE_TEENSY_QUAD_SLAVE
         control.volume(VOLUME_LEVEL);
