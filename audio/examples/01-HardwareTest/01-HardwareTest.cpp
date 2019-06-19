@@ -4,7 +4,9 @@
 // note that you must use 'master' control devices
 // if you use 'slave' i2s devices.
 
-#define USE_CS42448  1
+#define USE_CS42448             0
+#define USE_TEENSY_QUAD_SLAVE   1
+
 
 #if USE_CS42448
     #define USE_MUSICAL_SCALE   1
@@ -43,6 +45,9 @@
 #if USE_CS42448
     AudioOutputTDM output;
     AudioControlCS42448 control;
+#elif USE_TEENSY_QUAD_SLAVE
+    // AudioInputTeensyQuad   input;
+    AudioOutputTeensyQuad  output;
 #else
 
     #define I2S_MASTER   1
@@ -109,7 +114,9 @@ void setup()
         input.frequency(440.0);
     #endif
     
-    control.enable();       // setup up the condec control bits ...    
+    #if !USE_TEENSY_QUAD_SLAVE
+        control.enable();       // setup up the condec control bits ...    
+    #endif
     
     AudioMemory(20);        // Also setups and starts DMA for bcm_pcm devices
     
@@ -127,7 +134,9 @@ void setup()
             // just setup in "AudioMemory()" (bcm_pcm::start())
     #endif
     
-    control.volume(VOLUME_LEVEL);
+    #if !USE_TEENSY_QUAD_SLAVE
+        control.volume(VOLUME_LEVEL);
+    #endif
 
     printf("01-HardwareTest::setup() finished\n");
 }

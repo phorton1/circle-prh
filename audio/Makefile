@@ -23,9 +23,11 @@ OBJS	= \
 	effect_reverb.o \
 	input_i2s.o \
 	input_tdm.o \
+	input_teensy_quad.o \
 	mixer.o \
 	output_i2s.o \
 	output_tdm.o \
+	output_teensy_quad.o \
 	synth_sine.o \
 	
 

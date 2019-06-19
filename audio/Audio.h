@@ -43,9 +43,11 @@
     #include "effect_freeverb.h"
     #include "input_i2s.h"
     #include "input_tdm.h"
+    #include "input_teensy_quad.h"
     #include "mixer.h"
     #include "output_i2s.h"
     #include "output_tdm.h"
+    #include "output_teensy_quad.h"
     #include "synth_sine.h"
 
     // #include "output_tdm.h"

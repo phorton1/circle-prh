@@ -38,7 +38,48 @@
 	#define LOG(...)
 #endif
 
+//---------------------------------------------
+// circle notes
+//---------------------------------------------
+// You must use the AudioControlSGTL5000slave device on rPi.
+// There is an assert in AudioControlSGTL5000::enable() to
+// prevent you from calling it.
+//
+// The teensy audio shield SGTL5000 *REQUIRES* an MCLK !
+// It has no crystal or internal clock, only dividers.
+//
+// For FCLK=44.1khz, MCLK=11.289Mhz and BCLK=2.82Mhz.
+//
+// There is no good way for the rPi to generate three
+// synchronous clocks. The i2s peripheral specially
+// generates synchrounous FCLK and BCLK clocks based
+// on a general purpose clock, but that's it.
+//
+// So, barring additional hardware, the rPi cannot
+// act as a master to the SGTL5000, and the code for it,
+// in this file, will not work.  It was left as a vestigal
+// object so-as to retain backwards compatability with the
+// the existing teensy audio library.
+//
+// Connections:
+//
+// You connect following rPi pins to the teensy audio shield.
+// The audio shield pins are given in terms of their teensy
+// equivilant gpio pin number.
+//
+//      rPi   gpio        Teensy gpio
+//
+//      MCLK    4    ---->  11       
+//	    BCLK    18   <----   9   
+//	    FCLK    19   <----  23   
+//	    RXD     20   ---->  22 tx0   
+//	    TXD     21   <----  13 rx0   
 
+
+
+//-------------------------------------
+// defines and constants
+//-------------------------------------
 
 #define CHIP_ID				0x0000
 // 15:8 PARTID		0xA0 - 8 bit identifier for SGTL5000
@@ -516,20 +557,6 @@
 	AudioControlSGTL5000::AudioControlSGTL5000()
         : i2c_addr(0x0A)
 	{
-        // The teensy audio shield SGTL5000 *REQUIRES* an MCLK !
-        // It has no crystal or internal clock, only dividers.
-        //
-        // For FCLK=44.1khz, MCLK=11.289Mhz and BCLK=2.82Mhz.
-        //
-        // There is no good way for the rPi to generate three
-        // synchronous clocks. The i2s peripheral specially
-        // generates synchrounous FCLK and BCLK clocks based
-        // on a general purpose clock, but that's it.
-        //
-        // So, barring additional hardware, the rPi cannot
-        // act as a master to the SGTL5000, and this code
-        // will not work.  There is an assert in enable().
-		
 		bcm_pcm.static_init(
 			false,			// bcm_pcm is master device
 			44100,          // sample_rate
