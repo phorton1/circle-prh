@@ -80,8 +80,6 @@ public:
 	
 	void setInISR(voidMethod  *in_isr)  { m_inISR = in_isr; }
 	void setOutISR(voidMethod *out_isr) { m_outISR = out_isr; }
-		// these are called by the input and output devices
-		
 	void static_init(
 		bool		as_slave,
 		u32   		sample_rate,

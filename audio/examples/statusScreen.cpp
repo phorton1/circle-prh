@@ -48,7 +48,7 @@ typedef struct
 
 staticFormEntry static_form[] =
 {
-    {  0,  0,   "Status      IN          OUT" },
+    {  0,  12,  "IN          OUT" },
     {  2,  0,   "Blocks" },
     {  3,  0,   "Other" },
     {  4,  0,   "Wrong" },
@@ -60,6 +60,7 @@ staticFormEntry static_form[] =
 
 formEntry form[] =
 {
+    {0, 0,  "%-8d",  0, 0},     // main_loop_counter
     {2, 12, "%-8d",  0, 0},     // in_block_count
     {2, 24, "%-8d",  0, 0},     // out_block_count
     {3, 12, "%-8d",  0, 0},     // in_other_count
@@ -83,15 +84,17 @@ statusScreen::statusScreen(CScreenDevice *pScreen)
     screen = pScreen;
     initialized = false;
     
-    form[0].p_value = &bcm_pcm.in_block_count;
-    form[1].p_value = &bcm_pcm.out_block_count;
-    form[2].p_value = &bcm_pcm.in_other_count;
-    form[3].p_value = &bcm_pcm.out_other_count;
-    form[4].p_value = &bcm_pcm.in_wrong_count;
-    form[5].p_value = &bcm_pcm.out_wrong_count;
-    form[6].p_value = &bcm_pcm.overflow_count;
-    form[7].p_value = &bcm_pcm.underflow_count;
-    form[8].p_value = (u32 *) &block_diff;
+    extern u32 main_loop_counter;
+    form[0].p_value = &main_loop_counter;
+    form[1].p_value = &bcm_pcm.in_block_count;
+    form[2].p_value = &bcm_pcm.out_block_count;
+    form[3].p_value = &bcm_pcm.in_other_count;
+    form[4].p_value = &bcm_pcm.out_other_count;
+    form[5].p_value = &bcm_pcm.in_wrong_count;
+    form[6].p_value = &bcm_pcm.out_wrong_count;
+    form[7].p_value = &bcm_pcm.overflow_count;
+    form[8].p_value = &bcm_pcm.underflow_count;
+    form[9].p_value = (u32 *) &block_diff;
 }
 
 
