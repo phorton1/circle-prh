@@ -24,7 +24,7 @@
 #ifndef _std_kernel_h
 #define _std_kernel_h
 
-#define USE_SCREEN  	 0
+#define USE_SCREEN  	 1
 #define USE_MINI_SERIAL  0
 #define USE_MAIN_SERIAL  1
 

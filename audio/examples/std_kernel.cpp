@@ -7,6 +7,11 @@
 #include <circle/types.h>
 #include <circle/gpiopin.h>
 
+#if USE_SCREEN
+	#include "statusScreen.h"
+	#define STATUS_TIME  		20
+#endif
+
 
 extern void setup();
 extern void loop();
@@ -81,9 +86,19 @@ boolean CKernel::Initialize (void)
 
 TShutdownMode CKernel::Run(void)
 {
-	m_Logger.Write(log_name, LogNotice, "std_kernel " __DATE__ " " __TIME__);
-	
+	LOG("std_kernel " __DATE__ " " __TIME__,0);
+
+#if USE_SCREEN
+	LOG("using statusScreen",0);
+	print_screen("hello\n");
+#endif
+
 	setup();
+	
+#if USE_SCREEN
+	statusScreen status(&m_Screen);
+	u32 status_time = 0;
+#endif	
 
 	m_Timer.MsDelay(500);
 	printf("ready ...\n");
@@ -97,6 +112,15 @@ TShutdownMode CKernel::Run(void)
 	{
 		loop();
 		m_Scheduler.Yield();
+
+		#if USE_SCREEN
+			u32 now = m_Timer.GetTicks();
+			if (now > status_time + STATUS_TIME)
+			{
+				status.update();
+				status_time = now;			
+			}
+		#endif		
 	}
 	
 	return ShutdownHalt;
