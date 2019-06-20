@@ -5,8 +5,8 @@
 // USE_MIXER puts the output through a mixer first
 
 #define USE_REVERB      0
-#define USE_FREEVERB    0
-#define USE_MIXER       0
+#define USE_FREEVERB    1
+#define USE_MIXER       1
     
 // hmm ... I'm not sure I like this.
 // all declared audioStreams will be updated,

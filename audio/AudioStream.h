@@ -123,7 +123,9 @@ protected:
 	AudioStream::initialize_memory(data, num); \
 })
 
-#define CYCLE_COUNTER_APPROX_PERCENT(n) (((n) + (F_CPU / 32 / AUDIO_SAMPLE_RATE * AUDIO_BLOCK_SAMPLES / 100)) / (F_CPU / 16 / AUDIO_SAMPLE_RATE * AUDIO_BLOCK_SAMPLES / 100))
+#define CYCLE_COUNTER_APPROX_PERCENT(n) \
+	(((n) + (F_CPU / 32 / AUDIO_SAMPLE_RATE * AUDIO_BLOCK_SAMPLES / 100)) / \
+	(F_CPU / 16 / AUDIO_SAMPLE_RATE * AUDIO_BLOCK_SAMPLES / 100))
 
 #define AudioProcessorUsage() (CYCLE_COUNTER_APPROX_PERCENT(AudioStream::cpu_cycles_total))
 #define AudioProcessorUsageMax() (CYCLE_COUNTER_APPROX_PERCENT(AudioStream::cpu_cycles_total_max))
@@ -154,6 +156,10 @@ public:
 			next_update = NULL;
 			cpu_cycles = 0;
 			cpu_cycles_max = 0;
+			#ifdef __circle__
+				last_cpu_cycles = 0;
+				last_cpu_cycles_max = 0;
+			#endif
 			numConnections = 0;
 		}
 		
@@ -184,12 +190,21 @@ protected:
 	static void update_stop(void);
 	
 	#ifdef __circle__
+		static u8 update_needed;
+		static u32 update_overflow;
+		uint16_t last_cpu_cycles;
+		uint16_t last_cpu_cycles_max;
+		
 		static void update_all(void);
+		static void do_update(void);
+		friend class CKernel;
+		friend class AudioUpdateTask;
+		friend class statusScreen;
 	#else
 		static void update_all(void) { NVIC_SET_PENDING(IRQ_SOFTWARE); }
+		friend void software_isr(void);
 	#endif
 	
-	friend void software_isr(void);
 	friend class AudioConnection;
 	uint8_t numConnections;
 private:

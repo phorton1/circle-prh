@@ -62,6 +62,38 @@ uint16_t AudioStream::memory_used_max = 0;
 
 
 
+#ifdef __circle__
+
+	#include <circle/logger.h>
+	#include <circle/sched/scheduler.h>
+	
+	#define log_name  "astream"
+	
+	u8 AudioStream::update_needed = 0;
+	u32 AudioStream::update_overflow = 0;
+	
+	
+	class AudioUpdateTask : public CTask
+	{
+		public:
+			AudioUpdateTask() {}
+			~AudioUpdateTask() {}
+		
+			void Run(void)
+			{
+				if (AudioStream::update_needed)
+				{
+					AudioStream::do_update();
+				}
+				CScheduler::Get()->Yield();
+			}
+	};
+
+	AudioUpdateTask *pUpdateTask = 0;
+
+#endif
+
+
 
 // Set up the pool of audio data blocks
 // placing them all onto the free list
@@ -94,7 +126,9 @@ void AudioStream::initialize_memory(audio_block_t *data, unsigned int num)
 		for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
 		{
 			p->begin();
-		}	
+		}
+		
+		// pUpdateTask = new AudioUpdateTask();
 	#endif
 	
 	
@@ -345,14 +379,13 @@ AudioStream * AudioStream::first_update = NULL;
 
 #ifdef __circle__
 
-	// static
-	// prh - for now calling the updates directly from the interrupts
-	// needs to be modified to use a Circle Task and signal it to do
-	// one loop here ...
-	
-	void AudioStream::update_all(void)
+	void AudioStream::do_update(void)
 	{
 		uint32_t totalcycles = CTimer::GetClockTicks();
+			// GetClockTicks() is in millionths of a second
+			// based on the 1Mhz physical counter, so we don't
+			// divide it any further.
+		
 		for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
 		{
 			if (p->active)
@@ -361,16 +394,30 @@ AudioStream * AudioStream::first_update = NULL;
 				p->update();
 				// TODO: traverse inputQueueArray and release
 				// any input blocks that weren't consumed?
-				cycles = ( CTimer::GetClockTicks() - cycles) >> 4;
+				cycles = (CTimer::GetClockTicks() - cycles);
 				p->cpu_cycles = cycles;
 				if (cycles > p->cpu_cycles_max) p->cpu_cycles_max = cycles;
 			}
 		}
 		//digitalWriteFast(2, LOW);
-		totalcycles = ( CTimer::GetClockTicks() - totalcycles) >> 4;;
+		totalcycles = (CTimer::GetClockTicks() - totalcycles);
 		AudioStream::cpu_cycles_total = totalcycles;
 		if (totalcycles > AudioStream::cpu_cycles_total_max)
 			AudioStream::cpu_cycles_total_max = totalcycles;
+		update_needed--;
+	}
+
+
+	void AudioStream::update_all(void)
+	{
+		if (update_needed)
+		{
+			update_overflow++;
+		}
+		else
+		{
+			update_needed++;
+		}
 	}
 
 #else	// !__circle__

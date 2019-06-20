@@ -6,6 +6,7 @@
 #include <circle/util.h>
 #include <circle/types.h>
 #include <circle/gpiopin.h>
+#include <audio/AudioStream.h>
 
 #if USE_SCREEN
 	#include "statusScreen.h"
@@ -111,39 +112,46 @@ TShutdownMode CKernel::Run(void)
 	
 	while (1)
 	{
-		loop();
-		m_Scheduler.Yield();
-		main_loop_counter++;
-		
-		// NOTE: CTimer::GetTicks() is 100ths of a second !!
-		
-		#if 1 //  USE_SCREEN
-		
-			// On the verge of understanding.
-			// hdmi squiggly line wm8731 master bug
-			//		
-			// There MUST be a delay here of at least 1 MS.
-			//
-			// Cannot call getTicks() in a tight loop or
-			// else the HDMI and/or audio get messed up.
+		if (AudioStream::update_needed)
+		{
+			AudioStream::do_update();
+		}
+		else
+		{
+			loop();
+			m_Scheduler.Yield();
+			main_loop_counter++;
 			
-			CTimer::Get()->usDelay(1000);
+			// NOTE: CTimer::GetTicks() is 100ths of a second !!
 			
-			// It is not the STATUS_TIME, per se, which is plenty
-			// long. It's that we're checking the time a million
-			// times a second, or more, in a tight loop ....
-			// There are no tasks() so yield does nothing.
-			// loop() has no body.  It has something to do
-			// with interrupts, though GetTicks() is just an
-			// integer accessor ... it doesn't "do" anything.
-	
-			int i = CTimer::Get()->GetTicks();
-			if (i > status_time + STATUS_TIME)
-			{
-				status.update();
-				status_time =  CTimer::Get()->GetTicks();			
-			}
-		#endif		
+			#if 1 //  USE_SCREEN
+			
+				// On the verge of understanding.
+				// hdmi squiggly line wm8731 master bug
+				//		
+				// There MUST be a delay here of at least 1 MS.
+				//
+				// Cannot call getTicks() in a tight loop or
+				// else the HDMI and/or audio get messed up.
+				
+				CTimer::Get()->usDelay(1000);
+				
+				// It is not the STATUS_TIME, per se, which is plenty
+				// long. It's that we're checking the time a million
+				// times a second, or more, in a tight loop ....
+				// There are no tasks() so yield does nothing.
+				// loop() has no body.  It has something to do
+				// with interrupts, though GetTicks() is just an
+				// integer accessor ... it doesn't "do" anything.
+		
+				u32 i = CTimer::Get()->GetTicks();
+				if (i > status_time + STATUS_TIME)
+				{
+					status.update();
+					status_time =  CTimer::Get()->GetTicks();			
+				}
+			#endif
+		}	
 	}
 	
 	return ShutdownHalt;
