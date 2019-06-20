@@ -95,7 +95,8 @@ protected:
 
 	static bool update_responsibility;
 	static void isr(void);
-
+    virtual const char *dbgName()  { return "tquadi"; }        
+	
 private:
 
 	static audio_block_t *block_left;

@@ -86,6 +86,13 @@ private:
 	uint16_t allpass2index;
 	uint16_t allpass3index;
 	uint16_t allpass4index;
+	
+	#ifdef __circle__
+		static u8 next_instance_num;
+		u8 instance_num;
+		virtual u8 dbgInstance()    { return instance_num; }
+		virtual const char *dbgName()  { return "freeverb"; }
+	#endif	
 };
 
 
@@ -178,6 +185,13 @@ private:
 	uint16_t allpass2indexR;
 	uint16_t allpass3indexR;
 	uint16_t allpass4indexR;
+	
+	#ifdef __circle__
+		static u8 next_instance_num;
+		u8 instance_num;
+		virtual u8 dbgInstance()    { return instance_num; }
+		virtual const char *dbgName()  { return "freeverbs"; }
+	#endif	
 };
 
 

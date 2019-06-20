@@ -61,7 +61,9 @@ public:
 	void begin(void);
 protected:	
 	static bool update_responsibility;
-    #ifndef __circle__
+    #ifdef __circle__
+        virtual const char *dbgName()  { return "tdmi"; }        
+    #else
     	static DMAChannel dma;
     #endif
 	static void isr(void);

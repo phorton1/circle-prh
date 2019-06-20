@@ -38,7 +38,11 @@
 class AudioSynthWaveformSine : public AudioStream
 {
 public:
-	AudioSynthWaveformSine() : AudioStream(0, NULL), magnitude(16384) {}
+	AudioSynthWaveformSine() : AudioStream(0, NULL), magnitude(16384)
+	{
+        SET_INSTANCE(AudioSynthWaveformSine)        
+	}
+	
 	void frequency(float freq) {
 		if (freq < 0.0) freq = 0.0;
 		else if (freq > AUDIO_SAMPLE_RATE_EXACT/2) freq = AUDIO_SAMPLE_RATE_EXACT/2;
@@ -58,17 +62,29 @@ public:
 		magnitude = n * 65536.0;
 	}
 	virtual void update(void);
+	
+	
 private:
 	uint32_t phase_accumulator;
 	uint32_t phase_increment;
 	int32_t magnitude;
+
+    #ifdef __circle__
+		static u8 next_instance_num;
+		u8 instance_num;
+		virtual u8 dbgInstance()    { return instance_num; }
+		virtual const char *dbgName()  { return "sine"; }
+	#endif
 };
 
 
 class AudioSynthWaveformSineHires : public AudioStream
 {
 public:
-	AudioSynthWaveformSineHires() : AudioStream(0, NULL), magnitude(16384) {}
+	AudioSynthWaveformSineHires() : AudioStream(0, NULL), magnitude(16384)
+	{
+        SET_INSTANCE(AudioSynthWaveformSineHires)        
+	}
 	void frequency(float freq) {
 		if (freq < 0.0) freq = 0.0;
 		else if (freq > AUDIO_SAMPLE_RATE_EXACT/2) freq = AUDIO_SAMPLE_RATE_EXACT/2;
@@ -92,13 +108,24 @@ private:
 	uint32_t phase_accumulator;
 	uint32_t phase_increment;
 	int32_t magnitude;
+	
+
+    #ifdef __circle__
+		static u8 next_instance_num;
+		u8 instance_num;
+		virtual u8 dbgInstance()    { return instance_num; }
+		virtual const char *dbgName()  { return "sine_hr"; }
+	#endif	
 };
 
 
 class AudioSynthWaveformSineModulated : public AudioStream
 {
 public:
-	AudioSynthWaveformSineModulated() : AudioStream(1, inputQueueArray), magnitude(16384) {}
+	AudioSynthWaveformSineModulated() : AudioStream(1, inputQueueArray), magnitude(16384)
+	{
+        SET_INSTANCE(AudioSynthWaveformSineModulated)        
+	}
 	// maximum unmodulated carrier frequency is 11025 Hz
 	// input = +1.0 doubles carrier
 	// input = -1.0 DC output
@@ -126,6 +153,13 @@ private:
 	uint32_t phase_increment;
 	audio_block_t *inputQueueArray[1];
 	int32_t magnitude;
+
+    #ifdef __circle__
+		static u8 next_instance_num;
+		u8 instance_num;
+		virtual u8 dbgInstance()    { return instance_num; }
+		virtual const char *dbgName()  { return "sine_mod"; }
+	#endif	
 };
 
 

@@ -54,8 +54,10 @@ protected:
 	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
 	static bool update_responsibility;
     
-    #ifndef __circle__
-    	static DMAChannel dma;
+    #ifdef __circle__
+        virtual const char *dbgName()  { return "i2si"; }        
+    #else
+        static DMAChannel dma;
     #endif
     
 	static void isr(void);
@@ -79,6 +81,11 @@ public:
     }
 	void begin(void);
 	friend void dma_ch1_isr(void);
+    
+    #ifdef __circle__
+        virtual const char *dbgName()  { return "i2sis"; }        
+    #endif
+    
 };
 
 #endif

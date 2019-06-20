@@ -58,7 +58,9 @@
 class AudioEffectReverb : public AudioStream
 {
   public:
-    AudioEffectReverb(void) : AudioStream(1, inputQueueArray) {
+    AudioEffectReverb(void) : AudioStream(1, inputQueueArray)
+    {
+      SET_INSTANCE(AudioEffectReverb)        
       init_comb_filters();
       clear_buffers();
       reverbTime(5.0);
@@ -113,6 +115,14 @@ class AudioEffectReverb : public AudioStream
     int32_t q31_buf[AUDIO_BLOCK_SAMPLES];
     int32_t sum_buf[AUDIO_BLOCK_SAMPLES];
     int32_t aux_buf[AUDIO_BLOCK_SAMPLES];
+    
+	#ifdef __circle__
+		static u8 next_instance_num;
+		u8 instance_num;
+		virtual u8 dbgInstance()    { return instance_num; }
+		virtual const char *dbgName()  { return "reverb"; }
+	#endif
+    
 };
 
 #endif

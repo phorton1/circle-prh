@@ -126,16 +126,20 @@ void statusScreen::init()
         print_screen(e->text);
     }
 
-    #if 0    
-        int y = 7;
+    #if 1    
+        int y = 8;
         cursor(0,y++);
-        print_screen("Object         CPU     MAX");
+        print_screen("Object           CPU       MAX");
+        y++;
         for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
         {
             cursor(0,y++);    
             print_screen("%s%d\n",p->dbgName(),p->dbgInstance());
         }
-    #endif            
+    #endif
+    
+    AudioStream::update_overflow = 0;
+        // clear overflows that occur during startup
     initialized = true;
 }
 
@@ -189,22 +193,22 @@ void statusScreen::update()
         }
     }
 
-    #if 0    
-        int y = 8;
+    #if 1    
+        int y = 10;
         for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
         {
             if (p->cpu_cycles != p->last_cpu_cycles)
             {
                 p->last_cpu_cycles = p->cpu_cycles;
                 float value = ((float)p->cpu_cycles)/usPerBuffer;
-                cursor(15,y);
+                cursor(17,y);
                 print_screen("%-02.1f",value);
             }
             if (p->cpu_cycles_max != p->last_cpu_cycles_max)
             {
                 p->last_cpu_cycles_max = p->cpu_cycles_max;
                 float value = ((float)p->cpu_cycles_max)/usPerBuffer;
-                cursor(24,y);
+                cursor(28,y);
                 print_screen("%-02.1f",value);
             }
             y++;

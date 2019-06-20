@@ -60,7 +60,9 @@ protected:
 	static audio_block_t *block_right_1st;
 	static bool update_responsibility;
     
-    #ifndef __circle__
+    #ifdef __circle__
+        virtual const char *dbgName()  { return "i2so"; }        
+    #else
     	static DMAChannel dma;
     #endif
     
@@ -90,6 +92,10 @@ public:
 	friend void dma_ch0_isr(void);
 protected:
 	static void config_i2s(void);
+    
+    #ifdef __circle__
+        virtual const char *dbgName()  { return "i2sos"; }        
+    #endif
 };
 
 #endif

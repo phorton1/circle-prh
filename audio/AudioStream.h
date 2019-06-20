@@ -87,6 +87,16 @@ typedef struct audio_block_struct {
 } audio_block_t;
 
 
+#ifdef CIRCLE
+	#define SET_INSTANCE(class_name) \
+		static class_name::next_instance_num = 0; \
+		instance_num = next_instance_num++;
+#else
+	#define SET_INSTANCE(class_name)
+#endif
+
+
+
 class AudioConnection
 {
 public:
@@ -157,6 +167,7 @@ public:
 			cpu_cycles = 0;
 			cpu_cycles_max = 0;
 			#ifdef __circle__
+				update_depth = 0;
 				last_cpu_cycles = 0;
 				last_cpu_cycles_max = 0;
 			#endif
@@ -164,7 +175,10 @@ public:
 		}
 		
 	#ifdef __circle__
+		int update_depth;
 		virtual void begin() {};
+		virtual u8 dbgInstance()    { return 0; }
+		virtual const char *dbgName() = 0;
 	#endif
 	
 	static void initialize_memory(audio_block_t *data, unsigned int num);
