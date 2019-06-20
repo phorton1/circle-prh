@@ -48,25 +48,27 @@ typedef struct
 
 staticFormEntry static_form[] =
 {
-    {  0,  0,   "Status" },
-    {  1,  0,   "Blocks  In:" },
-    {  1, 23,   "Out:" },
-    {  1, 40,   "Diff:" },
-    {  1, 60,   "Wrong:" },
-    {  2,  6,   "Over:" },
-    {  2, 21,   "Under:" },
+    {  0,  0,   "Status      IN          OUT" },
+    {  2,  0,   "Blocks" },
+    {  3,  0,   "Other" },
+    {  4,  0,   "Wrong" },
+    {  5,  0,   "Ov/Und" },
+    {  6,  0,   "Diff" },
     
 };
 
 
 formEntry form[] =
 {
-    {1, 12, "%-8d",  0, 0},     // audioDevice.in_block_count
-    {1, 28, "%-8d",  0, 0},     // audioDevice.out_block_count
-    {1, 46, "%-8d",  0, 0},     // diff_count
-    {1, 68, "%-8d",  0, 0},     // wrong_irq_count
-    {2, 12, "%-8d",  0, 0},     // audioDevice.overflow_count
-    {2, 28, "%-8d",  0, 0},     // audioDevice.underflow_count
+    {2, 12, "%-8d",  0, 0},     // in_block_count
+    {2, 24, "%-8d",  0, 0},     // out_block_count
+    {3, 12, "%-8d",  0, 0},     // in_other_count
+    {3, 24, "%-8d",  0, 0},     // out_other_count
+    {4, 12, "%-8d",  0, 0},     // in_wrong_count
+    {4, 24, "%-8d",  0, 0},     // out_wrong_count
+    {5, 12, "%-8d",  0, 0},     // overflow_count
+    {5, 24, "%-8d",  0, 0},     // underflow_count
+    {6, 12, "%-8d",  0, 0},     // diff
 };
 
 #define NUM_STATIC_ENTRIES ((int) (sizeof(static_form) / sizeof(staticFormEntry)))
@@ -83,10 +85,13 @@ statusScreen::statusScreen(CScreenDevice *pScreen)
     
     form[0].p_value = &bcm_pcm.in_block_count;
     form[1].p_value = &bcm_pcm.out_block_count;
-    form[2].p_value = (u32 *) &block_diff;
-    form[3].p_value = &bcm_pcm.wrong_irq_count;
-    form[4].p_value = &bcm_pcm.overflow_count;
-    form[5].p_value = &bcm_pcm.underflow_count;
+    form[2].p_value = &bcm_pcm.in_other_count;
+    form[3].p_value = &bcm_pcm.out_other_count;
+    form[4].p_value = &bcm_pcm.in_wrong_count;
+    form[5].p_value = &bcm_pcm.out_wrong_count;
+    form[6].p_value = &bcm_pcm.overflow_count;
+    form[7].p_value = &bcm_pcm.underflow_count;
+    form[8].p_value = (u32 *) &block_diff;
 }
 
 

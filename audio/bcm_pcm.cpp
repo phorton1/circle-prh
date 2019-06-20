@@ -1,21 +1,3 @@
-// nuther panic checking .. something is weird here
-// like the serial port interrupts are hooked to the
-// dma interrupts ... it's a bitch just to get the 
-// dma irq routines called once ... but if I include
-// a certain printf() in the methods, then it starts
-// looping and flashing like the DMA interrupts are 
-// working, though I have my doubts and think it is
-// probably the serial interrupts getting munged.
-// 
-// In addition there seems to be some initialization
-// that is not being performed correctly, as sometimes
-// it doesn't happen on a freshly booted rPi until AFTER 
-// I re-run my old program.
-// 
-// Something is smelly in denmark, and I have to 
-// figure it out.  May need to go back to basics
-// and a single kernel implementation of i2s for
-// testing.
 
 #include "BCM_PCM.h"
 #include "bcm_pcm_defines.h"
@@ -26,11 +8,6 @@
 #include <circle/logger.h>
 #include <circle/machineinfo.h>
 
-
-#define OPTIMIZED_IRQS	0
-	// removes uncessary asserts and register accesses
-	// from the irq routines (while leaving asserts in
-	// the reset of the code)
 
 #define log_name "bcm_pcm"
 
@@ -209,9 +186,12 @@ void BCM_PCM::initBuffers()
 		memset(m_outBuffer[i],0,RAW_AUDIO_BLOCK_BYTES);
 	}
 	
-	wrong_irq_count	= 0;
-	in_block_count 	= 0;
+	in_block_count  = 0;
+	in_other_count  = 0;
+	in_wrong_count  = 0;
 	out_block_count = 0;
+	out_other_count = 0;
+	out_wrong_count = 0;
 	underflow_count = 0;
 	overflow_count 	= 0;
 }
@@ -251,12 +231,6 @@ void BCM_PCM::init()
 		return;		
 	}
 	
-	// m_as_slave = as_slave;		
-	// m_SAMPLE_RATE = sample_rate;
-	// m_SAMPLE_SIZE = sample_size;
-	// m_NUM_CHANNELS = num_channels;
-	// m_CHANNEL_WIDTH = channel_width;
-		
 	m_pInterruptSystem = CInterruptSystem::Get();
 	assert(m_pInterruptSystem);
 
@@ -296,7 +270,6 @@ void BCM_PCM::init()
 	PCM_LOG("m_outBuffer[0]=0x%08x",m_outBuffer[0]);
 	PCM_LOG("m_outBuffer[1]=0x%08x",m_outBuffer[1]);
 	PCM_LOG("BUS_ADDRESS(0x%08x)=0x%08x",(u32)&m_inControlBlock[0],BUS_ADDRESS((uintptr)&m_inControlBlock[0]));
-	
 
 	if (m_initialized)
 	{
@@ -321,23 +294,6 @@ void BCM_PCM::init()
 	
 	if (!m_as_slave)
 	{
-		// Teensy Logic analyzer reads about 1.665 times too slow.
-		// Hooking the octo up with rpi as master messes things up.
-		//
-		// Master TDM (same as on working Raspian Octo):
-		//
-		//     BCLK = 11.2 MHz (logic 6,812Mhz) = 43750
-		//            FCLK = 176khz
-		// Master I2S:
-		//
-		//     BLCK = 2.82 MHz (logic 1.696Mhz) = 44062
-		//            FCLK = 44.1khz !! yay
-		//
-		// SoundInjector Stereo wm8731 master
-		//
-		//     BCLK = 2.98 Mhz (logic 1.801Mhz) = 46565
-		//            FCLK = 46.8khz
-		
 		LOG("starting pcm BCLK",0);
 		assert(CLOCK_FREQ % (m_NUM_CHANNELS * m_CHANNEL_WIDTH) == 0);
 		unsigned nDivI = CLOCK_FREQ / (m_NUM_CHANNELS * m_CHANNEL_WIDTH) / m_SAMPLE_RATE;
@@ -465,12 +421,10 @@ void BCM_PCM::initDMA(
 
 	// Set output specific Transfer Information bits and pointers to IO
 
-	u8 nBurstLength = 8;
 	if (output)
 	{
 		tInfo |= 0
 			| (DREQSourcePCMTX << TI_PERMAP_SHIFT)
-			| (nBurstLength << TI_BURST_LENGTH_SHIFT)
 			| TI_SRC_WIDTH
 			| TI_SRC_INC 
 			| TI_DEST_DREQ;
@@ -488,7 +442,6 @@ void BCM_PCM::initDMA(
 	{
 		tInfo |= 0
 			| (DREQSourcePCMRX << TI_PERMAP_SHIFT)
-			| (nBurstLength << TI_BURST_LENGTH_SHIFT)
 			| TI_DEST_WIDTH
 			| TI_DEST_INC
 			| TI_SRC_DREQ;	// DMA gated by PCM RX signal
@@ -783,9 +736,7 @@ void BCM_PCM::updateInput(bool cold)
 			// copy input to intermediate buffer for output
 			memcpy(test_buffer[m_inToggle],m_inBuffer[m_inToggle],RAW_AUDIO_BLOCK_BYTES);
 		#else
-			#if !OPTIMIZED_IRQS
-				assert(m_inISR);
-			#endif
+			assert(m_inISR);
 			(*m_inISR)();
 		#endif
 	}
@@ -821,9 +772,7 @@ void BCM_PCM::updateOutput(bool cold)
 			memcpy(m_outBuffer[m_outToggle],test_buffer[m_inToggle ^ 1],RAW_AUDIO_BLOCK_BYTES);
 		#else
 			memset(m_outBuffer[m_outToggle],0,RAW_AUDIO_BLOCK_BYTES);
-			#if !OPTIMIZED_IRQS
-				assert(m_outISR);
-			#endif
+			assert(m_outISR);
 			(*m_outISR)();
 		#endif
 	}
@@ -853,17 +802,13 @@ void BCM_PCM::updateOutput(bool cold)
 
 void BCM_PCM::audioInIRQStub(void *pParam)
 {
-	#if !OPTIMIZED_IRQS
-		assert(pParam);
-	#endif
+	// assert(pParam);
 	((BCM_PCM *) pParam)->audioInIRQ();
 }
 
 void BCM_PCM::audioOutIRQStub(void *pParam)
 {
-	#if !OPTIMIZED_IRQS
-		assert(pParam);
-	#endif
+	// assert(pParam);
 	((BCM_PCM *) pParam)->audioOutIRQ();
 }
 
@@ -872,20 +817,29 @@ void BCM_PCM::audioInIRQ(void)
 {
 	PeripheralEntry();
 	u32 nIntMask = 1 << m_nDMAInChannel;
-
-	#if !OPTIMIZED_IRQS
-		u32 nIntStatus = read32(ARM_DMA_INT_STATUS);
-		assert(nIntStatus & nIntMask);
-		in_block_count++;
-	#endif
+	u32 nOtherMask = 1 << m_nDMAOutChannel;
+	u32 nIntStatus = read32(ARM_DMA_INT_STATUS);
 	
+	if (!(nIntStatus & nIntMask))
+	{
+		if (nIntStatus & nOtherMask)
+		{
+			in_other_count++;
+			PeripheralExit();
+			audioInIRQ();
+		}
+		else
+		{
+			in_wrong_count++;
+			PeripheralExit();
+		}
+		return;		
+	}
+	
+	in_block_count++;
 	write32(ARM_DMA_INT_STATUS, nIntMask);
 	u32 nCS = read32(ARM_DMACHAN_CS(m_nDMAInChannel));
-	
-	#if !OPTIMIZED_IRQS
-		assert(nCS & CS_INT);
-	#endif
-	
+	assert(nCS & CS_INT);
 	write32(ARM_DMACHAN_CS(m_nDMAInChannel), nCS);	// reset CS_INT
 	PeripheralExit();
 	
@@ -940,41 +894,30 @@ void BCM_PCM::audioInIRQ(void)
 void BCM_PCM::audioOutIRQ(void)
 {
 	PeripheralEntry();
+	u32 nIntMask = 1 << m_nDMAOutChannel;
+	u32 nOtherMask = 1 << m_nDMAInChannel;
 	u32 nIntStatus = read32(ARM_DMA_INT_STATUS);
 	
-	// there is some kind of bug in the rPi or the circle interrupt
-	// or DMA handlers that causes THIS routine to be called in
-	// either case (or maybe only one interrupt routine is allowed)
-	// This little section of code kludgily fixes it and is probably
-	// dependent on the order of operations of the IRQ settings ...
-	
-	#if 1
-		u32 nOtherMask = 1 << m_nDMAInChannel;
+	if (!(nIntStatus & nIntMask))
+	{
 		if (nIntStatus & nOtherMask)
 		{
-			#if !OPTIMIZED_IRQS
-				wrong_irq_count++;
-			#endif
+			out_other_count++;
 			PeripheralExit();
 			audioInIRQ();
-			return;
 		}
-	#endif
+		else
+		{
+			out_wrong_count++;
+			PeripheralExit();
+		}
+		return;		
+	}
 	
-	// continuing regular code ...
-	
-	u32 nIntMask = 1 << m_nDMAOutChannel;
-	
-	#if !OPTIMIZED_IRQS
-		assert(nIntStatus & nIntMask);
-		out_block_count++;
-	#endif
-	
+	out_block_count++;
 	write32(ARM_DMA_INT_STATUS, nIntMask);
 	u32 nCS = read32(ARM_DMACHAN_CS(m_nDMAOutChannel));
-	#if !OPTIMIZED_IRQS
-		assert(nCS & CS_INT);
-	#endif
+	assert(nCS & CS_INT);
 	write32(ARM_DMACHAN_CS(m_nDMAOutChannel), nCS);	// reset CS_INT
 	PeripheralExit();
 	
