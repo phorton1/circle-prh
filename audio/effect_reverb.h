@@ -60,7 +60,7 @@ class AudioEffectReverb : public AudioStream
   public:
     AudioEffectReverb(void) : AudioStream(1, inputQueueArray)
     {
-      SET_INSTANCE(AudioEffectReverb)        
+      SET_AUDIO_INSTANCE()        
       init_comb_filters();
       clear_buffers();
       reverbTime(5.0);

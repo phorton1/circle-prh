@@ -8,19 +8,6 @@
 #define USE_FREEVERB    1
 #define USE_MIXER       1
     
-// hmm ... I'm not sure I like this.
-// all declared audioStreams will be updated,
-//     regardless if they have any connections ...
-// they are updated in the order they are declared.
-//
-// Therefore, topologicaly, you want to put outputs.
-// I was thinking about updating in the order they are
-// connected, but what about stand-alone output devices?
-//
-// The updates shold be sorted topolically, regardless
-// of the order of declarations, with a warning for
-// any circular references.
-
 
 #define USE_CS42448  0
 

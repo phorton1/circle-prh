@@ -27,6 +27,9 @@
 #include "utility/dspinst.h"
 #include "math_helper.h"
 
+DEFINE_AUDIO_INSTANCE(AudioEffectReverb)
+
+
 void 
 AudioEffectReverb::_do_comb_apf(struct comb_apf *apf, int32_t *in_buf, int32_t *out_buf)
 {

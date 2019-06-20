@@ -32,6 +32,10 @@
 
 #define MULTI_UNITYGAIN 65536
 
+DEFINE_AUDIO_INSTANCE(AudioMixer4)        
+DEFINE_AUDIO_INSTANCE(AudioAmplifier)        
+
+
 static void applyGain(int16_t *data, int32_t mult)
 {
 	uint32_t *p = (uint32_t *)data;

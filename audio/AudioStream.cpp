@@ -32,8 +32,8 @@
 #include "AudioStream.h"
 
 #ifdef __circle__
-  #define MAX_AUDIO_MEMORY 229376
-		// prh - pick a number 
+	#define MAX_AUDIO_MEMORY 229376
+		// prh - pick a number
 #endif
 
 
@@ -66,33 +66,69 @@ uint16_t AudioStream::memory_used_max = 0;
 
 	#include <circle/logger.h>
 	#include <circle/sched/scheduler.h>
-	
+
 	#define log_name  "astream"
 	
 	u8 AudioStream::update_needed = 0;
 	u32 AudioStream::update_overflow = 0;
 	
-	
-	class AudioUpdateTask : public CTask
-	{
-		public:
-			AudioUpdateTask() {}
-			~AudioUpdateTask() {}
-		
-			void Run(void)
-			{
-				if (AudioStream::update_needed)
+	#if 0
+		class AudioUpdateTask : public CTask
+		{
+			public:
+				AudioUpdateTask() {}
+				~AudioUpdateTask() {}
+			
+				void Run(void)
 				{
-					AudioStream::do_update();
+					if (AudioStream::update_needed)
+					{
+						AudioStream::do_update();
+					}
+					CScheduler::Get()->Yield();
 				}
-				CScheduler::Get()->Yield();
+		};
+	
+		AudioUpdateTask *pUpdateTask = 0;
+	#endif
+	
+	#ifdef TOPOLOGICAL_SORT_UPDATES
+	
+		// static
+		u16 AudioStream::num_objects = 0;
+		
+		#define UPDATE_DEPTH_LIMIT  255
+			// for detecting circularity
+			// null nodes will be UPDATE_DEPTH_LIMIT+1
+			// disconnected nodes will be UPDATE_DEPTH_LIMIT+2
+			
+		u16 max_update_depth = 0;
+		void AudioStream::traverse_update(u16 depth, AudioStream *p)
+		{
+			if (depth >= UPDATE_DEPTH_LIMIT)
+			{
+				p->update_depth = depth;				
+				LOG_ERROR("update depth limit(%d) reached on %s%i (circular reference)",
+					depth, p->dbgName(), p->dbgInstance());
+				return;
 			}
-	};
-
-	AudioUpdateTask *pUpdateTask = 0;
-
+			if (depth > p->update_depth)
+				p->update_depth = depth;
+				
+			#if 0
+				for (u16 i=0; i<depth; i++)
+					printf("    ");
+				printf("%s%d   depth:%d   max:%d\n",p->dbgName(),p->dbgInstance(),depth,p->update_depth);
+			#endif
+			
+			for (AudioConnection *con=p->destination_list; con; con=con->next_dest)
+			{
+				traverse_update(depth+1,&con->dst);
+			}
+		}
+	
+	#endif
 #endif
-
 
 
 // Set up the pool of audio data blocks
@@ -123,6 +159,95 @@ void AudioStream::initialize_memory(audio_block_t *data, unsigned int num)
 	// on all the stream nodes
 	
 	#ifdef __circle__
+	
+		#ifdef TOPOLOGICAL_SORT_UPDATES
+			// Topologically sorting the updates is trivial if it is a tree.
+			// If it is a graph (has cycles), it is not so easy.
+			//
+			// If TOPOLOGICAL_SORT is not defined, then you should declare
+			// the AudioStream objects in the order you want the updates to occur,
+			// i.e. declare inputs first, then effects, etc, then outputs.
+			//
+			// Our first approximation is a simple depth first tree traversal
+			// with a limit to detect circularity. First we determine the "root"
+			// input nodes and we traverse them, assigning the maximum depth of
+			// each node visited.  NULL nodes (no inputs or outputs) can exists,
+			// think of an i2sdevice that just outputs sound. It has no connections.
+			// NULL nodes are placed after any visited nodes.
+			//
+			// Finally there may be dangling nodes, that have inputs and/or outputs
+			// but, for some reason, were not visited during the traversal.  These
+			// are just added last, then the list is sorted, then rebuilt.
+			
+			LOG("topologically sorting audio streams ...",0);
+			
+			if (!num_objects)
+			{
+				LOG_ERROR("No AudioStream objects found!!",0);
+				return;
+			}
+			u16 obj_num = 0;
+			AudioStream *objs[num_objects];
+			for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
+			{
+				objs[obj_num++] = p;
+				if (!p->num_inputs)
+				{
+					if (p->destination_list)
+					{
+						traverse_update(1,p);
+					}
+					else
+					{
+						LOG_WARNING("null update node: %s%d",p->dbgName(),p->dbgInstance());
+						p->update_depth = UPDATE_DEPTH_LIMIT + 1;
+					}
+				}
+			}
+			
+			// mark dangling nodes
+			
+			for (i=0; i<num_objects; i++)
+			{
+				AudioStream *p = objs[i];
+				if (!p->update_depth)
+				{
+					LOG_WARNING("dangling update node: %s%d",p->dbgName(),p->dbgInstance());
+					p->update_depth = UPDATE_DEPTH_LIMIT + 2;
+				}
+				p->next_update = 0;
+			}
+			
+			// sort em
+			
+			i = 0;
+			while (i < (unsigned int) num_objects-1)
+			{
+				if (objs[i]->update_depth > objs[i+1]->update_depth)
+				{
+					AudioStream *tmp = objs[i];
+					objs[i] = objs[i+1];
+					objs[i+1] = tmp;
+					if (i) i--;
+				}
+				else
+				{
+					i++;
+				}
+			}
+
+			// rebuild the list
+			
+			AudioStream::first_update = objs[0];
+			AudioStream *prev = objs[0];
+			for (i=1; i<num_objects; i++)
+			{
+				prev->next_update = objs[i];
+				prev = objs[i];
+			}
+			
+		#endif
+	
 		for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
 		{
 			p->begin();
@@ -130,9 +255,11 @@ void AudioStream::initialize_memory(audio_block_t *data, unsigned int num)
 		
 		// pUpdateTask = new AudioUpdateTask();
 	#endif
-	
-	
 }
+
+
+
+
 
 // Allocate 1 audio data block.  If successful
 // the caller is the only owner of this new block

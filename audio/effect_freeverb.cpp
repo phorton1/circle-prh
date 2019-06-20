@@ -32,9 +32,11 @@
 #include "effect_freeverb.h"
 #include "utility/dspinst.h"
 
+DEFINE_AUDIO_INSTANCE(AudioEffectFreeverb)        
+
 AudioEffectFreeverb::AudioEffectFreeverb() : AudioStream(1, inputQueueArray)
 {
-    SET_INSTANCE(AudioEffectFreeverb)        
+    SET_AUDIO_INSTANCE()        
 	
 	memset(comb1buf, 0, sizeof(comb1buf));
 	memset(comb2buf, 0, sizeof(comb2buf));
@@ -223,9 +225,11 @@ void AudioEffectFreeverb::update()
 }
 
 
+DEFINE_AUDIO_INSTANCE(AudioEffectFreeverbStereo)        
+
 AudioEffectFreeverbStereo::AudioEffectFreeverbStereo() : AudioStream(1, inputQueueArray)
 {
-    SET_INSTANCE(AudioEffectFreeverbStereo)        
+    SET_AUDIO_INSTANCE()        
 	
 	memset(comb1bufL, 0, sizeof(comb1bufL));
 	memset(comb2bufL, 0, sizeof(comb2bufL));

@@ -39,6 +39,11 @@ extern "C"
 }
 
 
+DEFINE_AUDIO_INSTANCE(AudioSynthWaveformSine)
+DEFINE_AUDIO_INSTANCE(AudioSynthWaveformSineHires)
+DEFINE_AUDIO_INSTANCE(AudioSynthWaveformSineModulated)
+
+
 void AudioSynthWaveformSine::update(void)
 {
 	audio_block_t *block;

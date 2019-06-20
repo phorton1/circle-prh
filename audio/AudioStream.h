@@ -36,7 +36,9 @@
 	#include "Arduino.h"
 	
 	#define AUDIO_BLOCK_SAMPLES  128	//  32	64  128
-	#define AUDIO_SAMPLE_RATE_EXACT 44117.64706 
+	#define AUDIO_SAMPLE_RATE_EXACT 44117.64706
+	
+	#define TOPOLOGICAL_SORT_UPDATES
 
 #else	// !__circle__
 	#ifndef __ASSEMBLER__
@@ -87,12 +89,14 @@ typedef struct audio_block_struct {
 } audio_block_t;
 
 
-#ifdef CIRCLE
-	#define SET_INSTANCE(class_name) \
-		static class_name::next_instance_num = 0; \
+#ifdef __circle__
+	#define SET_AUDIO_INSTANCE() \
 		instance_num = next_instance_num++;
+	#define DEFINE_AUDIO_INSTANCE(class_name) \
+		u8 class_name::next_instance_num = 0;
 #else
-	#define SET_INSTANCE(class_name)
+	#define SET_AUDIO_INSTANCE()
+	#define DEFINE_AUDIO_INSTANCE(class_name) 
 #endif
 
 
@@ -167,18 +171,25 @@ public:
 			cpu_cycles = 0;
 			cpu_cycles_max = 0;
 			#ifdef __circle__
-				update_depth = 0;
 				last_cpu_cycles = 0;
 				last_cpu_cycles_max = 0;
+				#ifdef TOPOLOGICAL_SORT_UPDATES
+					num_objects++;
+					update_depth = 0;
+				#endif
 			#endif
 			numConnections = 0;
 		}
 		
 	#ifdef __circle__
-		int update_depth;
 		virtual void begin() {};
 		virtual u8 dbgInstance()    { return 0; }
 		virtual const char *dbgName() = 0;
+		#ifdef TOPOLOGICAL_SORT_UPDATES
+			static u16 num_objects;
+			u16 update_depth;
+			static void traverse_update(u16 depth, AudioStream *p);
+		#endif
 	#endif
 	
 	static void initialize_memory(audio_block_t *data, unsigned int num);

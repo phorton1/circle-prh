@@ -40,7 +40,7 @@ class AudioSynthWaveformSine : public AudioStream
 public:
 	AudioSynthWaveformSine() : AudioStream(0, NULL), magnitude(16384)
 	{
-        SET_INSTANCE(AudioSynthWaveformSine)        
+        SET_AUDIO_INSTANCE()        
 	}
 	
 	void frequency(float freq) {
@@ -83,7 +83,7 @@ class AudioSynthWaveformSineHires : public AudioStream
 public:
 	AudioSynthWaveformSineHires() : AudioStream(0, NULL), magnitude(16384)
 	{
-        SET_INSTANCE(AudioSynthWaveformSineHires)        
+        SET_AUDIO_INSTANCE()        
 	}
 	void frequency(float freq) {
 		if (freq < 0.0) freq = 0.0;
@@ -124,7 +124,7 @@ class AudioSynthWaveformSineModulated : public AudioStream
 public:
 	AudioSynthWaveformSineModulated() : AudioStream(1, inputQueueArray), magnitude(16384)
 	{
-        SET_INSTANCE(AudioSynthWaveformSineModulated)        
+        SET_AUDIO_INSTANCE()        
 	}
 	// maximum unmodulated carrier frequency is 11025 Hz
 	// input = +1.0 doubles carrier

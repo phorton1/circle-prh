@@ -36,7 +36,7 @@ class AudioMixer4 : public AudioStream
 public:
 	AudioMixer4(void) : AudioStream(4, inputQueueArray)
 	{
-        SET_INSTANCE(AudioMixer4)        
+        SET_AUDIO_INSTANCE()        
 		for (int i=0; i<4; i++) multiplier[i] = 65536;
 	}
 	virtual void update(void);
@@ -83,7 +83,7 @@ class AudioAmplifier : public AudioStream
 public:
 	AudioAmplifier(void) : AudioStream(1, inputQueueArray), multiplier(65536)
 	{
-        SET_INSTANCE(AudioAmplifier)        
+        SET_AUDIO_INSTANCE()        
 	}
 	
 	virtual void update(void);
