@@ -166,10 +166,16 @@ void statusScreen::init()
         cursor(0,y++);
         print_screen("Object           CPU       MAX");
         y++;
+        int x = 0;
         for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
         {
-            cursor(0,y++);    
+            cursor(x,y++);    
             print_screen("%s%d\n",p->dbgName(),p->dbgInstance());
+            if (y >= 23)
+            {
+                y = 10;
+                x = 40;
+            }
         }
     #endif
     
@@ -233,15 +239,16 @@ void statusScreen::update()
         }
     }
 
-    #if 1    
+    #if 1
+        int x = 0;
         int y = 10;
         for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
         {
-                if (p->cpu_cycles != p->last_cpu_cycles)
+            if (p->cpu_cycles != p->last_cpu_cycles)
             {
                 p->last_cpu_cycles = p->cpu_cycles;
                 float value = ((float)p->cpu_cycles)/usPerBuffer;
-                cursor(17,y);
+                cursor(x+17,y);
                 print_screen("%-02.1f",value);
             }
             CScheduler::Get()->Yield();
@@ -249,10 +256,16 @@ void statusScreen::update()
             {
                 p->last_cpu_cycles_max = p->cpu_cycles_max;
                 float value = ((float)p->cpu_cycles_max)/usPerBuffer;
-                cursor(28,y);
+                cursor(x+28,y);
                 print_screen("%-02.1f",value);
             }
             y++;
+            if (y >= 23)
+            {
+                y = 10;
+                x = 40;
+            }
+            
         }
     #endif
 }
