@@ -315,7 +315,7 @@ private:
 	CSpinLock 				m_SpinLock;
 
 	friend class statusScreen;
-	
+public:	
 	u32	in_block_count;
 	u32	in_other_count;
 	u32	in_wrong_count;

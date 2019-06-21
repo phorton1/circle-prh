@@ -1,7 +1,7 @@
 
 #include <audio\Audio.h>
 
-
+#define WITH_SINE 0
 
 u8 channel_map[] = {
     0,  0,  0,
@@ -25,7 +25,9 @@ u8 sine_map[] = {
     
 
 AudioInputTDM           input;
-AudioSynthWaveformSine  sine[8];
+#if WITH_SINE
+    AudioSynthWaveformSine  sine[8];
+#endif
 AudioMixer4             mixer[8];
 AudioOutputTDM          output;
 AudioControlCS42448     control;
@@ -35,6 +37,7 @@ void setup()
 {
     printf("04-OctoTest::setup() version 1.0\n");
 
+#if WITH_SINE
     sine[0].frequency(261.63);
     sine[1].frequency(293.66);
     sine[2].frequency(329.63);
@@ -43,7 +46,8 @@ void setup()
     sine[5].frequency(440.0);
     sine[6].frequency(493.88);
     sine[7].frequency(523.25);
-    
+#endif
+
     // setup the audio connections
     
     u8 *p = channel_map;
@@ -53,13 +57,15 @@ void setup()
         p += 3;
     }
     
+#if WITH_SINE
     p = sine_map;
     for (u16 i=0; i<sizeof(sine_map)/3; i++)
     {
         new AudioConnection(sine[p[0]],  0, mixer[p[1]], p[2]);
         p += 3;
     }
-    
+#endif
+
     for (u16 i=0; i<8; i++)
     {
         new AudioConnection(mixer[i], 0, output, i);
@@ -85,13 +91,15 @@ void setup()
         p += 3;
     }
     
+#if WITH_SINE
     p = sine_map;
     for (u16 i=0; i<sizeof(sine_map)/3; i++)
     {
         mixer[p[1]].gain(p[2],0.05);
         p += 3;
     }
-    
+#endif
+
     // ramp ump the master volume
     
     for (u16 i=0; i<100; i++)
