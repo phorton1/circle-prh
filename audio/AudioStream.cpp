@@ -34,6 +34,8 @@
 #ifdef __circle__
 	#define MAX_AUDIO_MEMORY 229376
 		// prh - pick a number
+	#define USE_AUDIO_UPDATE_TASK
+		// otherwise it will be called directly from the interupt
 #endif
 
 
@@ -69,31 +71,55 @@ uint16_t AudioStream::memory_used_max = 0;
 
 	#define log_name  "astream"
 	
-	u8 AudioStream::update_needed = 0;
+	volatile u32 AudioStream::update_needed = 0;
 	u32 AudioStream::update_overflow = 0;
 	
-	#if 0
+	#ifdef USE_AUDIO_UPDATE_TASK
+	
 		class AudioUpdateTask : public CTask
 		{
-			public:
-				AudioUpdateTask() {}
-				~AudioUpdateTask() {}
+		public:
+
+			AudioUpdateTask() {}
+			~AudioUpdateTask() {}
 			
-				void Run(void)
+			void wake()
+			{
+				if (GetState() == TaskStateBlocked)
+				{
+					CTask *pTask = this;
+					CScheduler::Get()->WakeTask(&pTask);
+				}
+			}
+		
+			void Run(void)
+			{
+				// We start by blocking ourselves.
+				// We will be awakened by the update_all() method as needed.
+				// 
+				// We clear any pending overflow counts, and set update_needed to 1
+				// for the first calls, so that we get nice 0's after it.
+				
+				CTask *pTask = 0;
+				CScheduler::Get()->BlockTask(&pTask);
+				AudioStream::update_needed = 1;
+				AudioStream::update_overflow = 0;
+				while (1)
 				{
 					if (AudioStream::update_needed)
-					{
 						AudioStream::do_update();
-					}
-					CScheduler::Get()->Yield();
+					CScheduler::Get()->BlockTask(&pTask);
 				}
+			}
 		};
 	
-		AudioUpdateTask *pUpdateTask = 0;
-	#endif
+		AudioUpdateTask *s_pUpdateTask = 0;
+		
+	#endif	// USE_AUDIO_UPDATE_TASK
+	
 	
 	#ifdef TOPOLOGICAL_SORT_UPDATES
-	
+
 		// static
 		u16 AudioStream::num_objects = 0;
 		
@@ -127,8 +153,9 @@ uint16_t AudioStream::memory_used_max = 0;
 			}
 		}
 	
-	#endif
-#endif
+	#endif	// TOPOLOGICAL_SORT_UPDATES
+	
+#endif	//__circle__
 
 
 // Set up the pool of audio data blocks
@@ -155,9 +182,9 @@ void AudioStream::initialize_memory(audio_block_t *data, unsigned int num)
 	}
 	__enable_irq();
 
-	// on circle we use this opportunity to call begin()
-	// on all the stream nodes
-	
+	// On circle we use this opportunity to sor the
+	// audioStream nodes and call begin() on them ..
+
 	#ifdef __circle__
 	
 		#ifdef TOPOLOGICAL_SORT_UPDATES
@@ -246,15 +273,26 @@ void AudioStream::initialize_memory(audio_block_t *data, unsigned int num)
 				prev = objs[i];
 			}
 			
-		#endif
+		#endif	// TOPOLOGICAL_SORT_UPDATES
+		
+		//-----------------------------------------------------
+		// START THE AUDIO STREAMS ...
+		//-----------------------------------------------------
+		// call begin() on each AudioStream()
+		// The first one will likely start an i2s device, clocks, etc.
 	
 		for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
 		{
 			p->begin();
 		}
+
+		// Start the audio update task
 		
-		// pUpdateTask = new AudioUpdateTask();
-	#endif
+		#ifdef USE_AUDIO_UPDATE_TASK
+			s_pUpdateTask = new AudioUpdateTask();
+		#endif
+		
+	#endif	// __circle__
 }
 
 
@@ -475,14 +513,7 @@ bool AudioStream::update_scheduled = false;
 bool AudioStream::update_setup(void)
 {
 	if (update_scheduled) return false;
-	#ifdef __circle__
-	
-		// PRH TODO: implement scheduling
-		// I am going to try using a scheduler task to replace the interrupt scheme
-		// herein, where the object that has update responsibility merely frees a
-		// bound update() task to continue operating for one cycle. 
-	
-	#else
+	#ifndef __circle__
 		NVIC_SET_PRIORITY(IRQ_SOFTWARE, 208); // 255 = lowest priority
 		NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
 	#endif
@@ -494,7 +525,7 @@ bool AudioStream::update_setup(void)
 void AudioStream::update_stop(void)
 {
 	#ifdef __circle__
-		// PRH TODO: implement scheduling
+		// PRH TODO: stop and restart audioUpdateTask, objects in general
 	#else
 		NVIC_DISABLE_IRQ(IRQ_SOFTWARE);
 	#endif
@@ -503,6 +534,8 @@ void AudioStream::update_stop(void)
 }
 
 AudioStream * AudioStream::first_update = NULL;
+
+
 
 #ifdef __circle__
 
@@ -531,20 +564,29 @@ AudioStream * AudioStream::first_update = NULL;
 		AudioStream::cpu_cycles_total = totalcycles;
 		if (totalcycles > AudioStream::cpu_cycles_total_max)
 			AudioStream::cpu_cycles_total_max = totalcycles;
+			
+		__disable_irq();
 		update_needed--;
+		__enable_irq();
 	}
 
 
 	void AudioStream::update_all(void)
 	{
-		if (update_needed)
-		{
-			update_overflow++;
-		}
-		else
-		{
+		#ifdef USE_AUDIO_UPDATE_TASK
+			if (s_pUpdateTask)
+			{
+				if (update_needed)
+					update_overflow++;
+				update_needed++;
+				s_pUpdateTask->wake();
+			}
+		#else
+			if (update_needed)
+				update_overflow++;
 			update_needed++;
-		}
+			do_update();
+		#endif
 	}
 
 #else	// !__circle__

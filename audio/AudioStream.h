@@ -39,13 +39,24 @@
 	#define AUDIO_SAMPLE_RATE_EXACT 44117.64706
 	
 	#define TOPOLOGICAL_SORT_UPDATES
+	
+	#define SET_AUDIO_INSTANCE() \
+		instance_num = next_instance_num++;
+	#define DEFINE_AUDIO_INSTANCE(class_name) \
+		u8 class_name::next_instance_num = 0;
 
 #else	// !__circle__
+
+	#define SET_AUDIO_INSTANCE()
+	#define DEFINE_AUDIO_INSTANCE(class_name)
+		// added for backwards compilability
+
 	#ifndef __ASSEMBLER__
 		#include <stdio.h>  // for NULL
 		#include <string.h> // for memcpy
 		#include "kinetis.h"
 	#endif
+	
 #endif 	// !__circle__
 
 
@@ -87,18 +98,6 @@ typedef struct audio_block_struct {
 	uint16_t memory_pool_index;
 	int16_t  data[AUDIO_BLOCK_SAMPLES];
 } audio_block_t;
-
-
-#ifdef __circle__
-	#define SET_AUDIO_INSTANCE() \
-		instance_num = next_instance_num++;
-	#define DEFINE_AUDIO_INSTANCE(class_name) \
-		u8 class_name::next_instance_num = 0;
-#else
-	#define SET_AUDIO_INSTANCE()
-	#define DEFINE_AUDIO_INSTANCE(class_name) 
-#endif
-
 
 
 class AudioConnection
@@ -215,14 +214,13 @@ protected:
 	static void update_stop(void);
 	
 	#ifdef __circle__
-		static u8 update_needed;
+		static volatile u32 update_needed;
 		static u32 update_overflow;
 		uint16_t last_cpu_cycles;
 		uint16_t last_cpu_cycles_max;
 		
 		static void update_all(void);
 		static void do_update(void);
-		friend class CKernel;
 		friend class AudioUpdateTask;
 		friend class statusScreen;
 	#else

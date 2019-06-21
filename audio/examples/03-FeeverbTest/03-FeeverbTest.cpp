@@ -5,11 +5,11 @@
 // USE_MIXER puts the output through a mixer first
 
 #define USE_REVERB      0
-#define USE_FREEVERB    1
-#define USE_MIXER       1
+#define USE_FREEVERB    0
+#define USE_MIXER       0
     
 
-#define USE_CS42448  0
+#define USE_CS42448  1
 
 #if USE_CS42448
     AudioInputTDM input;
@@ -64,7 +64,7 @@
 
 void setup()
 {
-    printf("03-FreeverbTest::setup(blah)\n");
+    printf("03-FreeverbTest::setup()\n");
     
     #if USE_FREEVERB
         reverb.roomsize(0.6);
@@ -95,8 +95,47 @@ void setup()
 }
 
 
+
+#include <circle/sched/scheduler.h>
+    // for testing different update() strategies
+
 void loop()
 {
+    // do some work in the loop
+    // one way or the other the client has to be aware
+    // and either keep their code in loop() short, or
+    // call Yield appropriately.
+    
+    #if 0
+        delay(3);
+            // delay(), which calls Timer::MsDelay(), does not yield,
+            // and so you get overflows and artifcats starting at 3ms
+    #elif 1
+        // If I instead go back and assume there will be a scheduler,
+        // or at least check if there is one, and implement delay()
+        // in terms of CScheduler::sleep(), then I can take all the
+        // time I want ..
+
+        CScheduler::Get()->MsSleep(2000);
+
+    #elif 1
+        // at about 100,000 times through this loop
+        // I start getting overflows and noise artifacts
+        // with a straight thru config on the Octo, which
+        // uses very little CPU time
+        //
+        // by adding Yield calls it can go on forever if you want ..
+        
+        volatile u32 i,j;
+        for (i=0; i<100000; i++)
+        {
+            if (i) j = i;
+            if (j) i = i;
+            #if 1
+                CScheduler::Get()->Yield();
+            #endif
+        }
+    #endif
 }
 
 
