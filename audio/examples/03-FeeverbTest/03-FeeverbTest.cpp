@@ -6,7 +6,7 @@
 
 #define USE_REVERB      0
 #define USE_FREEVERB    0
-#define USE_MIXER       0
+#define USE_MIXER       1
     
 
 #define USE_CS42448  1
@@ -85,10 +85,14 @@ void setup()
     control.volume(1.0);
         
     #if USE_MIXER
-        mixer1.gain(0, 0.6);
-        mixer1.gain(1, 0.35);
-        mixer2.gain(0, 0.6);
-        mixer2.gain(1, 0.35);
+        mixer1.gain(0, 0.01);
+        mixer1.gain(1, 0.0);
+        mixer1.gain(2, 0.0);
+        mixer1.gain(3, 0.0);
+        mixer2.gain(0, 0.0);
+        mixer2.gain(1, 0.0);
+        mixer2.gain(2, 0.0);
+        mixer2.gain(3, 0.0);
     #endif
     
     printf("03-FreeverbTest::setup() finished\n");
