@@ -3,6 +3,39 @@
 #include <audio/AudioStream.h>
 
 
+#define USE_STATUS_TASK
+
+#ifdef USE_STATUS_TASK
+
+	#include <circle/sched/scheduler.h>
+    
+    class AudioStatusUpdateTask : public CTask
+    {
+        public:
+            AudioStatusUpdateTask(statusScreen *pStatusScreen)
+                : m_pStatusScreen(pStatusScreen)  {}
+            ~AudioStatusUpdateTask() {}
+        
+            void Run(void)
+            {
+                while (1)
+                {
+                    m_pStatusScreen->update();
+                    CScheduler::Get()->MsSleep(100);
+                }
+            }
+            
+        private:
+            statusScreen *m_pStatusScreen;
+    };
+
+    AudioStatusUpdateTask *s_pUpdateStatusTask = 0;
+
+#endif
+
+
+
+
 typedef struct
 {
     int y;
@@ -60,6 +93,7 @@ formEntry form[] =
     {5, 24, "%-8d",     0, 0, 0},     // underflow_count
     {6, 12, "%-8d",     0, 0, 0},     // diff
                             
+    {0, 52,  "%-d",     0, 0, 0},     // audio stream update needed
     {2, 52,  "%-d",     0, 0, 0},     // audio stream overflows
     {3, 52,  "%02.1f",  0, 0, FORM_FLAG_PROCESSOR_FLOAT},     // processor
     {3, 74,  "%02.1f",  0, 0, FORM_FLAG_PROCESSOR_FLOAT},     // processor max
@@ -97,11 +131,12 @@ statusScreen::statusScreen(CScreenDevice *pScreen)
     form[8].p_value = &bcm_pcm.underflow_count;
     form[9].p_value = (u32 *) &block_diff;
 
-    form[10].p_value = &AudioStream::update_overflow;
-    form[11].p_value = &processor_usage;
-    form[12].p_value = &processor_usage_max;
-    form[13].p_value = &memory_used;
-    form[14].p_value = &memory_used_max;
+    form[10].p_value = (u32 *) &AudioStream::update_needed;
+    form[11].p_value = &AudioStream::update_overflow;
+    form[12].p_value = &processor_usage;
+    form[13].p_value = &processor_usage_max;
+    form[14].p_value = &memory_used;
+    form[15].p_value = &memory_used_max;
 }
 
 
@@ -138,9 +173,14 @@ void statusScreen::init()
         }
     #endif
     
-    AudioStream::update_overflow = 0;
+    // AudioStream::update_overflow = 0;
+    // AudioStream::update_needed = 0;
         // clear overflows that occur during startup
     initialized = true;
+    
+    #ifdef USE_STATUS_TASK
+        s_pUpdateStatusTask = new AudioStatusUpdateTask(this);
+    #endif
 }
 
 
@@ -197,13 +237,14 @@ void statusScreen::update()
         int y = 10;
         for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
         {
-            if (p->cpu_cycles != p->last_cpu_cycles)
+                if (p->cpu_cycles != p->last_cpu_cycles)
             {
                 p->last_cpu_cycles = p->cpu_cycles;
                 float value = ((float)p->cpu_cycles)/usPerBuffer;
                 cursor(17,y);
                 print_screen("%-02.1f",value);
             }
+            CScheduler::Get()->Yield();
             if (p->cpu_cycles_max != p->last_cpu_cycles_max)
             {
                 p->last_cpu_cycles_max = p->cpu_cycles_max;
@@ -229,4 +270,7 @@ void print_screen(const char *pMessage, ...)
         screen->Write((const char *) Message, Message.GetLength());
         va_end(var);
     }
+    CScheduler::Get()->Yield();
+        // This method, particularly, Yields often to ensure that the audio update
+        // task happens expeditiously.
 }

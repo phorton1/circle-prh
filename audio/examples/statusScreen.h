@@ -13,11 +13,11 @@ class statusScreen
 public:
 
     statusScreen(CScreenDevice *pScreen);
+    void init();
     void update();
     
 private:
     
-    void init();
     bool initialized;
     
     CScreenDevice *screen;
