@@ -155,7 +155,7 @@
             16,                 // sample_size
             8,                  // num_channels
             32,                 // channel_width
-            0,0,                // channel offsets must be zero for Octo
+            1,1,                // channel offsets must be zero for Octo
             0,                  // don't invert BCLK
             1,                  // do invert FCLK
             &startClock);       // callback to start the clock
