@@ -1,6 +1,9 @@
 #include "statusScreen.h"
 #include <audio/bcm_pcm.h>
 #include <audio/AudioStream.h>
+#include <circle/logger.h>
+
+#define log_name "status"
 
 
 #define USE_STATUS_TASK
@@ -13,20 +16,51 @@
     {
         public:
             AudioStatusUpdateTask(statusScreen *pStatusScreen)
-                : m_pStatusScreen(pStatusScreen)  {}
+                : m_pStatusScreen(pStatusScreen),
+                  m_state(0) {}
             ~AudioStatusUpdateTask() {}
         
+            void pause()
+            {
+                LOG("pause",0);
+                m_state = 1;
+            }
+            
+            void resume()
+            {
+                LOG("resume",0);
+                m_state = 0;
+                m_pStatusScreen->init();
+				if (GetState() == TaskStateBlocked)
+				{
+					CTask *pTask = this;
+					CScheduler::Get()->WakeTask(&pTask);
+				}
+            }
+            
             void Run(void)
             {
+   				CTask *pTask = 0;
                 while (1)
                 {
-                    m_pStatusScreen->update();
-                    CScheduler::Get()->MsSleep(100);
+                    if (m_state == 1)   // pausing
+                    {
+                        m_state = 2;
+                        if (GetState() == TaskStateReady)
+				            CScheduler::Get()->BlockTask(&pTask);
+                    }
+                    
+                    if (!m_state)
+                    {
+                        m_pStatusScreen->update();
+                        CScheduler::Get()->MsSleep(100);
+                    }
                 }
             }
             
         private:
             statusScreen *m_pStatusScreen;
+            bool m_state;
     };
 
     AudioStatusUpdateTask *s_pUpdateStatusTask = 0;
@@ -113,6 +147,7 @@ u32 processor_usage_max = 0;
 u32 memory_used = 0;
 u32 memory_used_max = 0;
 
+statusScreen *s_pStatusScreen = 0;
 
 statusScreen::statusScreen(CScreenDevice *pScreen)
 {
@@ -137,7 +172,32 @@ statusScreen::statusScreen(CScreenDevice *pScreen)
     form[13].p_value = &processor_usage_max;
     form[14].p_value = &memory_used;
     form[15].p_value = &memory_used_max;
+    
+    s_pStatusScreen = this;
 }
+
+statusScreen *statusScreen::get()
+{
+    return s_pStatusScreen;
+}
+
+
+void statusScreen::pause()
+{
+    #ifdef USE_STATUS_TASK
+        assert(s_pUpdateStatusTask);
+        s_pUpdateStatusTask->pause();
+    #endif    
+}
+void statusScreen::resume()
+{
+    #ifdef USE_STATUS_TASK
+        assert(s_pUpdateStatusTask);
+        s_pUpdateStatusTask->resume();
+    #endif    
+}
+
+
 
 
 void statusScreen::cursor(int x, int y)
@@ -182,11 +242,13 @@ void statusScreen::init()
     // AudioStream::update_overflow = 0;
     // AudioStream::update_needed = 0;
         // clear overflows that occur during startup
-    initialized = true;
     
     #ifdef USE_STATUS_TASK
+    if (!initialized)
         s_pUpdateStatusTask = new AudioStatusUpdateTask(this);
     #endif
+
+    initialized = true;
 }
 
 

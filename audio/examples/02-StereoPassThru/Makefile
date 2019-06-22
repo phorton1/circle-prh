@@ -15,6 +15,8 @@ LIBS	= \
 	../../libaudio.a \
 	$(CIRCLEHOME)/lib/libcircle.a \
 	$(CIRCLEHOME)/lib/sched/libsched.a \
+	$(CIRCLEHOME)/addon/ugui/libugui.a \
+
 	
 
 include $(CIRCLEHOME)/Rules.mk

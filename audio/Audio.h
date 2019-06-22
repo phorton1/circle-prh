@@ -46,6 +46,7 @@
     #include "input_teensy_quad.h"
     #include "mixer.h"
     #include "output_i2s.h"
+    #include "output_probe.h"
     #include "output_tdm.h"
     #include "output_teensy_quad.h"
     #include "synth_sine.h"

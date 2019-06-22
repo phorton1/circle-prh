@@ -15,6 +15,9 @@ public:
     statusScreen(CScreenDevice *pScreen);
     void init();
     void update();
+    void pause();
+    void resume();
+    static statusScreen *get();
     
 private:
     

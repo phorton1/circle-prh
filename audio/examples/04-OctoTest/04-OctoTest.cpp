@@ -1,7 +1,14 @@
 
 #include <audio\Audio.h>
 
-#define WITH_SINE 0
+#define WITH_MIXER 1
+#define WITH_SINE  0        // requires WITH_MIXER
+#define WITH_PROBE 1
+
+#if WITH_PROBE
+    #include "../statusScreen.h"
+    #include <circle/sched/scheduler.h>
+#endif
 
 u8 channel_map[] = {
     0,  0,  0,
@@ -9,8 +16,7 @@ u8 channel_map[] = {
     2,  2,  0,
     3,  3,  0,
     4,  4,  0,
-    5,  5,  0,
-    6,  6,  0 };
+    5,  5,  0 };
 
 
 u8 sine_map[] = {
@@ -24,14 +30,28 @@ u8 sine_map[] = {
     7,  7,  3, };
     
 
-AudioInputTDM           input;
-#if WITH_SINE
-    AudioSynthWaveformSine  sine[8];
-#endif
-AudioMixer4             mixer[8];
-AudioOutputTDM          output;
-AudioControlCS42448     control;
+AudioInputTDM input;
 
+#if WITH_SINE
+    AudioSynthWaveformSine sine[8];
+#endif
+
+#if WITH_MIXER
+    AudioMixer4 mixer[8];
+#endif
+
+AudioOutputTDM output;
+AudioControlCS42448 control;
+
+#if WITH_PROBE
+    AudioProbe probe(1000,0);
+    boolean started = 0;
+#endif
+
+
+//-----------------------------------------------
+// setup
+//-----------------------------------------------
 
 void setup()
 {
@@ -50,13 +70,20 @@ void setup()
 
     // setup the audio connections
     
-    u8 *p = channel_map;
+#if WITH_SINE || WITH_MIXER
+    u8 *p;
+#endif
+
+
+#if WITH_MIXER    
+    p = channel_map;
     for (u16 i=0; i<sizeof(channel_map)/3; i++)
     {
         new AudioConnection(input, p[0],  mixer[p[1]], p[2]);
         p += 3;
     }
-    
+#endif
+
 #if WITH_SINE
     p = sine_map;
     for (u16 i=0; i<sizeof(sine_map)/3; i++)
@@ -68,7 +95,11 @@ void setup()
 
     for (u16 i=0; i<8; i++)
     {
-        new AudioConnection(mixer[i], 0, output, i);
+        #if WITH_MIXER
+            new AudioConnection(mixer[i], 0, output, i);
+        #else
+            new AudioConnection(input, i, output, i);
+        #endif
     }
     
     control.enable();        // setup up the condec control bits ...    
@@ -76,6 +107,7 @@ void setup()
     
     // zero the volumes
     
+#if WITH_MIXER    
     for (u16 i=0; i<8; i++)
     {
         for (u16 j=0; j<4; j++)
@@ -87,10 +119,12 @@ void setup()
     p = channel_map;
     for (u16 i=0; i<sizeof(channel_map)/3; i++)
     {
-        mixer[p[1]].gain(p[2],0.005);
+        mixer[p[1]].gain(p[2],1.0);
         p += 3;
     }
-    
+#endif
+
+
 #if WITH_SINE
     p = sine_map;
     for (u16 i=0; i<sizeof(sine_map)/3; i++)
@@ -100,12 +134,21 @@ void setup()
     }
 #endif
 
-    // ramp ump the master volume
+#if WITH_PROBE
+    new AudioConnection(input, 0, probe, 0);
+    #if WITH_MIXER
+        new AudioConnection(mixer[0],0,probe,1);
+    #else
+        new AudioConnection(input, 1, probe, 1);
+    #endif
+#endif
+
+    // ramp up the master volume over 1 second
     
-    for (u16 i=0; i<100; i++)
+    for (u16 i=0; i<=50; i++)
     {
-        control.volume(((float)i) / 100);
-        delay(4);
+        control.volume(((float)i) / 50.0);
+        delay(20);
     }
 
     printf("04-OctoTest::setup() finished\n");
@@ -115,6 +158,27 @@ void setup()
 
 void loop()
 {
+    #if WITH_PROBE
+        if (!started)
+        {
+            started = 1;
+            if (0)
+            {
+                printf("starting probe in 2 seconds\n");
+                CScheduler::Get()->MsSleep(2000);
+            }
+            printf("starting probe ..\n");
+            statusScreen::get()->pause();
+            probe.start();
+            if (0)
+            {
+                CScheduler::Get()->MsSleep(5000);
+                printf("restarting screen ..\n");
+                probe.stop();
+                statusScreen::get()->resume();
+            }
+        }
+    #endif
 }
 
 
