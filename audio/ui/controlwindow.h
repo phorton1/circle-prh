@@ -8,8 +8,6 @@
 
 #include <ugui/uguicpp.h>
 #include "scopewindow.h"
-// #include "recorder.h"
-#include "scopeconfig.h"
 #include <circle/string.h>
 
 
@@ -26,7 +24,7 @@ public:
 
 private:
 	void Callback (UG_MESSAGE *pMsg);
-	static void CallbackStub (UG_MESSAGE *pMsg);
+	static void CallbackStub (UG_MESSAGE *pMsg, void *pThis);
 
 	void Run (void);
 
@@ -34,8 +32,6 @@ private:
 
 private:
 	CScopeWindow *m_pScopeWindow;
-	// CRecorder *m_pRecorder;
-	// CScopeConfig *m_pConfig;
 
 	UG_WINDOW m_Window;
 
@@ -70,8 +66,6 @@ private:
 
 	unsigned m_nParamIndex;
 	CString m_Rate;
-
-	static CControlWindow *s_pThis;
 };
 
 #endif

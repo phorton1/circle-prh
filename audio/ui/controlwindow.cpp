@@ -56,18 +56,14 @@
 #define CHB_TRIG_LV_CH3	CHB_ID_10
 #define CHB_TRIG_LV_CH4	CHB_ID_11
 
-CControlWindow *CControlWindow::s_pThis = 0;
 
 CControlWindow::CControlWindow (UG_S16 sPosX0, UG_S16 sPosY0, CScopeWindow *pScopeWindow) :
 	m_pScopeWindow (pScopeWindow),
 	m_nChannelEnable (CH1 | CH2),
 	m_nParamIndex(0)	// an arbitrary parameter
 {
-	assert (s_pThis == 0);
-	s_pThis = this;
-
 	// create window
-	UG_WindowCreate (&m_Window, m_ObjectList, s_ObjectCount, CallbackStub);
+	UG_WindowCreate (&m_Window, m_ObjectList, s_ObjectCount, CallbackStub, this);
 	UG_WindowSetStyle (&m_Window, WND_STYLE_2D | WND_STYLE_HIDE_TITLE);
 	UG_WindowResize (&m_Window, sPosX0, sPosY0, sPosX0+199, sPosY0+479);
 
@@ -215,8 +211,6 @@ CControlWindow::~CControlWindow (void)
 {
 	UG_WindowHide (&m_Window);
 	UG_WindowDelete (&m_Window);
-
-	s_pThis = 0;
 }
 
 void CControlWindow::Callback (UG_MESSAGE *pMsg)
@@ -282,11 +276,12 @@ void CControlWindow::Callback (UG_MESSAGE *pMsg)
 	}
 }
 
-void CControlWindow::CallbackStub (UG_MESSAGE *pMsg)
+void CControlWindow::CallbackStub (UG_MESSAGE *pMsg, void *pThis)
 {
-	assert (s_pThis != 0);
-	s_pThis->Callback (pMsg);
+	assert(pThis != 0);
+	((CControlWindow *)pThis)->Callback(pMsg);
 }
+
 
 void CControlWindow::Run (void)
 {

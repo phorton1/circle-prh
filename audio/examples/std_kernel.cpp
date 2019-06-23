@@ -9,7 +9,6 @@
 #include <audio/AudioStream.h>
 
 #if USE_UGUI
-	#include <audio/ui/scopeconfig.h>
 	#include <audio/ui/scopewindow.h>
 	#include <audio/ui/controlwindow.h>
 #endif

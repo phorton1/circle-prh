@@ -21,8 +21,16 @@
 #define _scopewindow_h
 
 #include <ugui/uguicpp.h>
-#include "scopeconfig.h"
 #include "timeline.h"
+
+#define CHANS	4
+
+#define CH(n)	(1 << ((n)-1))
+#define CH1	CH(1)
+#define CH2	CH(2)
+#define CH3	CH(3)
+#define CH4	CH(4)
+
 
 class CScopeWindow
 {
@@ -44,7 +52,7 @@ private:
 	void DrawScale(UG_AREA &Area);
 	void DrawChannel(unsigned nChannel, UG_AREA &Area);
 
-	static void Callback(UG_MESSAGE *pMsg);
+	static void CallbackStub(UG_MESSAGE *pMsg, void *pThis) {}
 
 private:
 

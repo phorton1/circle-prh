@@ -32,7 +32,7 @@ CScopeWindow::CScopeWindow(UG_S16 sPosX0, UG_S16 sPosY0) :
 	m_nChannelEnable(0),
 	m_pTimeLine(0)
 {
-	UG_WindowCreate(&m_Window, m_ObjectList, s_ObjectCount, Callback);
+	UG_WindowCreate(&m_Window, m_ObjectList, s_ObjectCount, CallbackStub, this);
 	UG_WindowSetStyle(&m_Window, WND_STYLE_2D | WND_STYLE_HIDE_TITLE);
 	UG_WindowResize(&m_Window, sPosX0, sPosY0, sPosX0+WIDTH-1, sPosY0+HEIGHT-1);
 
@@ -267,6 +267,3 @@ void CScopeWindow::DrawChannel(unsigned nChannel, UG_AREA &Area)
 	UG_PutChar('0'+nChannel, Area.xs+5, Area.ys+(Area.ye-Area.ys+1-14)/2, C_BLACK, Color);
 }
 
-void CScopeWindow::Callback(UG_MESSAGE *pMsg)
-{
-}
