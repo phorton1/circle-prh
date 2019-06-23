@@ -23,303 +23,182 @@
 #include <circle/sched/scheduler.h>
 
 
-#define TXB_VERTICAL	TXB_ID_0
-#define TXB_VERT_CHANS	TXB_ID_1
-#define TXB_HORIZONTAL	TXB_ID_2
-#define TXB_TRIGGER	TXB_ID_3
-#define TXB_TRIG_CHANS	TXB_ID_4
-#define TXB_ACQUIRE	TXB_ID_5
-#define TXB_RATE	TXB_ID_6
+#define TXB_VERTICAL		100
+#define TXB_VERT_CHANS		101
+#define TXB_HORIZONTAL		102
+#define TXB_TRIGGER			103
+#define TXB_TRIG_CHANS		104
+#define TXB_ACQUIRE			105
+#define TXB_RATE			106
 
-#define BTN_LEFT_QUICK	BTN_ID_0
-#define BTN_LEFT	BTN_ID_1
-#define BTN_RIGHT	BTN_ID_2
-#define BTN_RIGHT_QUICK	BTN_ID_3
-#define BTN_HOME	BTN_ID_4
-#define BTN_END		BTN_ID_5
-#define BTN_ZOOM_IN	BTN_ID_6
-#define BTN_ZOOM_OUT	BTN_ID_7
-#define BTN_RATE_LEFT	BTN_ID_8
-#define BTN_RATE_RIGHT	BTN_ID_9
-#define BTN_RUN		BTN_ID_10
+#define BTN_LEFT_QUICK		200
+#define BTN_LEFT			201
+#define BTN_RIGHT			202
+#define BTN_RIGHT_QUICK		203
+#define BTN_HOME			204
+#define BTN_END				205
+#define BTN_ZOOM_IN			206
+#define BTN_ZOOM_OUT		207
+#define BTN_RATE_LEFT		208
+#define BTN_RATE_RIGHT		209
+#define BTN_RUN				210
 
-#define CHB_VERT_CH1	CHB_ID_0
-#define CHB_VERT_CH2	CHB_ID_1
-#define CHB_VERT_CH3	CHB_ID_2
-#define CHB_VERT_CH4	CHB_ID_3
-#define CHB_TRIG_EN_CH1	CHB_ID_4
-#define CHB_TRIG_EN_CH2	CHB_ID_5
-#define CHB_TRIG_EN_CH3	CHB_ID_6
-#define CHB_TRIG_EN_CH4	CHB_ID_7
-#define CHB_TRIG_LV_CH1	CHB_ID_8
-#define CHB_TRIG_LV_CH2	CHB_ID_9
-#define CHB_TRIG_LV_CH3	CHB_ID_10
-#define CHB_TRIG_LV_CH4	CHB_ID_11
+#define CHB_VERT_CH1		300
+#define CHB_VERT_CH2		301
+#define CHB_VERT_CH3		302
+#define CHB_VERT_CH4		303
+#define CHB_TRIG_EN_CH1		304
+#define CHB_TRIG_EN_CH2		305
+#define CHB_TRIG_EN_CH3		306
+#define CHB_TRIG_EN_CH4		307
+#define CHB_TRIG_LV_CH1		308
+#define CHB_TRIG_LV_CH2		309
+#define CHB_TRIG_LV_CH3		310
+#define CHB_TRIG_LV_CH4		311
 
 
-CControlWindow::CControlWindow (UG_S16 sPosX0, UG_S16 sPosY0, CScopeWindow *pScopeWindow) :
-	m_pScopeWindow (pScopeWindow),
-	m_nChannelEnable (CH1 | CH2),
+
+void greenTextBox(CWindow *win, u8 id, s16 x, s16 y, s16 xe, s16 ye, char *text)
+{
+	CTextbox *box = new CTextbox(win, id, x, y, xe, ye, text);
+	box->SetBackColor(C_MEDIUM_AQUA_MARINE);
+	box->SetForeColor(C_WHITE);
+	box->SetAlignment(ALIGN_CENTER);
+}
+
+
+CControlWindow::CControlWindow(UG_S16 sPosX0, UG_S16 sPosY0, CScopeWindow *pScopeWindow) :
+	CWindow(sPosX0, sPosY0, sPosX0+199, sPosY0+479, WND_STYLE_2D | WND_STYLE_HIDE_TITLE),
+	m_pScopeWindow(pScopeWindow),
+	m_nChannelEnable(CH1|CH2),
 	m_nParamIndex(0)	// an arbitrary parameter
 {
-	// create window
-	UG_WindowCreate (&m_Window, m_ObjectList, s_ObjectCount, CallbackStub, this);
-	UG_WindowSetStyle (&m_Window, WND_STYLE_2D | WND_STYLE_HIDE_TITLE);
-	UG_WindowResize (&m_Window, sPosX0, sPosY0, sPosX0+199, sPosY0+479);
-
 	// create controls
-	UG_TextboxCreate (&m_Window, &m_Textbox1, TXB_VERTICAL, 5, 5, 194, 25);
-	UG_TextboxCreate (&m_Window, &m_Textbox2, TXB_VERT_CHANS, 5, 35, 194, 55);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox1[0], CHB_VERT_CH1, 18, 60, 60, 80);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox1[1], CHB_VERT_CH2, 65, 60, 107, 80);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox1[2], CHB_VERT_CH3, 114, 60, 156, 80);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox1[3], CHB_VERT_CH4, 162, 60, 199, 80);
-	UG_TextboxCreate (&m_Window, &m_Textbox3, TXB_HORIZONTAL, 5, 120, 194, 140);
-	UG_ButtonCreate (&m_Window, &m_Button1, BTN_LEFT_QUICK, 10, 150, 50, 175);
-	UG_ButtonCreate (&m_Window, &m_Button2, BTN_LEFT, 58, 150, 98, 175);
-	UG_ButtonCreate (&m_Window, &m_Button3, BTN_RIGHT, 106, 150, 146, 175);
-	UG_ButtonCreate (&m_Window, &m_Button4, BTN_RIGHT_QUICK, 154, 150, 194, 175);
-	UG_ButtonCreate (&m_Window, &m_Button5, BTN_HOME, 10, 180, 50, 205);
-	UG_ButtonCreate (&m_Window, &m_Button6, BTN_END, 58, 180, 98, 205);
-	UG_ButtonCreate (&m_Window, &m_Button7, BTN_ZOOM_IN, 106, 180, 146, 205);
-	UG_ButtonCreate (&m_Window, &m_Button8, BTN_ZOOM_OUT, 154, 180, 194, 205);
-	UG_TextboxCreate (&m_Window, &m_Textbox4, TXB_TRIGGER, 5, 245, 194, 265);
-	UG_TextboxCreate (&m_Window, &m_Textbox5, TXB_TRIG_CHANS, 5, 275, 194, 295);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox2[0], CHB_TRIG_EN_CH1, 7, 300, 37, 320);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox2[1], CHB_TRIG_EN_CH2, 38, 300, 69, 320);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox2[2], CHB_TRIG_EN_CH3, 70, 300, 101, 320);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox2[3], CHB_TRIG_EN_CH4, 103, 300, 199, 320);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox3[0], CHB_TRIG_LV_CH1, 7, 325, 37, 345);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox3[1], CHB_TRIG_LV_CH2, 38, 325, 69, 345);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox3[2], CHB_TRIG_LV_CH3, 70, 325, 101, 345);
-	UG_CheckboxCreate (&m_Window, &m_Checkbox3[3], CHB_TRIG_LV_CH4, 103, 325, 199, 345);
-	UG_TextboxCreate (&m_Window, &m_Textbox6, TXB_ACQUIRE, 5, 385, 194, 405);
-	UG_ButtonCreate (&m_Window, &m_Button9, BTN_RATE_LEFT, 10, 415, 50, 440);
-	UG_TextboxCreate (&m_Window, &m_Textbox7, TXB_RATE, 55, 415, 150, 440);
-	UG_ButtonCreate (&m_Window, &m_Button10, BTN_RATE_RIGHT, 155, 415, 194, 440);
-	UG_ButtonCreate (&m_Window, &m_Button11, BTN_RUN, 10, 450, 194, 474);
-
-	// "Vertical" section
-	UG_TextboxSetFont (&m_Window, TXB_VERTICAL, &FONT_8X14);
-	UG_TextboxSetText (&m_Window, TXB_VERTICAL, "VERTICAL");
-	UG_TextboxSetBackColor (&m_Window, TXB_VERTICAL, C_MEDIUM_AQUA_MARINE);
-	UG_TextboxSetForeColor (&m_Window, TXB_VERTICAL, C_WHITE);
-	UG_TextboxSetAlignment (&m_Window, TXB_VERTICAL, ALIGN_CENTER);
-
-	UG_TextboxSetFont (&m_Window, TXB_VERT_CHANS, &FONT_8X14);
-	UG_TextboxSetText (&m_Window, TXB_VERT_CHANS, "CH1   CH2   CH3   CH4");
-	UG_TextboxSetForeColor (&m_Window, TXB_VERT_CHANS, C_BLACK);
-	UG_TextboxSetAlignment (&m_Window, TXB_VERT_CHANS, ALIGN_CENTER);
-
-	UG_CheckboxSetFont (&m_Window, CHB_VERT_CH1, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_VERT_CH1, "");
-	UG_CheckboxSetFont (&m_Window, CHB_VERT_CH2, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_VERT_CH2, "");
-	UG_CheckboxSetFont (&m_Window, CHB_VERT_CH3, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_VERT_CH3, "");
-	UG_CheckboxSetFont (&m_Window, CHB_VERT_CH4, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_VERT_CH4, "");
-
-	for (unsigned nChannel = 1; nChannel <= CHANS; nChannel++)
+	
+	greenTextBox(this,  TXB_VERTICAL,		5,   5,   194, 25,		"VERTICAL" );
+	new CTextbox(this,  TXB_VERT_CHANS, 	5,   35,  194, 55, 		"CH1   CH2   CH3   CH4" );
+	for (u8 i =0; i<4; i++)
 	{
-		if (m_nChannelEnable & CH (nChannel))
-		{
-			UG_CheckboxSetCheched (&m_Window, CHB_VERT_CH1+nChannel-1, 1);
-		}
+		m_cbVert[i] = new CCheckbox(this, CHB_VERT_CH1+i, 17+i*48,  60,  30+i*48,  80);
+		m_cbVert[i]->SetCheched(i<2);
 	}
 
-	// "Horizontal" section
-	UG_TextboxSetFont (&m_Window, TXB_HORIZONTAL, &FONT_8X14);
-	UG_TextboxSetText (&m_Window, TXB_HORIZONTAL, "HORIZONTAL");
-	UG_TextboxSetBackColor (&m_Window, TXB_HORIZONTAL, C_MEDIUM_AQUA_MARINE);
-	UG_TextboxSetForeColor (&m_Window, TXB_HORIZONTAL, C_WHITE);
-	UG_TextboxSetAlignment (&m_Window, TXB_HORIZONTAL, ALIGN_CENTER);
+	greenTextBox(this,  TXB_HORIZONTAL,     5,   120, 194, 140, 	"HORIZONTAL" );
+	new CButton(this,  	BTN_LEFT_QUICK, 	10,  150, 50,  175,		"<<" );
+	new CButton(this,  	BTN_LEFT, 			58,  150, 98,  175,		"<"  );
+	new CButton(this,  	BTN_RIGHT, 			106, 150, 146, 175,		">"  );
+	new CButton(this,  	BTN_RIGHT_QUICK, 	154, 150, 194, 175,		">>" );
+	new CButton(this,  	BTN_HOME, 			10,  180, 50,  205,		"|<" );
+	new CButton(this,  	BTN_END, 			58,  180, 98,  205,		">|" );
+	new CButton(this,  	BTN_ZOOM_IN, 		106, 180, 146, 205,		"+"  );
+	new CButton(this,  	BTN_ZOOM_OUT, 		154, 180, 194, 205,		"-"  );
 
-	UG_ButtonSetFont (&m_Window, BTN_LEFT_QUICK, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_LEFT_QUICK, "<<");
-	UG_ButtonSetFont (&m_Window, BTN_LEFT, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_LEFT, "<");
-	UG_ButtonSetFont (&m_Window, BTN_RIGHT, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_RIGHT, ">");
-	UG_ButtonSetFont (&m_Window, BTN_RIGHT_QUICK, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_RIGHT_QUICK, ">>");
-	UG_ButtonSetFont (&m_Window, BTN_HOME, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_HOME, "|<");
-	UG_ButtonSetFont (&m_Window, BTN_END, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_END, ">|");
-	UG_ButtonSetFont (&m_Window, BTN_ZOOM_IN, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_ZOOM_IN, "+");
-	UG_ButtonSetFont (&m_Window, BTN_ZOOM_OUT, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_ZOOM_OUT, "-");
+	
+	greenTextBox(this, 	TXB_TRIGGER, 		5,   245, 194, 265,		"TRIGGER" );
+	for (u8 i =0; i<4; i++)
+	{
+		new CCheckbox(this,	CHB_TRIG_EN_CH1+i, 7+i*32, 300, 37+i*32, 320);
+		new CCheckbox(this,	CHB_TRIG_LV_CH1+i, 7+i*32, 325, 37+i*32, 345);
+	}
+	
+	greenTextBox(this,  TXB_ACQUIRE, 		5, 	 385, 194, 405,		"ACQUIRE" );
+	CTextbox *chans = new CTextbox(this, TXB_TRIG_CHANS, 5, 275, 194, 295, "CH1 CH2 CH3 CH4" );
+	chans->SetAlignment(ALIGN_CENTER_LEFT);
+	new CButton(this,  	BTN_RATE_LEFT, 		10,  415, 50,  440,		"<");
+	m_tbRate = new CTextbox(this, TXB_RATE, 55,  415, 150, 440);
+	m_tbRate->SetBackColor(C_LIGHT_GRAY);
+	new CButton(this,  	BTN_RATE_RIGHT,     155, 415, 194, 440,		">");
+	new CButton(this,  	BTN_RUN,            10,  450, 194, 474,		"RUN");
 
-	// "Trigger" section
-	UG_TextboxSetFont (&m_Window, TXB_TRIGGER, &FONT_8X14);
-	UG_TextboxSetText (&m_Window, TXB_TRIGGER, "TRIGGER");
-	UG_TextboxSetBackColor (&m_Window, TXB_TRIGGER, C_MEDIUM_AQUA_MARINE);
-	UG_TextboxSetForeColor (&m_Window, TXB_TRIGGER, C_WHITE);
-	UG_TextboxSetAlignment (&m_Window, TXB_TRIGGER, ALIGN_CENTER);
-
-	UG_TextboxSetFont (&m_Window, TXB_TRIG_CHANS, &FONT_8X14);
-	UG_TextboxSetText (&m_Window, TXB_TRIG_CHANS, "CH1 CH2 CH3 CH4");
-	UG_TextboxSetForeColor (&m_Window, TXB_TRIG_CHANS, C_BLACK);
-	UG_TextboxSetAlignment (&m_Window, TXB_TRIG_CHANS, ALIGN_CENTER_LEFT);
-
-	UG_CheckboxSetFont (&m_Window, CHB_TRIG_EN_CH1, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_TRIG_EN_CH1, "");
-	UG_CheckboxSetFont (&m_Window, CHB_TRIG_EN_CH2, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_TRIG_EN_CH2, "");
-	UG_CheckboxSetFont (&m_Window, CHB_TRIG_EN_CH3, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_TRIG_EN_CH3, "");
-	UG_CheckboxSetFont (&m_Window, CHB_TRIG_EN_CH4, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_TRIG_EN_CH4, "ENABLE");
-
-	UG_CheckboxSetFont (&m_Window, CHB_TRIG_LV_CH1, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_TRIG_LV_CH1, "");
-	UG_CheckboxSetFont (&m_Window, CHB_TRIG_LV_CH2, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_TRIG_LV_CH2, "");
-	UG_CheckboxSetFont (&m_Window, CHB_TRIG_LV_CH3, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_TRIG_LV_CH3, "");
-	UG_CheckboxSetFont (&m_Window, CHB_TRIG_LV_CH4, &FONT_8X14);
-	UG_CheckboxSetText (&m_Window, CHB_TRIG_LV_CH4, "LEVEL");
-
-	// "Acquire" section
-	UG_TextboxSetFont (&m_Window, TXB_ACQUIRE, &FONT_8X14);
-	UG_TextboxSetText (&m_Window, TXB_ACQUIRE, "ACQUIRE");
-	UG_TextboxSetBackColor (&m_Window, TXB_ACQUIRE, C_MEDIUM_AQUA_MARINE);
-	UG_TextboxSetForeColor (&m_Window, TXB_ACQUIRE, C_WHITE);
-	UG_TextboxSetAlignment (&m_Window, TXB_ACQUIRE, ALIGN_CENTER);
-
-	UG_TextboxSetFont (&m_Window, TXB_RATE, &FONT_8X14);
-	UpdateRate (0);
-	UG_TextboxSetBackColor (&m_Window, TXB_RATE, C_LIGHT_GRAY);
-	UG_TextboxSetForeColor (&m_Window, TXB_RATE, C_BLACK);
-	UG_TextboxSetAlignment (&m_Window, TXB_RATE, ALIGN_CENTER);
-
-	UG_ButtonSetFont (&m_Window, BTN_RATE_LEFT, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_RATE_LEFT, "<");
-	UG_ButtonSetFont (&m_Window, BTN_RATE_RIGHT, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_RATE_RIGHT, ">");
-	UG_ButtonSetFont (&m_Window, BTN_RUN, &FONT_8X14);
-	UG_ButtonSetText (&m_Window, BTN_RUN, "RUN");
-
-	UG_WindowShow (&m_Window);
-
-	UG_Update ();
+	// finished, start it up ...
+	
+	UpdateRate(0);
+	Show();
+	UG_Update();
 }
 
-CControlWindow::~CControlWindow (void)
-{
-	UG_WindowHide (&m_Window);
-	UG_WindowDelete (&m_Window);
-}
 
-void CControlWindow::Callback (UG_MESSAGE *pMsg)
+
+void CControlWindow::Callback(UG_MESSAGE *pMsg)
 {
-	assert (pMsg != 0);
+	assert(pMsg != 0);
 	if (   pMsg->type  == MSG_TYPE_OBJECT
 	    && pMsg->id    == OBJ_TYPE_BUTTON
 	    && pMsg->event == OBJ_EVENT_PRESSED)
 	{
-		assert (m_pScopeWindow != 0);
+		assert(m_pScopeWindow != 0);
 
 		switch (pMsg->sub_id)
 		{
 		case BTN_LEFT:
-			m_pScopeWindow->AddChartOffset (-10);
+			m_pScopeWindow->AddChartOffset(-10);
 			break;
 
 		case BTN_RIGHT:
-			m_pScopeWindow->AddChartOffset (10);
+			m_pScopeWindow->AddChartOffset(10);
 			break;
 
 		case BTN_LEFT_QUICK:
-			m_pScopeWindow->AddChartOffset (-100);
+			m_pScopeWindow->AddChartOffset(-100);
 			break;
 
 		case BTN_RIGHT_QUICK:
-			m_pScopeWindow->AddChartOffset (100);
+			m_pScopeWindow->AddChartOffset(100);
 			break;
 
 		case BTN_HOME:
-			m_pScopeWindow->SetChartOffsetHome ();
+			m_pScopeWindow->SetChartOffsetHome();
 			break;
 
 		case BTN_END:
-			m_pScopeWindow->SetChartOffsetEnd ();
+			m_pScopeWindow->SetChartOffsetEnd();
 			break;
 
 		case BTN_ZOOM_IN:
-			m_pScopeWindow->SetChartZoom (+1);
+			m_pScopeWindow->SetChartZoom(+1);
 			break;
 
 		case BTN_ZOOM_OUT:
-			m_pScopeWindow->SetChartZoom (-1);
+			m_pScopeWindow->SetChartZoom(-1);
 			break;
 
 		case BTN_RATE_LEFT:
-			UpdateRate (-1);
+			UpdateRate(-1);
 			return;
 
 		case BTN_RATE_RIGHT:
-			UpdateRate (1);
+			UpdateRate(1);
 			return;
 
 		case BTN_RUN:
-			Run ();
+			Run();
 			break;
 
 		default:
 			return;
 		}
 
-		m_pScopeWindow->UpdateChart ();
+		m_pScopeWindow->UpdateChart();
 	}
 }
 
-void CControlWindow::CallbackStub (UG_MESSAGE *pMsg, void *pThis)
-{
-	assert(pThis != 0);
-	((CControlWindow *)pThis)->Callback(pMsg);
-}
 
-
-void CControlWindow::Run (void)
+void CControlWindow::Run(void)
 {
-	u32 nEnable = 0;
-	u32 nLevel = 0;
 	for (unsigned nChannel = 1; nChannel <= CHANS; nChannel++)
 	{
-		if (UG_CheckboxGetChecked (&m_Window, CHB_VERT_CH1+nChannel-1))
+		if (m_cbVert[nChannel-1]->GetChecked())
 		{
-			m_nChannelEnable |= CH (nChannel);
+			m_nChannelEnable |= CH(nChannel);
 		}
 		else
 		{
-			m_nChannelEnable &= ~CH (nChannel);
-		}
-
-		if (UG_CheckboxGetChecked (&m_Window, CHB_TRIG_EN_CH1+nChannel-1))
-		{
-			nEnable |= CH (nChannel);
-		}
-
-		if (UG_CheckboxGetChecked (&m_Window, CHB_TRIG_LV_CH1+nChannel-1))
-		{
-			nLevel |= CH (nChannel);
+			m_nChannelEnable &= ~CH(nChannel);
 		}
 	}
 
 	if (m_nChannelEnable != 0)
 	{
-		// assert (m_pRecorder != 0);
-		// m_pRecorder->SetTrigger (nEnable, nLevel);
-
-		// assert (m_pConfig != 0);
-		// m_pConfig->SelectParamSet (m_nParamIndex);
-		// m_pRecorder->SetMemoryDepth (m_pConfig->GetMemoryDepth ());
-		// m_pRecorder->SetDelayCount (m_pConfig->GetDelayCount ());
-
-		
 		AudioProbe *probe = AudioProbe::Get();
 		printf("starting probe ...\n");
 		probe->start();
@@ -330,54 +209,32 @@ void CControlWindow::Run (void)
 			CScheduler::Get()->MsSleep(100);
 			printf("waiting ...\n");
 		}
-		
-		// if (m_pRecorder->Run ())
-		{
-			m_pScopeWindow->SetChannelEnable (m_nChannelEnable);
-			m_pScopeWindow->SetChartZoom (0);
-			m_pScopeWindow->SetChartOffsetHome ();
-		}
+		m_pScopeWindow->SetChannelEnable(m_nChannelEnable);
+		m_pScopeWindow->SetChartZoom(0);
+		m_pScopeWindow->SetChartOffsetHome();
 	}
 }
 
-void CControlWindow::UpdateRate (int nShift)
-{
-	// assert (m_pConfig != 0);
 
+
+void CControlWindow::UpdateRate(int nShift)
+{
 	switch (nShift)
 	{
-	case 0:
-		break;
-
-	case -1:
-		if (m_nParamIndex > 0)
-		{
-			m_nParamIndex--;
-		}
-		break;
-
-	case 1:
-		// if (m_nParamIndex+1 < m_pConfig->GetParamSetCount ())
-		{
+		case 0:
+			break;
+		case -1:
+			if (m_nParamIndex > 0)
+				m_nParamIndex--;
+			break;
+		case 1:
 			m_nParamIndex++;
-		}
-		break;
-
-	default:
-		assert (0);
-		break;
+			break;
+		default:
+			assert(0);
+			break;
 	}
 
-	// unsigned nActualRateKHz = m_pConfig->GetActualRate (m_nParamIndex);
-	// if (nActualRateKHz < 950)
-	// {
-	// 	m_Rate.Format ("%u KHz", (nActualRateKHz+50) / 100 * 100);
-	// }
-	// else
-	// {
-	// 	m_Rate.Format ("%u MHz", (nActualRateKHz+500) / 1000);
-	// }
-
 	m_Rate.Format("skip %u",m_nParamIndex);
-	UG_TextboxSetText (&m_Window, TXB_RATE, (char *) (const char *) m_Rate);
+	m_tbRate->SetText((char *) (const char *) m_Rate);
 }

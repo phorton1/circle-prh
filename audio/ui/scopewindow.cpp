@@ -28,41 +28,38 @@
 #define HEIGHT		480
 #define MARGIN		5
 
+
 CScopeWindow::CScopeWindow(UG_S16 sPosX0, UG_S16 sPosY0) :
+	CWindow(sPosX0, sPosY0, sPosX0+WIDTH-1, sPosY0+HEIGHT-1, WND_STYLE_2D | WND_STYLE_HIDE_TITLE),
 	m_nChannelEnable(0),
 	m_pTimeLine(0)
 {
-	UG_WindowCreate(&m_Window, m_ObjectList, s_ObjectCount, CallbackStub, this);
-	UG_WindowSetStyle(&m_Window, WND_STYLE_2D | WND_STYLE_HIDE_TITLE);
-	UG_WindowResize(&m_Window, sPosX0, sPosY0, sPosX0+WIDTH-1, sPosY0+HEIGHT-1);
+	m_textbox = new CTextbox(this,TXB_ID_0, 5, 5, 149, 25, "AudioScope");
+	m_textbox->SetFont(&FONT_10X16);
+	m_textbox->SetBackColor(C_LIGHT_GRAY);
+	m_textbox->SetForeColor(C_BLACK);
+	m_textbox->SetAlignment(ALIGN_CENTER);
 
-	UG_TextboxCreate(&m_Window, &m_Textbox1, TXB_ID_0, 5, 5, 149, 25);
-	UG_TextboxSetFont(&m_Window, TXB_ID_0, &FONT_10X16);
-	UG_TextboxSetText(&m_Window, TXB_ID_0, "TinyScope Pi");
-	UG_TextboxSetBackColor(&m_Window, TXB_ID_0, C_LIGHT_GRAY);
-	UG_TextboxSetForeColor(&m_Window, TXB_ID_0, C_BLACK);
-	UG_TextboxSetAlignment(&m_Window, TXB_ID_0, ALIGN_CENTER);
-
-	UG_WindowShow(&m_Window);
+	Show();
 
 	UG_Update();
 
 	UpdateChart();
 }
 
+
 CScopeWindow::~CScopeWindow(void)
 {
-	UG_WindowHide(&m_Window);
-	UG_WindowDelete(&m_Window);
-
 	delete m_pTimeLine;
 	m_pTimeLine = 0;
 }
 
+
 void CScopeWindow::UpdateChart(void)
 {
 	UG_AREA Area;
-	UG_WindowGetArea(&m_Window, &Area);
+	GetArea(&Area);
+	
 	Area.xs += MARGIN;
 	Area.xe -= MARGIN;
 	Area.ys += MARGIN+20+10;	// consider title height and margin below
@@ -92,10 +89,6 @@ void CScopeWindow::UpdateChart(void)
 
 	Area.ys += 12;
 	UG_DrawLine(Area.xs, Area.ys, Area.xe, Area.ys, C_WHITE);
-
-	// draw scale
-
-	// DrawScale(Area);
 
 	// count active channels
 
@@ -143,17 +136,17 @@ void CScopeWindow::UpdateChart(void)
 	}
 }
 
+
 void CScopeWindow::SetChannelEnable(unsigned nMask)
 {
 	m_nChannelEnable = nMask;
-
 	delete m_pTimeLine;
-
 	m_pTimeLine = new CTimeLine(
 		44100,			// sample_depth
 		1.0,			// seconds
 		WIDTH-2*MARGIN);
 }
+
 
 void CScopeWindow::SetChartZoom(int nZoom)
 {
@@ -214,15 +207,14 @@ void CScopeWindow::DrawScale(UG_AREA &Area)
 
 void CScopeWindow::DrawChannel(unsigned nChannel, UG_AREA &Area)
 {
+	assert(m_pTimeLine != 0);
 	// printf("DrawChannel(%d,%d,%d)\n",nChannel,Area.ys,Area.ye);
+
 	UG_DrawLine(Area.xs, Area.ys+5, Area.xe, Area.ys+5, C_PURPLE);
 	UG_DrawLine(Area.xs, Area.ye-5, Area.xe, Area.ye-5, C_PURPLE);
 	
 	static const UG_COLOR Colors[] = {C_YELLOW, C_CYAN, C_MAGENTA, C_ORANGE};
 	UG_COLOR Color = Colors[(nChannel-1) & 3];
-
-	assert(m_pTimeLine != 0);
-	// assert(m_pRecorder != 0);
 
 	UG_S16 nLastPosY = 0;
 	double area_height = (Area.ye-5) - (Area.ys+5) + 1;

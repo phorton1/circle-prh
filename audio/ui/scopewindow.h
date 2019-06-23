@@ -32,7 +32,7 @@
 #define CH4	CH(4)
 
 
-class CScopeWindow
+class CScopeWindow : public CWindow
 {
 public:
     
@@ -52,16 +52,11 @@ private:
 	void DrawScale(UG_AREA &Area);
 	void DrawChannel(unsigned nChannel, UG_AREA &Area);
 
-	static void CallbackStub(UG_MESSAGE *pMsg, void *pThis) {}
-
 private:
 
-	unsigned m_nChannelEnable;
-	static const unsigned s_ObjectCount = 1;	// must match the number of objects above
+    CTextbox  *m_textbox;
 
-	UG_WINDOW m_Window;
-	UG_TEXTBOX m_Textbox1;
-	UG_OBJECT m_ObjectList[s_ObjectCount];
+	unsigned m_nChannelEnable;
 
 	CTimeLine *m_pTimeLine;
 };
