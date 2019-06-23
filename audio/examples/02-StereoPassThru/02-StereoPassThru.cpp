@@ -9,17 +9,10 @@
 #define USE_TEENSY_QUAD_SLAVE   0
 #define WITH_PROBE              1
 
-#if WITH_PROBE
-    #include "../statusScreen.h"
-    #include <circle/sched/scheduler.h>
-#endif
-
-
 
 #if USE_CS42448
 
     // Octo is always the master
-
     AudioInputTDM input;
     AudioOutputTDM output;
     AudioControlCS42448 control;
@@ -33,16 +26,13 @@
 
     // the rpi cannot be a master to an sgtl5000.
     // the sgtl5000 requires 3 clocks and the rpi can only generate 2
-    
     AudioInputI2Sslave input;
     AudioOutputI2Sslave output;
     AudioControlSGTL5000master control;
-
     
 #else   // wm8731 in master or slave mode
 
     #define I2S_MASTER    0
-
     #if I2S_MASTER
         AudioInputI2S input;
         AudioOutputI2S output;
@@ -55,32 +45,24 @@
     
 #endif
 
-
-
 AudioConnection  c0(input, 0, output, 0);
 AudioConnection  c1(input, 0, output, 1);
 
 #if WITH_PROBE
-    AudioProbe probe(10,20);
-    boolean started = 0;
+    AudioProbe probe(0);
+    AudioConnection c2(input, 0, probe, 0);
+    AudioConnection c3(input, 1, probe, 1);
+    #if USE_CS42448
+        AudioConnection c4(input, 2, probe, 2);
+        AudioConnection c5(input, 3, probe, 3);
+    #endif    
 #endif
-
 
 
 void setup()
 {
     printf("02-StereoPassThru::setup()\n");
     
-    #if WITH_PROBE
-        new AudioConnection(input, 0, probe, 0);
-        #if WITH_MIXER
-            new AudioConnection(mixer[0],0,probe,1);
-        #else
-            new AudioConnection(input, 1, probe, 1);
-        #endif
-    #endif
-    
-
     #if !USE_TEENSY_QUAD_SLAVE
         control.enable();
     #endif
@@ -108,27 +90,6 @@ void setup()
 
 void loop()
 {
-    #if WITH_PROBE
-        if (!started)
-        {
-            started = 1;
-            if (0)
-            {
-                printf("starting probe in 2 seconds\n");
-                CScheduler::Get()->MsSleep(2000);
-            }
-            printf("starting probe ..\n");
-            // statusScreen::get()->pause();
-            probe.start();
-            if (0)
-            {
-                CScheduler::Get()->MsSleep(5000);
-                printf("restarting screen ..\n");
-                probe.stop();
-                statusScreen::get()->resume();
-            }
-        }
-    #endif    
 }
 
 

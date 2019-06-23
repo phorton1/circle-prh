@@ -8,9 +8,14 @@
 #include <circle/gpiopin.h>
 #include <audio/AudioStream.h>
 
-#if USE_SCREEN
+#if USE_UGUI
+	#include <audio/ui/scopeconfig.h>
+	#include <audio/ui/scopewindow.h>
+	#include <audio/ui/controlwindow.h>
+#endif
+
+#if 0 	// USE_SCREEN
 	#include "statusScreen.h"
-	#define STATUS_TIME  		100
 #endif
 
 
@@ -23,7 +28,7 @@ static const char log_name[] = "kernel";
 
 CKernel::CKernel(void) :
 	#if USE_SCREEN
-		m_Screen(m_Options.GetWidth(), m_Options.GetHeight()),
+		m_Screen(800, 480),	// m_Options.GetWidth(), m_Options.GetHeight()),
 	#endif
 	#if USE_MINI_SERIAL
 		m_MiniUart(&m_Interrupt),
@@ -33,6 +38,12 @@ CKernel::CKernel(void) :
 		m_Serial(&m_Interrupt, TRUE),
 	#endif
 	m_Logger(m_Options.GetLogLevel(), &m_Timer)
+	#if USE_USB
+		,m_DWHCI(&m_Interrupt, &m_Timer)
+	#endif
+	#if USE_UGUI
+		,m_GUI(&m_Screen)
+	#endif
 {
 	m_ActLED.Toggle();
 }
@@ -76,6 +87,19 @@ boolean CKernel::Initialize (void)
 			bOK = m_Logger.Initialize(&m_Serial);
 	#endif	
 
+	#if USE_USB
+		if (bOK)
+			bOK = m_DWHCI.Initialize ();
+	#endif
+	
+	#if USE_UGUI
+		if (bOK)
+		{
+			m_TouchScreen.Initialize ();
+			bOK = m_GUI.Initialize ();
+		}
+	#endif
+	
 	printf("kernel intialize finished\n");
 	
 	return bOK;
@@ -90,17 +114,25 @@ TShutdownMode CKernel::Run(void)
 {
 	LOG("std_kernel " __DATE__ " " __TIME__,0);
 
-#if USE_SCREEN
+#if 0 // USE_SCREEN
 	LOG("using statusScreen",0);
 	print_screen("hello\n");
 #endif
 
 	setup();
 	
-#if USE_SCREEN
+#if 0 // USE_SCREEN
 	statusScreen status(&m_Screen);
 	status.init();
 #endif	
+
+#if USE_UGUI
+	// CScopeConfig ui_Config;
+	// ui_Config.AddParamSet(20, 44, 0);
+
+	CScopeWindow ScopeWindow(0, 0); // , /* &m_Recorder,*/ &ui_Config);
+	CControlWindow ControlWindow(600, 0, &ScopeWindow);	// , /* &m_Recorder,*/ &ui_Config);
+#endif
 
 	m_Timer.MsDelay(500);
 	printf("ready ...\n");
@@ -112,6 +144,10 @@ TShutdownMode CKernel::Run(void)
 	
 	while (1)
 	{
+		#if USE_UGUI
+			m_GUI.Update ();
+		#endif
+		
 		loop();
 		m_Scheduler.Yield();
 		main_loop_counter++;

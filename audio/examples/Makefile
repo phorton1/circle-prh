@@ -8,7 +8,9 @@ CIRCLEHOME = ../../../
 OBJS	= \
     main.o \
 	std_kernel.o \
-	statusScreen.o \
+	
+	
+#	statusScreen.o \
 
 
 std_kernel.a: $(OBJS)

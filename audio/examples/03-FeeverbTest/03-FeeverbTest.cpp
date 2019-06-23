@@ -5,11 +5,12 @@
 // USE_MIXER puts the output through a mixer first
 
 #define USE_REVERB      0
-#define USE_FREEVERB    0
+#define USE_FREEVERB    1
 #define USE_MIXER       1
-    
+#define WITH_PROBE      1
 
 #define USE_CS42448  1
+    // default is AudioInjector Stereo wm8731 running the clocks
 
 #if USE_CS42448
     AudioInputTDM input;
@@ -61,6 +62,19 @@
 
 
 
+#if WITH_PROBE
+    AudioProbe probe(0);
+    AudioConnection p0(input,   0, probe, 0);
+    AudioConnection p1(input,   1, probe, 1);
+    #if USE_REVERB || USE_FREEVERB
+        AudioConnection p2(reverb,  0, probe, 2);
+        AudioConnection p3(reverb, SECOND_CHANNEL, probe, 3);
+    #elif USE_MIXER
+        AudioConnection p2(mixer1,  0, probe, 2);
+        AudioConnection p3(mixer2,  0, probe, 3);
+    #endif
+#endif
+
 
 void setup()
 {
@@ -81,19 +95,24 @@ void setup()
         control.inputSelect(AUDIO_INPUT_LINEIN);
         control.inputLevel(1.0);
     #endif
-
-    control.volume(1.0);
         
     #if USE_MIXER
-        mixer1.gain(0, 0.01);
-        mixer1.gain(1, 0.0);
+        mixer1.gain(0, 0.6);
+        mixer1.gain(1, 0.3);
         mixer1.gain(2, 0.0);
         mixer1.gain(3, 0.0);
-        mixer2.gain(0, 0.0);
-        mixer2.gain(1, 0.0);
+        mixer2.gain(0, 0.6);
+        mixer2.gain(1, 0.3);
         mixer2.gain(2, 0.0);
         mixer2.gain(3, 0.0);
     #endif
+    
+    // ramp up the master volume over 1 second
+    for (u16 i=0; i<=50; i++)
+    {
+        control.volume(((float)i) / 50.0);
+        delay(20);
+    }
     
     printf("03-FreeverbTest::setup() finished\n");
 }
@@ -114,7 +133,7 @@ void loop()
         delay(3);
             // delay(), which calls Timer::MsDelay(), does not yield,
             // and so you get overflows and artifcats starting at 3ms
-    #elif 1
+    #elif 0
         // If I instead go back and assume there will be a scheduler,
         // or at least check if there is one, and implement delay()
         // in terms of CScheduler::sleep(), then I can take all the
@@ -122,7 +141,7 @@ void loop()
 
         CScheduler::Get()->MsSleep(2000);
 
-    #elif 1
+    #elif 0
         // at about 100,000 times through this loop
         // I start getting overflows and noise artifacts
         // with a straight thru config on the Octo, which

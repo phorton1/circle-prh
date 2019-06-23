@@ -25,6 +25,8 @@
 #define _std_kernel_h
 
 #define USE_SCREEN  	 1
+#define USE_USB          1
+#define USE_UGUI         1		// requires USE_SCREEN and USE_USB
 #define USE_MINI_SERIAL  0
 #define USE_MAIN_SERIAL  1
 
@@ -47,6 +49,18 @@
 #endif
 #include <circle/logger.h>
 #include <circle/sched/scheduler.h>
+
+#if USE_USB
+	#include <circle/usb/dwhcidevice.h>
+#endif
+
+#if USE_UGUI
+	#include <audio/audio.h>	// for arduino.h NULL definition
+	#include <circle/input/touchscreen.h>
+	#include <ugui/uguicpp.h>
+#endif
+
+
 
 
 enum TShutdownMode
@@ -86,7 +100,14 @@ private:
 	#endif
 	CLogger				m_Logger;
 	CScheduler			m_Scheduler;
-
+	#if USE_USB
+		CDWHCIDevice		m_DWHCI;
+	#endif
+	#if USE_UGUI
+		CTouchScreenDevice	m_TouchScreen;
+		CUGUI			m_GUI;
+	#endif
 };
 
-#endif
+
+#endif	// _std_kernel_h
