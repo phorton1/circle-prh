@@ -16,6 +16,8 @@ OBJS	= \
 	arm_float_to_q31.o \
     AudioStream.o \
 	bcm_pcm.o \
+	analyze_peak.o \
+	analyze_rms.o \
 	control_wm8731.o \
 	control_cs42448.o \
 	control_sgtl5000.o \

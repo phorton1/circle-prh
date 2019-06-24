@@ -36,6 +36,8 @@
 
     #include "Wire.h"
     #include "AudioStream.h"
+    #include "analyze_peak.h"
+    #include "analyze_rms.h"
     #include "control_wm8731.h"
     #include "control_cs42448.h"
     #include "control_sgtl5000.h"
