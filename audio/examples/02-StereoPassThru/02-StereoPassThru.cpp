@@ -8,6 +8,7 @@
 #define USE_STGL5000            0
 #define USE_TEENSY_QUAD_SLAVE   0
 #define WITH_PROBE              1
+#define WITH_VU_METER           1
 
 
 #if USE_CS42448
@@ -58,6 +59,10 @@ AudioConnection  c1(input, 0, output, 1);
     #endif    
 #endif
 
+#if WITH_VU_METER
+    AudioAnalyzePeak peak;
+    AudioConnection v0(input, 0, peak, 0);
+#endif
 
 void setup()
 {

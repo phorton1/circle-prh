@@ -539,6 +539,18 @@ AudioStream * AudioStream::first_update = NULL;
 
 #ifdef __circle__
 
+	// static
+	AudioStream *AudioStream::find(const char *name, u8 instance)
+	{
+		for (AudioStream *p = AudioStream::first_update; p; p = p->next_update)
+		{
+			if (!strcmp(name,p->dbgName()) && instance==p->dbgInstance())
+				return p;
+		}
+		return NULL;
+	}
+
+
 	void AudioStream::do_update(void)
 	{
 		uint32_t totalcycles = CTimer::GetClockTicks();

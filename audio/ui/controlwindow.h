@@ -8,6 +8,7 @@
 
 #include <ugui/uguicpp.h>
 #include "scopewindow.h"
+#include "vu_meter.h"
 #include <circle/string.h>
 
 
@@ -38,6 +39,8 @@ private:
 	unsigned    m_nChannelEnable;
 	unsigned    m_nParamIndex;
 	CString     m_Rate;
+    
+    CVuMeter    *m_vuMeter;
 };
 
 #endif

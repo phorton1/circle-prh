@@ -23,38 +23,31 @@
 #include <circle/sched/scheduler.h>
 
 
-#define TXB_VERTICAL		100
-#define TXB_VERT_CHANS		101
-#define TXB_HORIZONTAL		102
-#define TXB_TRIGGER			103
-#define TXB_TRIG_CHANS		104
-#define TXB_ACQUIRE			105
-#define TXB_RATE			106
+#define TXB_VERTICAL		0
+#define TXB_VERT_CHANS		1
+#define TXB_HORIZONTAL		2
+#define TXB_VOLUME			3
+#define TXB_ACQUIRE			4
+#define TXB_RATE			5
 
-#define BTN_LEFT_QUICK		200
-#define BTN_LEFT			201
-#define BTN_RIGHT			202
-#define BTN_RIGHT_QUICK		203
-#define BTN_HOME			204
-#define BTN_END				205
-#define BTN_ZOOM_IN			206
-#define BTN_ZOOM_OUT		207
-#define BTN_RATE_LEFT		208
-#define BTN_RATE_RIGHT		209
-#define BTN_RUN				210
+#define BTN_LEFT_QUICK		10
+#define BTN_LEFT			11
+#define BTN_RIGHT			12
+#define BTN_RIGHT_QUICK		13
+#define BTN_HOME			14
+#define BTN_END				15
+#define BTN_ZOOM_IN			16
+#define BTN_ZOOM_OUT		17
+#define BTN_RATE_LEFT		18
+#define BTN_RATE_RIGHT		19
+#define BTN_RUN				20
 
-#define CHB_VERT_CH1		300
-#define CHB_VERT_CH2		301
-#define CHB_VERT_CH3		302
-#define CHB_VERT_CH4		303
-#define CHB_TRIG_EN_CH1		304
-#define CHB_TRIG_EN_CH2		305
-#define CHB_TRIG_EN_CH3		306
-#define CHB_TRIG_EN_CH4		307
-#define CHB_TRIG_LV_CH1		308
-#define CHB_TRIG_LV_CH2		309
-#define CHB_TRIG_LV_CH3		310
-#define CHB_TRIG_LV_CH4		311
+#define CHB_VERT_CH1		30
+#define CHB_VERT_CH2		31
+#define CHB_VERT_CH3		32
+#define CHB_VERT_CH4		33
+
+#define ID_VU_METER			40
 
 
 
@@ -83,27 +76,25 @@ CControlWindow::CControlWindow(UG_S16 sPosX0, UG_S16 sPosY0, CScopeWindow *pScop
 		m_cbVert[i]->SetCheched(i<2);
 	}
 
-	greenTextBox(this,  TXB_HORIZONTAL,     5,   120, 194, 140, 	"HORIZONTAL" );
-	new CButton(this,  	BTN_LEFT_QUICK, 	10,  150, 50,  175,		"<<" );
-	new CButton(this,  	BTN_LEFT, 			58,  150, 98,  175,		"<"  );
-	new CButton(this,  	BTN_RIGHT, 			106, 150, 146, 175,		">"  );
-	new CButton(this,  	BTN_RIGHT_QUICK, 	154, 150, 194, 175,		">>" );
-	new CButton(this,  	BTN_HOME, 			10,  180, 50,  205,		"|<" );
-	new CButton(this,  	BTN_END, 			58,  180, 98,  205,		">|" );
-	new CButton(this,  	BTN_ZOOM_IN, 		106, 180, 146, 205,		"+"  );
-	new CButton(this,  	BTN_ZOOM_OUT, 		154, 180, 194, 205,		"-"  );
+	greenTextBox(this,  TXB_HORIZONTAL,     5,   100, 194, 120, 	"HORIZONTAL" );
+	new CButton(this,  	BTN_LEFT_QUICK, 	10,  130, 50,  155,		"<<" );
+	new CButton(this,  	BTN_LEFT, 			58,  130, 98,  155,		"<"  );
+	new CButton(this,  	BTN_RIGHT, 			106, 130, 146, 155,		">"  );
+	new CButton(this,  	BTN_RIGHT_QUICK, 	154, 130, 194, 155,		">>" );
+	new CButton(this,  	BTN_HOME, 			10,  160, 50,  185,		"|<" );
+	new CButton(this,  	BTN_END, 			58,  160, 98,  185,		">|" );
+	new CButton(this,  	BTN_ZOOM_IN, 		106, 160, 146, 185,		"+"  );
+	new CButton(this,  	BTN_ZOOM_OUT, 		154, 160, 194, 185,		"-"  );
 
 	
-	greenTextBox(this, 	TXB_TRIGGER, 		5,   245, 194, 265,		"TRIGGER" );
-	for (u8 i =0; i<4; i++)
-	{
-		new CCheckbox(this,	CHB_TRIG_EN_CH1+i, 7+i*32, 300, 37+i*32, 320);
-		new CCheckbox(this,	CHB_TRIG_LV_CH1+i, 7+i*32, 325, 37+i*32, 345);
-	}
-	
+	greenTextBox(this, 	TXB_VOLUME, 		     5,   205, 194, 225, "VOLUME" );
+	#if 1	// vert 
+		m_vuMeter = new CVuMeter(this,0,ID_VU_METER, 21,  240, 40,  370, 0, 12);
+	#else	// horz 
+		m_vuMeter = new CVuMeter(this,0,ID_VU_METER, 8,  235, 186,  255, 1, 12);
+	#endif
+
 	greenTextBox(this,  TXB_ACQUIRE, 		5, 	 385, 194, 405,		"ACQUIRE" );
-	CTextbox *chans = new CTextbox(this, TXB_TRIG_CHANS, 5, 275, 194, 295, "CH1 CH2 CH3 CH4" );
-	chans->SetAlignment(ALIGN_CENTER_LEFT);
 	new CButton(this,  	BTN_RATE_LEFT, 		10,  415, 50,  440,		"<");
 	m_tbRate = new CTextbox(this, TXB_RATE, 55,  415, 150, 440);
 	m_tbRate->SetBackColor(C_LIGHT_GRAY);
@@ -114,6 +105,7 @@ CControlWindow::CControlWindow(UG_S16 sPosX0, UG_S16 sPosY0, CScopeWindow *pScop
 	
 	UpdateRate(0);
 	Show();
+	// m_vuMeter->Show();
 	UG_Update();
 }
 

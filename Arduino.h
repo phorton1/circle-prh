@@ -28,5 +28,7 @@
 
 #define DMAMEM
 
+#define abs(v)   (v > 0 ? v : -v)
+
 
 #endif

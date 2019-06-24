@@ -189,6 +189,7 @@ public:
 			u16 update_depth;
 			static void traverse_update(u16 depth, AudioStream *p);
 		#endif
+		static AudioStream *find(const char *name, u8 instance);
 	#endif
 	
 	static void initialize_memory(audio_block_t *data, unsigned int num);
