@@ -6,11 +6,19 @@ CIRCLEHOME = ../../..
 
 CPPFLAGS += -Wno-write-strings
 
-OBJS	= \
-	controlwindow.o \
-	scopewindow.o  \
-	timeline.o \
-	vu_meter.o \
+OBJS = \
+	app.o \
+	menu.o \
+	window_main.o \
+	window_status.o \
+	window_record.o \
+ 	vu_meter.o \
+
+
+# OBJS	= \
+# 	controlwindow.o \
+# 	scopewindow.o  \
+# 	timeline.o \
 
 libaudio_ui.a: $(OBJS)
 	@echo "  AR    $@"

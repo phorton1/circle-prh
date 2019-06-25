@@ -9,8 +9,9 @@
 #include <audio/AudioStream.h>
 
 #if USE_UGUI
-	#include <audio/ui/scopewindow.h>
-	#include <audio/ui/controlwindow.h>
+	#include <audio/ui/app.h>
+	// #include <audio/ui/scopewindow.h>
+	// #include <audio/ui/controlwindow.h>
 #endif
 
 #if 0 	// USE_SCREEN
@@ -121,16 +122,18 @@ TShutdownMode CKernel::Run(void)
 	setup();
 	
 #if 0 // USE_SCREEN
-	statusScreen status(&m_Screen);
-	status.init();
+	// statusScreen status(&m_Screen);
+	// status.init();
 #endif	
 
 #if USE_UGUI
 	// CScopeConfig ui_Config;
 	// ui_Config.AddParamSet(20, 44, 0);
 
-	CScopeWindow ScopeWindow(0, 0); // , /* &m_Recorder,*/ &ui_Config);
-	CControlWindow ControlWindow(600, 0, &ScopeWindow);	// , /* &m_Recorder,*/ &ui_Config);
+	// CScopeWindow ScopeWindow(0, 0); // , /* &m_Recorder,*/ &ui_Config);
+	// CControlWindow ControlWindow(600, 0, &ScopeWindow);	// , /* &m_Recorder,*/ &ui_Config);
+	
+	CApplication app;
 #endif
 
 	m_Timer.MsDelay(500);

@@ -35,6 +35,8 @@ public:
 	CVuMeter(CWindow *win, u8 instance, u8 id, s16 x, s16 y, s16 xe, s16 ye,
         u8 horz, u8 num_divs);
 
+    bool Callback(UG_MESSAGE *pMsg);
+    
 private:
 
     AudioAnalyzePeak *m_pAudioObj;
@@ -43,9 +45,8 @@ private:
     u8 m_num_divs;
     u8 m_last_value;          // scaled to num_divs
     u16 m_hold_red;
-    
-    void uiCallback();
-    static void uiCallbackStub(void *pThis) { ((CVuMeter *)pThis)->uiCallback(); }
+    bool m_running;
+
 };
 
 

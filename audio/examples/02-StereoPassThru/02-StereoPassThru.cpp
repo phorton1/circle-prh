@@ -60,8 +60,10 @@ AudioConnection  c1(input, 0, output, 1);
 #endif
 
 #if WITH_VU_METER
-    AudioAnalyzePeak peak;
-    AudioConnection v0(input, 0, peak, 0);
+    AudioAnalyzePeak peak0;
+    AudioAnalyzePeak peak1;
+    AudioConnection v0(input, 0, peak0, 0);
+    AudioConnection v1(input, 1, peak1, 0);
 #endif
 
 void setup()

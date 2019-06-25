@@ -10,6 +10,8 @@ MAKE_LIBS = \
 	../std_kernel.mark \
 	../../libaudio.mark \
 	../../ui/libaudio_ui.mark \
+	$(CIRCLEHOME)/addon/ugui/libugui.mark
+	
 
 LIBS	= \
 	../std_kernel.a \

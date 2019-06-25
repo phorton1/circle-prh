@@ -35,6 +35,11 @@
 
 void AudioAnalyzePeak::update(void)
 {
+	#ifdef __circle__
+		if (!m_running)
+			return;
+	#endif
+	
 	audio_block_t *block;
 	const int16_t *p, *end;
 	int32_t min, max;
@@ -58,15 +63,6 @@ void AudioAnalyzePeak::update(void)
 	max_sample = max;
 	new_output = true;
 	release(block);
-	
-	#ifdef __circle__
-		m_count++;
-		if (m_ui_cb &&
-			m_ui_rate &&
-			!(m_count % m_ui_rate))
-		{
-			m_ui_cb(m_ui_param);
-		}
-	#endif
+
 }
 

@@ -37,10 +37,7 @@ public:
 	{
 		#ifdef __circle__
 	        SET_AUDIO_INSTANCE()
-			m_count = 0;
-			m_ui_rate = 0;
-			m_ui_cb = NULL;
-			m_ui_param = NULL;
+			m_running = 1;
 		#endif
 		
 		min_sample = 32767;
@@ -80,12 +77,8 @@ public:
     #ifdef __circle__
 		virtual const char *dbgName()  { return "peak"; }
 		virtual u8 dbgInstance()       { return instance_num; }
-		void registerUIHandler(u16 rate, void (*cb)(void *),void *param)
-		{
-			m_ui_rate  = rate;
-			m_ui_cb    = cb;
-			m_ui_param = param;
-		}
+		void set_running(bool running) { m_running = running; }
+		bool is_running()			   { return m_running; }
 	#endif	
 	
 private:
@@ -97,10 +90,7 @@ private:
     #ifdef __circle__
 		static u8 next_instance_num;
 		u8 instance_num;
-		u16 m_ui_rate;
-		u32 m_count;
-		void (*m_ui_cb)(void *);
-		void *m_ui_param;
+		bool m_running;
 	#endif	
 	
 };
