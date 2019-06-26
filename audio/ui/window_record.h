@@ -5,7 +5,9 @@
 #include <audio/Audio.h>
 #include <ugui/uguicpp.h>
 #include "menu.h"
+#include "track_display.h"
 
+// RECORD_CHANNELS from audio/recorder.h
 
 class CRecordWindow : public CWindow
 {
@@ -20,6 +22,9 @@ private:
     
     CApplication *m_pApp;
     CTitlebar    *m_pTitlebar;
+    
+    AudioRecorder *m_pRecorder;
+    CTrackDisplay *m_pTrack[RECORD_CHANNELS];
 
 };
 

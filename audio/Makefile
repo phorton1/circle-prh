@@ -28,9 +28,9 @@ OBJS	= \
 	input_teensy_quad.o \
 	mixer.o \
 	output_i2s.o \
-	output_probe.o \
 	output_tdm.o \
 	output_teensy_quad.o \
+	recorder.o \
 	synth_sine.o \
 	
 

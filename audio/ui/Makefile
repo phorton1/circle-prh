@@ -13,12 +13,9 @@ OBJS = \
 	window_status.o \
 	window_record.o \
  	vu_meter.o \
+	track_display.o \
 
 
-# OBJS	= \
-# 	controlwindow.o \
-# 	scopewindow.o  \
-# 	timeline.o \
 
 libaudio_ui.a: $(OBJS)
 	@echo "  AR    $@"

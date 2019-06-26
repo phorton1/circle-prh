@@ -7,7 +7,7 @@
 #define USE_CS42448             1
 #define USE_STGL5000            0
 #define USE_TEENSY_QUAD_SLAVE   0
-#define WITH_PROBE              1
+#define WITH_RECORDER           1
 #define WITH_VU_METER           1
 
 
@@ -46,29 +46,38 @@
     
 #endif
 
-AudioConnection  c0(input, 0, output, 0);
-AudioConnection  c1(input, 0, output, 1);
 
-#if WITH_PROBE
-    AudioProbe probe(0);
-    AudioConnection c2(input, 0, probe, 0);
-    AudioConnection c3(input, 1, probe, 1);
+#if WITH_RECORDER
+    AudioRecorder recorder;
+    AudioConnection c0(input,    0, recorder, 0);
+    AudioConnection c1(input,    1, recorder, 1);
+    AudioConnection c2(recorder, 0, output,   0);
+    AudioConnection c3(recorder, 1, output,   1);
     #if USE_CS42448
-        AudioConnection c4(input, 2, probe, 2);
-        AudioConnection c5(input, 3, probe, 3);
-    #endif    
+        AudioConnection c4(input,    2, recorder, 2);
+        AudioConnection c5(input,    3, recorder, 3);
+        AudioConnection c6(recorder, 2, output,   2);
+        AudioConnection c7(recorder, 3, output,   3);
+    #endif
+#else
+    AudioConnection  o0(input, 0, output, 0);
+    AudioConnection  o1(input, 0, output, 1);
 #endif
+
 
 #if WITH_VU_METER
     AudioAnalyzePeak peak0;
     AudioAnalyzePeak peak1;
-    AudioConnection v0(input, 0, peak0, 0);
-    AudioConnection v1(input, 1, peak1, 0);
 #endif
 
 void setup()
 {
     printf("02-StereoPassThru::setup()\n");
+    
+    #if WITH_VU_METER    
+        new AudioConnection(input, 0, peak0, 0);
+        new AudioConnection(input, 1, peak1, 0);
+    #endif
     
     #if !USE_TEENSY_QUAD_SLAVE
         control.enable();
