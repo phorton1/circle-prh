@@ -10,7 +10,7 @@ CApplication::CApplication() :
     window_status(this),
     window_record(this)
 {
-    showWindow(WINDOW_MAIN);
+    showWindow(WINDOW_STATUS);
 }
 
 

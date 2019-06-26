@@ -21,6 +21,10 @@ private:
     CApplication *m_pApp;
     CTitlebar    *m_pTitlebar;
     
+    void init();
+    void draw();
+    void show(s16 x, s16 y, const char *pMessage, ...);
+    
 };
 
 

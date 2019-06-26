@@ -6,6 +6,8 @@
 
 #define APP_TOP_MARGIN      40
 
+// these textbox ids are added to the main windows
+
 #define ID_APP_FILLER       255
 #define ID_APP_TITLE        254
 #define ID_APP_STATUS       253

@@ -1,5 +1,6 @@
 #include "menu.h"
 #include "app.h"
+#include <audio/bcm_pcm.h>
 
 #define MAIN_MENU_W     120
 #define MAIN_MENU_H     40
@@ -218,8 +219,11 @@ CTitlebar::CTitlebar(CWindow *win, CApplication *app, u8 window_num) :
         0,
         width-1,    // had to fix off by 1 errors in ugui for else needed -1
         MAIN_MENU_H-1,
-        "status");
+        "status    ");
+    m_pStatus->SetFont(&FONT_8X12);
     m_pStatus->SetBackColor(C_DODGER_BLUE);
+    m_pStatus->SetForeColor(C_DARK_SLATE_GRAY);
+    m_pStatus->SetAlignment(ALIGN_CENTER_RIGHT);
     
     // vu meter
     
@@ -227,8 +231,9 @@ CTitlebar::CTitlebar(CWindow *win, CApplication *app, u8 window_num) :
     #define VU_TOP    6
     #define VU_HEIGHT 12
     #define VU_TWEEN  2
+    #define VU_RIGHT_MARGIN  20
     
-    s16 vux = width - STATUS_WIDTH - VU_WIDTH - 20;
+    s16 vux = width - STATUS_WIDTH - VU_WIDTH - VU_RIGHT_MARGIN;
 
     m_vu1 = new CVuMeter(
         m_pWin,0,ID_STATUS_VU1,
@@ -264,7 +269,25 @@ bool CTitlebar::Callback(UG_MESSAGE *pMsg)
     
     if (pMsg->type  == MSG_TYPE_WINDOW)
     {
-        if (pMsg->event == WIN_EVENT_ACTIVATE)
+        if (pMsg->event == WIN_EVENT_UI_FRAME)
+        {
+            // update the status text
+            
+            float usPerBuffer = 1000000 / bcm_pcm.getSampleRate();
+            u32 cpui = AudioStream::cpu_cycles_total;            
+            u32 cpui_max = AudioStream::cpu_cycles_total_max;
+            float cpu = ((float)cpui)/usPerBuffer;
+            float cpu_max = ((float)cpui_max)/usPerBuffer;
+            
+            // ha ha ha - it's over 100%
+            // may want to show "100" instead of "100.0"
+            
+            CString str;
+            str.Format("cpu: %5.1f  max: %5.1f    \nmem:  %4d  max:  %4d    ",
+                cpu,cpu_max,AudioStream::memory_used,AudioStream::memory_used_max);
+            m_pStatus->SetText((const char *)str);
+        }
+        else if (pMsg->event == WIN_EVENT_ACTIVATE)
         {
             if (pMsg->id)   // activate controls
             {

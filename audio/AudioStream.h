@@ -203,7 +203,11 @@ public:
 	static uint16_t cpu_cycles_total_max;
 	static uint16_t memory_used;
 	static uint16_t memory_used_max;
-protected:
+	#ifdef __circle__
+		public:		// just for now as I'm testing window_status.cpp
+	#else
+		protected:
+	#endif
 	bool active;
 	unsigned char num_inputs;
 	static audio_block_t * allocate(void);
@@ -223,7 +227,6 @@ protected:
 		static void update_all(void);
 		static void do_update(void);
 		friend class AudioUpdateTask;
-		friend class statusScreen;
 	#else
 		static void update_all(void) { NVIC_SET_PENDING(IRQ_SOFTWARE); }
 		friend void software_isr(void);
@@ -231,7 +234,12 @@ protected:
 	
 	friend class AudioConnection;
 	uint8_t numConnections;
-private:
+	#ifdef __circle__
+		public:		// just for now as I'm testing window_status.cpp
+	#else
+		private:
+	#endif
+	
 	AudioConnection *destination_list;
 	audio_block_t **inputQueue;
 	static bool update_scheduled;

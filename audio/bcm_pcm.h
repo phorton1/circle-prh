@@ -246,6 +246,10 @@ public:
 	// irqs are cleared in a local isrHandler before the teensy in_isr()
 	// or out_isr() methods are called.
 
+	bool       	getAsSlave()		{ return m_as_slave;      }
+	u32 	   	getSampleRate()		{ return m_SAMPLE_RATE;   }
+	u8		   	getSampleSize()		{ return m_SAMPLE_SIZE;   }
+	u8			getNumChannels()	{ return m_NUM_CHANNELS;  }
 	
 private:
 
@@ -314,8 +318,8 @@ private:
 	
 	CSpinLock 				m_SpinLock;
 
-	friend class statusScreen;
-public:	
+public:
+	
 	u32	in_block_count;
 	u32	in_other_count;
 	u32	in_wrong_count;
