@@ -190,6 +190,26 @@ public:
 			static void traverse_update(u16 depth, AudioStream *p);
 		#endif
 		static AudioStream *find(const char *name, u8 instance);
+		
+		void resetStats()
+		{
+			cpu_cycles = 0;
+			cpu_cycles_max = 0;
+			last_cpu_cycles = 0;
+			last_cpu_cycles_max = 0;
+			
+		}
+		static void resetAllStats()
+		{
+			AudioStream *p = first_update;
+			while (p) { p->resetStats(); p = p->next_update; }
+			cpu_cycles_total = 0;
+			cpu_cycles_total_max = 0;
+			memory_used = 0;
+			memory_used_max = 0;
+			update_needed = 0;
+			update_overflow = 0;
+		}
 	#endif
 	
 	static void initialize_memory(audio_block_t *data, unsigned int num);

@@ -7,14 +7,15 @@
 
 CVuMeter::CVuMeter(CWindow *win, u8 instance, u8 id, s16 x, s16 y, s16 xe, s16 ye,
     u8 horz, u8 num_divs) :
-    CTextbox(win, id, x, y, xe, ye, "")
+    CTextbox(win, id, x, y, xe, ye, ""),
+    m_pWin(win)
 {
     m_last_value = 0;
     m_horz = horz;
     m_num_divs = num_divs;
     m_hold_red = 0;
     m_pAudioObj = (AudioAnalyzePeak *) AudioStream::find("peak",instance);
-    m_running = 0;
+    m_running = 1;
     assert(m_pAudioObj);
 
     LOG("new VuMeter(%s:%d)",m_pAudioObj->dbgName(),m_pAudioObj->dbgInstance());
@@ -24,6 +25,9 @@ CVuMeter::CVuMeter(CWindow *win, u8 instance, u8 id, s16 x, s16 y, s16 xe, s16 y
             m_horz ? (xe-x+1) : (ye-y+1), num_divs);
     }
 
+    if (m_pAudioObj)
+        m_pAudioObj->set_running(1);
+    
     SetBackColor(C_BLACK);
     SetForeColor(C_RED);
 }
@@ -40,14 +44,14 @@ bool CVuMeter::Callback(UG_MESSAGE *pMsg)
         {
             // LOG("Activate(%d,%d)",(u32)m_pAudioObj,pMsg->id);
             m_running = pMsg->id;
-            m_pAudioObj->set_running(pMsg->id);
+            // m_pAudioObj->set_running(pMsg->id);
         }
         
         // Paint the control on frame events
         
         else if (m_running &&
-                 pMsg->event == WIN_EVENT_UI_FRAME &&
-                 m_pAudioObj->is_running())
+                 pMsg->event == WIN_EVENT_UI_FRAME)
+                //  m_pAudioObj->is_running())
         {
             float peak = m_pAudioObj->read();
         

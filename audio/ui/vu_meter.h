@@ -41,6 +41,7 @@ private:
 
     AudioAnalyzePeak *m_pAudioObj;
     
+    CWindow *m_pWin;
     u8 m_horz;
     u8 m_num_divs;
     u8 m_last_value;          // scaled to num_divs

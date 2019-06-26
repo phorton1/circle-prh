@@ -8,7 +8,9 @@
 
 CStatusWindow::~CStatusWindow(void) {}
 
-#define ID_CONTENT  1
+#define ID_CONTENT      1
+#define ID_RESET_STATS  2
+
 #define WINDOW_MARGIN   2
 #define STATUS_MARGIN   10
 
@@ -30,6 +32,18 @@ CStatusWindow::CStatusWindow(CApplication *app) :
         UG_GetYDim()-WINDOW_MARGIN,"");
     box->SetBackColor(C_BLACK);
     box->SetForeColor(C_WHITE);
+    
+    CButton *pb = new CButton(
+        this,
+        ID_RESET_STATS,
+        UG_GetXDim()-100,
+        APP_TOP_MARGIN + STATUS_MARGIN,
+        UG_GetXDim()-20,
+        APP_TOP_MARGIN + STATUS_MARGIN + 20,
+        "reset",
+        BTN_STYLE_3D);
+    pb->SetFont(&FONT_8X12);
+        
 }
 
 
@@ -47,6 +61,16 @@ void CStatusWindow::Callback(UG_MESSAGE *pMsg)
         else if (pMsg->event == WIN_EVENT_ACTIVATE)
         {
             started = 0;
+        }
+    }
+	else if (pMsg->type  == MSG_TYPE_OBJECT && 
+             pMsg->id    == OBJ_TYPE_BUTTON && 
+             pMsg->event == OBJ_EVENT_PRESSED)
+    {
+        if (pMsg->sub_id == ID_RESET_STATS)
+        {
+            AudioStream::resetAllStats();
+            bcm_pcm.resetStats();
         }
     }
     

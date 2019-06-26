@@ -251,6 +251,18 @@ public:
 	u8		   	getSampleSize()		{ return m_SAMPLE_SIZE;   }
 	u8			getNumChannels()	{ return m_NUM_CHANNELS;  }
 	
+	void 		resetStats()
+	{
+		in_block_count  = 0;
+		in_other_count  = 0;
+		in_wrong_count  = 0;
+		out_block_count = 0;
+		out_other_count = 0;
+		out_wrong_count = 0;
+		underflow_count = 0;
+		overflow_count  = 0;
+	}
+	
 private:
 
 	bool       	m_as_slave;
