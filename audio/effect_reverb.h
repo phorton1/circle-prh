@@ -67,6 +67,11 @@ class AudioEffectReverb : public AudioStream
     }
     virtual void update(void);
     void reverbTime(float);
+    
+    #ifdef __circle__
+   		virtual u8 getNumOutputs()	{ return 1; }
+    #endif
+    
 
   private:
     struct comb_apf {

@@ -26,13 +26,16 @@ public:
 
 	void begin(void);
 	virtual void update(void);
-    virtual const char *dbgName()  { return "recorder"; }
+    virtual const char *dbgName()   { return "recorder"; }
+    virtual u8 getNumOutputs()	    { return RECORD_CHANNELS; }
 
     u16  getRecordMask()            { return m_record_mask; }
     void setRecordMask(u16 mask)    { m_record_mask = mask; }
+    u16  getPlayMask()              { return m_play_mask; }
+    void setPlayMask(u16 mask)      { m_play_mask = mask; }
     
-    u32 getLength()                { return m_num_blocks; }
-    u32 getLocation()              { return m_cur_block; }
+    u32 getLength()                 { return m_num_blocks; }
+    u32 getLocation()               { return m_cur_block; }
     
     bool isRunning()                { return m_running; }
     
@@ -44,7 +47,8 @@ public:
     
 private:
 
-    u16     m_record_mask;  
+    u16     m_record_mask;
+    u16     m_play_mask;
 
     bool    m_running;
     u32     m_num_blocks;

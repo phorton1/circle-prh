@@ -50,6 +50,11 @@ public:
     }
 	virtual void update(void);
 	void begin(void);
+	
+    #ifdef __circle__
+   		virtual u8 getNumOutputs()	{ return 2; }
+    #endif
+	
 protected:	
 	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
 	static bool update_responsibility;

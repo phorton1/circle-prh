@@ -91,6 +91,8 @@ public:
 	virtual void update(void);
 	void begin(void);
 
+	virtual u8 getNumOutputs()	{ return 2; }
+
 protected:	
 
 	static bool update_responsibility;

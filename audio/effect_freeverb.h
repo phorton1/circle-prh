@@ -116,6 +116,11 @@ public:
 		combdamp2 = x2;
 		__enable_irq();
 	}
+	
+    #ifdef __circle__
+   		virtual u8 getNumOutputs()	{ return 2; }
+    #endif
+    	
 private:
 	audio_block_t *inputQueueArray[1];
 	int16_t comb1bufL[1116];

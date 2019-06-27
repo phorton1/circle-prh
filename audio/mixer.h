@@ -46,6 +46,10 @@ public:
 		else if (gain < -32767.0f) gain = -32767.0f;
 		multiplier[channel] = gain * 65536.0f; // TODO: proper roundoff?
 	}
+    #ifdef __circle__
+   		virtual u8 getNumOutputs()	{ return 1; }
+    #endif
+	
 private:
 	int32_t multiplier[4];
 	audio_block_t *inputQueueArray[4];

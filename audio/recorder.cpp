@@ -31,6 +31,7 @@ AudioRecorder::AudioRecorder() :
     m_num_blocks   = 0;
     m_running      = 0;
     m_record_mask  = 0;
+    m_play_mask    = 0xffff;
     
     clear();
 }    

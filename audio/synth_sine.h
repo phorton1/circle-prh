@@ -63,7 +63,10 @@ public:
 	}
 	virtual void update(void);
 	
-	
+    #ifdef __circle__
+   		virtual u8 getNumOutputs()	{ return 1; }
+    #endif
+    	
 private:
 	uint32_t phase_accumulator;
 	uint32_t phase_increment;
@@ -104,6 +107,11 @@ public:
 		magnitude = n * 65536.0;
 	}
 	virtual void update(void);
+	
+    #ifdef __circle__
+   		virtual u8 getNumOutputs()	{ return 1; }
+    #endif
+	
 private:
 	uint32_t phase_accumulator;
 	uint32_t phase_increment;
@@ -148,6 +156,11 @@ public:
 		magnitude = n * 65536.0;
 	}
 	virtual void update(void);
+
+    #ifdef __circle__
+   		virtual u8 getNumOutputs()	{ return 1; }
+    #endif
+	
 private:
 	uint32_t phase_accumulator;
 	uint32_t phase_increment;

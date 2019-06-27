@@ -59,6 +59,11 @@ public:
     
 	virtual void update(void);
 	void begin(void);
+    
+    #ifdef __circle__
+   		virtual u8 getNumOutputs()	{ return NUM_TDM_CHANNELS; }
+    #endif
+
 protected:	
 	static bool update_responsibility;
     #ifdef __circle__
