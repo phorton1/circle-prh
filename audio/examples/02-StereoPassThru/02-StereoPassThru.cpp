@@ -8,7 +8,6 @@
 #define USE_STGL5000            0
 #define USE_TEENSY_QUAD_SLAVE   0
 #define WITH_RECORDER           1
-#define WITH_VU_METER           1
 
 
 #if USE_CS42448
@@ -65,16 +64,11 @@
 #endif
 
 
-#if WITH_VU_METER
-    AudioAnalyzePeak peak0;
-    AudioAnalyzePeak peak1;
-#endif
-
 void setup()
 {
     printf("02-StereoPassThru::setup()\n");
     
-    #if WITH_VU_METER    
+    #if 0 && WITH_VU_METER    
         new AudioConnection(input, 0, peak0, 0);
         new AudioConnection(input, 1, peak1, 0);
     #endif

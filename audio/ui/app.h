@@ -18,6 +18,8 @@
 #define WINDOW_RECORD 2
 #define NUM_WINDOWS   3
 
+#define UGUI_STANDARD_BACK_COLOR  0xEF7D
+    // gleaned from code
 
 class CApplication 
 {

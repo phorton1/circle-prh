@@ -5,62 +5,113 @@
 #define log_name "vu_meter"
 
 
-CVuMeter::CVuMeter(CWindow *win, u8 instance, u8 id, s16 x, s16 y, s16 xe, s16 ye,
+CVuMeter::CVuMeter(CWindow *win, u8 id, s16 x, s16 y, s16 xe, s16 ye,
     u8 horz, u8 num_divs) :
     CTextbox(win, id, x, y, xe, ye, ""),
     m_pWin(win)
 {
-    m_last_value = 0;
     m_horz = horz;
     m_num_divs = num_divs;
-    m_hold_red = 0;
-    m_pAudioObj = (AudioAnalyzePeak *) AudioStream::find("peak",instance);
-    m_running = 1;
-    assert(m_pAudioObj);
 
-    LOG("new VuMeter(%s:%d)",m_pAudioObj->dbgName(),m_pAudioObj->dbgInstance());
+    m_pPeak = 0;
+    m_pConnection = 0;
+
+    m_running = 1;
+    m_last_value = 0;
+    m_hold_red = 0;
+
     if (m_horz ? ((xe-x+2) % num_divs) : ((ye-y+2) % num_divs))
     {
         LOG_WARNING("major dimension+1=%d should be evenly divisible by %d",
             m_horz ? (xe-x+1) : (ye-y+1), num_divs);
     }
 
-    if (m_pAudioObj)
-        m_pAudioObj->set_running(1);
-    
     SetBackColor(C_BLACK);
     SetForeColor(C_RED);
 }
 
 
+void CVuMeter::setAudioDevice(
+    const char *name,
+    u8         instance,
+    u8         channel)
+{
+    LOG("setAudioDevice(%s:%d)[%d]",name,instance,channel);
+    
+    AudioStream *stream = AudioStream::find(name,instance);
+    if (!stream)
+    {
+        LOG_ERROR("Could not find AudioStream %s:%d",name,instance);
+        return;
+    }
+    if (!stream->getNumOutputs())
+    {
+        LOG_ERROR("Cannot connect to %s which has no outputs",stream->dbgName());
+        return;
+    }
+    if (channel >= stream->getNumOutputs())
+    {
+        LOG_ERROR("Cannot connect to %s[%d] which has only has %d outputs",
+            stream->dbgName(),
+            channel,
+            stream->getNumOutputs());
+        return;
+    }
+    
+    // if there's already a connection we need to unhook it
+    // and destroy it
+    
+    if (m_pConnection)
+    {
+        delete m_pConnection;
+        m_pConnection = 0;
+    }
+        
+    // create or re-use the peak device
+    
+    if (!m_pPeak)
+        m_pPeak = new AudioAnalyzePeak();
+    assert(m_pPeak);
+        
+    // connect the peak device to the output of the sream
+    
+    if (m_pPeak)
+    {
+        m_pConnection = new AudioConnection(
+            *stream, channel, *m_pPeak, 0);
+        assert(m_pConnection);
+        m_pPeak->set_running(1);
+    }
+    
+}
 
 bool CVuMeter::Callback(UG_MESSAGE *pMsg)
 {
-    if (pMsg->type  == MSG_TYPE_WINDOW && m_pAudioObj)
+    if (pMsg->type  == MSG_TYPE_WINDOW && m_pPeak)
     {
         // activate / deactivate the peak meter
         
         if (pMsg->event == WIN_EVENT_ACTIVATE)
         {
-            // LOG("Activate(%d,%d)",(u32)m_pAudioObj,pMsg->id);
+            // LOG("Activate(%d,%d)",(u32)m_pPeak,pMsg->id);
             m_running = pMsg->id;
-            // m_pAudioObj->set_running(pMsg->id);
+            // m_pPeak->set_running(pMsg->id);
         }
         
         // Paint the control on frame events
         
         else if (m_running &&
                  pMsg->event == WIN_EVENT_UI_FRAME)
-                //  m_pAudioObj->is_running())
+                //  m_pPeak->is_running())
         {
-            float peak = m_pAudioObj->read();
+            float peak = m_pPeak->read();
         
             UG_OBJECT* obj=_UG_SearchObject(m_window,OBJ_TYPE_TEXTBOX,m_id);
             assert(obj);
             
             u8 value = (peak * ((float)m_num_divs) + 0.8);
             u8 num_yellows = (((float) m_num_divs) * 0.20);
-            // printf("%s[%d]=%0.4f value=%d red=%d\n",m_pAudioObj->dbgName(),m_pAudioObj->dbgInstance(),peak,value,m_hold_red);
+            // printf("%s[%d]=%0.4f value=%d red=%d\n",m_pPeak->dbgName(),m_pPeak->dbgInstance(),peak,value,m_hold_red);
             
             if (m_hold_red || (value != m_last_value))
             {

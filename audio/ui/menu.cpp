@@ -236,19 +236,27 @@ CTitlebar::CTitlebar(CWindow *win, CApplication *app, u8 window_num) :
     s16 vux = width - STATUS_WIDTH - VU_WIDTH - VU_RIGHT_MARGIN;
 
     m_vu1 = new CVuMeter(
-        m_pWin,0,ID_STATUS_VU1,
+        m_pWin,ID_STATUS_VU1,
         vux,
         VU_TOP,
         vux+VU_WIDTH-1,
         VU_TOP+VU_HEIGHT-1,
         true,14);
+    
     m_vu2 = new CVuMeter(
-        m_pWin,1,ID_STATUS_VU2,
+        m_pWin,ID_STATUS_VU2,
         vux,
         VU_TOP+VU_HEIGHT+VU_TWEEN,
         vux+VU_WIDTH-1,
         VU_TOP+VU_HEIGHT+VU_TWEEN+VU_HEIGHT-1,
         true,14);
+    
+    AudioStream *first = AudioStream::first_update;
+    if (first)
+    {
+        m_vu1->setAudioDevice(first->dbgName(),first->dbgInstance(),0);
+        m_vu2->setAudioDevice(first->dbgName(),first->dbgInstance(),1);
+    }
 }    
 
 

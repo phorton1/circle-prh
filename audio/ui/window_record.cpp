@@ -1,15 +1,37 @@
 
 #include "window_record.h"
+#include "app.h"
 
 CRecordWindow::~CRecordWindow(void) {}
 
-#define ID_TRACK_BASE  100
+#define TRACK_HEIGHT        92
+#define SCALE_MARGIN        20
+#define INTER_TRACK_MARGIN   5
+#define RIGHT_BORDER_MARGIN  2
 
-#define TRACK_LEFT_OFFSET  160
-#define TRACK_TOP_MARGIN   20 + APP_TOP_MARGIN
-#define TRACK_RIGHT_MARGIN   3
-#define TRACK_HEIGHT        90
-#define TRACK_MARGIN         5
+#define ID_BUTTON_ZOOM_OUT   10
+#define ID_BUTTON_HOME       11
+#define ID_BUTTON_LEFT       12
+#define ID_BUTTON_STOP       13
+#define ID_BUTTON_RUN        14
+#define ID_BUTTON_RIGHT      15
+#define ID_BUTTON_END        16
+#define ID_BUTTON_ZOOM_IN    17
+
+#define ID_FIRST_BUTTON      ID_BUTTON_ZOOM_OUT
+#define NUM_BUTTONS          8
+
+#define BUTTON_HEIGHT       34
+#define BUTTON_WIDTH        80
+#define BOTTOM_MARGIN       10
+#define LEFT_MARGIN         10
+#define RIGHT_MARGIN        10
+
+#define BUTTON_Y        (UG_GetYDim() - BUTTON_HEIGHT - BOTTOM_MARGIN)
+#define BUTTON_SPACE    ((UG_GetXDim() - LEFT_MARGIN - RIGHT_MARGIN - NUM_BUTTONS*BUTTON_WIDTH) / (NUM_BUTTONS-1))
+
+const char *button_label[] = { "-", "<<", "<", "\xdb ", "\x10", ">", ">>", "+" };
+    // for some reason the square stop button single character is not centered correctly
 
 CRecordWindow::CRecordWindow(CApplication *app) :
     CWindow(0,0,UG_GetXDim()-1,UG_GetYDim()-1,0),
@@ -20,29 +42,35 @@ CRecordWindow::CRecordWindow(CApplication *app) :
     assert(m_pRecorder);
     for (int i=0; i<RECORD_CHANNELS; i++)
     {
-        m_pTrack[i] = new CTrackDisplay(this,
-            ID_TRACK_BASE + i,
-            TRACK_LEFT_OFFSET,
-            TRACK_TOP_MARGIN + (TRACK_MARGIN + TRACK_HEIGHT) * i,
-            UG_GetXDim() - TRACK_RIGHT_MARGIN,
-            TRACK_TOP_MARGIN + (TRACK_MARGIN + TRACK_HEIGHT) * i + TRACK_HEIGHT);
-        if (m_pRecorder)
-        {
-            m_pTrack[i]->init(
-                m_pRecorder->getBuffer(i),
-                RECORD_BUFFER_SAMPLES,
-                RECORD_SAMPLE_RATE,
-                1.00);
-        }
+        m_pRecordTrack[i] = new CRecordTrack(this,i,
+            0,
+            APP_TOP_MARGIN + SCALE_MARGIN + TRACK_HEIGHT * i,
+            UG_GetXDim() - RIGHT_BORDER_MARGIN - 1,
+            APP_TOP_MARGIN + SCALE_MARGIN + TRACK_HEIGHT * (i+1) - INTER_TRACK_MARGIN);
     }
     
     #define MY_DARK_SLATE_BLUE  0x0842
-    SetBackColor(MY_DARK_SLATE_BLUE); 
-    SetForeColor(C_WHITE);
+    SetBackColor(MY_DARK_SLATE_BLUE);
+    
+    for (u16 i=0; i<NUM_BUTTONS; i++)
+    {
+        CButton *pb = new CButton(
+            this,
+            ID_FIRST_BUTTON + i,
+            LEFT_MARGIN + i*(BUTTON_WIDTH + BUTTON_SPACE),
+            BUTTON_Y,
+            LEFT_MARGIN + i*(BUTTON_WIDTH + BUTTON_SPACE) + BUTTON_WIDTH-1,
+            BUTTON_Y + BUTTON_HEIGHT,
+            button_label[i],
+            BTN_STYLE_3D);
+        pb->SetBackColor(UGUI_STANDARD_BACK_COLOR); // CUGUI::Get()->getUGUI()->desktop_color);   // C_WHITE_SMOKE);
+        pb->SetFont(
+            i+ID_FIRST_BUTTON == ID_BUTTON_RUN ?
+            &FONT_16X26 :
+            &FONT_12X16);
+    }
 }
 
-
-bool draw_needed = 1;
 
     
 void CRecordWindow::Callback(UG_MESSAGE *pMsg)
@@ -60,22 +88,10 @@ void CRecordWindow::Callback(UG_MESSAGE *pMsg)
 	    pMsg->event == OBJ_EVENT_PRESSED)
 	{
     }
-    else if (pMsg->type == MSG_TYPE_WINDOW)
+
+    for (int i=0; i<4; i++)
     {
-        if (pMsg->event == WIN_EVENT_ACTIVATE)
-        {
-            draw_needed = 1;
-        }
-        
-        else if (pMsg->event == WIN_EVENT_UI_FRAME)
-        {
-            if (draw_needed)
-            {
-                // draw_needed = 0;
-                for (int i=0; i<4; i++)
-                    m_pTrack[i]->draw(true);
-            }
-        }
+        m_pRecordTrack[i]->Callback(pMsg);
     }
 }
 

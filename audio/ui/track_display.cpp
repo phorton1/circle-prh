@@ -1,7 +1,75 @@
 #include <assert.h>
 #include "track_display.h"
 #include <circle/string.h>
+#include "app.h"
 
+
+//-------------------------------------------
+// CDialogSelectDevice
+//-------------------------------------------
+
+#define DEVICE_DIALOG_WIDTH   400
+#define DEVICE_DIALOG_HEIGHT  300
+	// can only show so many in this window size
+
+
+CDialogSelectDevice::CDialogSelectDevice(bool in) :
+	CWindow(
+		(UG_GetXDim()-DEVICE_DIALOG_WIDTH)/2,
+		(UG_GetYDim()-DEVICE_DIALOG_HEIGHT)/2,
+		UG_GetXDim()-(UG_GetXDim()-DEVICE_DIALOG_WIDTH)/2,
+		UG_GetYDim()-(UG_GetYDim()-DEVICE_DIALOG_HEIGHT)/2,
+		WND_STYLE_POPUP | WND_STYLE_3D),
+	m_in(in),
+	m_name("")
+{
+    m_ok = 0;
+    m_instance = 0;
+    m_pAudioStream = 0;
+    m_channel = 0;
+}	
+
+
+
+//-------------------------------------------
+// CButtonDeviceSelect 
+//-------------------------------------------
+
+CButtonDeviceSelect::CButtonDeviceSelect(
+		CWindow *win,
+		u8  id,
+		u16 xs,
+		u16 ys,
+		u16 xe,
+		u16 ye,
+		bool out,           // select input devices for our output
+		const char *name,   // default device to select
+		u8 instance,		// default instance to select
+		u8 channel) :      
+	CButton(win,id,xs,ys,xe,ye,name,BTN_STYLE_3D),
+	m_out(out),
+	m_instance(instance),
+	m_channel(channel)
+{
+    m_pAudioStream = 0;
+	m_name.Format("%s%d[%d]",name,instance,channel);
+	SetText((const char *)m_name);
+}
+
+
+void CButtonDeviceSelect::Callback(UG_MESSAGE *pMsg)
+{
+}
+
+
+
+
+    
+
+
+//--------------------------------------
+// CTrackDisplay
+//--------------------------------------
 
 CTrackDisplay::CTrackDisplay(
 	CWindow *win,
@@ -139,3 +207,234 @@ void CTrackDisplay::draw(bool cold)
 	}
 }
 
+
+//-------------------------------------------
+// CRecordTrack
+//-------------------------------------------
+
+// #define ID_TRACK_BASE  100
+// #define IDS_PER_TRACK  10
+
+#define ID_TRACK_DISPLAY  		1
+#define ID_TRACK_INPUT_BUTTON   2
+#define ID_TRACK_OUTPUT_BUTTON  3
+#define ID_TRACK_PLAY_BUTTON  	4
+#define ID_TRACK_RECORD_BUTTON  5
+#define ID_TRACK_VU_METER       6
+
+#define TRACK_LEFT_OFFSET  		160
+#define TRACK_RIGHT_MARGIN   	3
+#define TRACK_BOTTOM_MARGIN     5
+
+#define CONTROL_MARGIN 			3
+
+#define VU_WIDTH  	  20
+#define VU_OFFSET     TRACK_LEFT_OFFSET - VU_WIDTH - CONTROL_MARGIN
+
+#define CONTROL_HEIGHT ((((ye-ys+1)-CONTROL_MARGIN)/3)-CONTROL_MARGIN)	//  20
+#define CONTROL_WIDTH  (VU_OFFSET - CONTROL_MARGIN*4)/2
+
+
+AudioStream *getFirstAudioStream()
+{
+	return AudioStream::first_update;
+}
+AudioStream *getLastAudioStream()
+	// kludge for peak. need to consider how
+	// topological sort treats things.
+	// may just say "order you declarem is update order"
+{
+	AudioStream *prev = 0;
+	AudioStream *obj = AudioStream::first_update;
+	while (obj)
+	{
+		if (strcmp(obj->dbgName(),"peak"))
+			prev = obj;
+		obj = obj->next_update;
+	}
+	return prev;
+}
+
+
+CRecordTrack::CRecordTrack(
+		CWindow *win,
+		u8  channel_num,
+		u16 xs,
+		u16 ys,
+		u16 xe,
+		u16 ye	) :
+	CTextbox(win,ID_TRACK_BASE + channel_num * IDS_PER_TRACK,
+		xs,ys,xe,ye,""),
+	m_pWin(win),
+	m_channel_num(channel_num)
+{
+	m_area.xs = xs;
+	m_area.ys = ys;
+	m_area.xe = xe;
+	m_area.ye = ye;
+
+    #define MY_DARK_SLATE_BLUE  0x0842
+    SetBackColor(MY_DARK_SLATE_BLUE);
+
+    m_pRecorder = (AudioRecorder *) AudioStream::find("recorder",0);
+    assert(m_pRecorder);
+	
+    m_pTrack = new CTrackDisplay(m_pWin,
+		m_id + ID_TRACK_DISPLAY,
+		xs + TRACK_LEFT_OFFSET,
+		ys,
+		xe,
+		ye);
+	 
+	if (m_pRecorder)
+	{
+		m_pTrack->init(
+			m_pRecorder->getBuffer(channel_num),
+			RECORD_BUFFER_SAMPLES,
+			RECORD_SAMPLE_RATE,
+			1.00);
+	}
+	
+	AudioStream *first = getFirstAudioStream();
+	AudioStream *last = getLastAudioStream();
+	u16 control_y = ys + CONTROL_MARGIN;
+		
+	m_pInput = new CButtonDeviceSelect(
+		m_pWin,
+		m_id + ID_TRACK_INPUT_BUTTON,
+		xs + CONTROL_MARGIN,
+		control_y,
+		xs + VU_OFFSET - CONTROL_MARGIN*2,
+		control_y + CONTROL_HEIGHT - 1,
+		false,
+		first ? first->dbgName() : "",
+		first ? first->dbgInstance() : 0,
+		first ? channel_num % first->getNumOutputs() : 0);
+
+	control_y += CONTROL_HEIGHT + CONTROL_MARGIN;
+	
+	m_pOutput = new CButtonDeviceSelect(
+		m_pWin,
+		m_id +ID_TRACK_OUTPUT_BUTTON,
+		xs + CONTROL_MARGIN,
+		control_y,
+		xs + VU_OFFSET - CONTROL_MARGIN*2,
+		control_y + CONTROL_HEIGHT - 1,
+		true,
+		last ? last->dbgName() : "",
+		last ? last->dbgInstance() : 0,
+		last ? channel_num % last->num_inputs : 0);
+		
+	control_y += CONTROL_HEIGHT + CONTROL_MARGIN;
+	
+	m_pPlayButton = new CButton(
+		m_pWin,
+		m_id + ID_TRACK_PLAY_BUTTON,
+		xs + CONTROL_MARGIN,
+		control_y,
+		xs + CONTROL_MARGIN + CONTROL_WIDTH - 1,
+		control_y + CONTROL_HEIGHT - 1,
+		"play",
+		BTN_STYLE_3D);
+		
+	m_pRecordButton = new CButton(
+		m_pWin,
+		m_id + ID_TRACK_RECORD_BUTTON,
+		xs + CONTROL_WIDTH + CONTROL_MARGIN*2,
+		control_y,
+		xs + CONTROL_WIDTH*2 + CONTROL_MARGIN*2 - 1,
+		control_y + CONTROL_HEIGHT - 1,
+		"rec",
+		BTN_STYLE_3D);
+	
+    m_pMeter = new CVuMeter(
+		m_pWin,
+		m_id + ID_TRACK_VU_METER,
+		xs + VU_OFFSET + CONTROL_MARGIN,
+		ys + CONTROL_MARGIN + 1,
+		xs + VU_OFFSET + VU_WIDTH - CONTROL_MARGIN - 1,
+		ye - CONTROL_MARGIN - 1,
+		false, 9);
+	
+	m_pInput->SetFont(&FONT_6X10);
+	m_pOutput->SetFont(&FONT_6X10);
+	m_pPlayButton->SetFont(&FONT_8X12);
+	m_pRecordButton->SetFont(&FONT_8X12);
+
+	m_pInput->SetForeColor(C_DIM_GRAY);
+	m_pOutput->SetForeColor(C_DIM_GRAY);
+	m_pPlayButton->SetForeColor(C_DIM_GRAY);
+	m_pRecordButton->SetForeColor(C_DIM_GRAY);
+
+	if (first)
+	{
+		m_pMeter->setAudioDevice(
+			first->dbgName(),
+			first->dbgInstance(),
+			m_channel_num);
+	}
+	
+	updateButtons();
+}
+
+
+
+void CRecordTrack::Callback(UG_MESSAGE *pMsg)
+{
+    if (pMsg->type == MSG_TYPE_WINDOW &&
+		pMsg->event == WIN_EVENT_UI_FRAME)
+    {
+		// m_pTrack->draw(true);
+		m_pMeter->Callback(pMsg);
+    }
+
+	if (m_pRecorder &&
+		pMsg->type  == MSG_TYPE_OBJECT && 
+	    pMsg->id    == OBJ_TYPE_BUTTON && 
+	    pMsg->event == OBJ_EVENT_PRESSED)
+	{
+		if (pMsg->sub_id == m_id + ID_TRACK_RECORD_BUTTON)
+		{
+			u16 mask = m_pRecorder->getRecordMask();
+			if (mask & (1<<m_channel_num))
+				mask &= ~(1<<m_channel_num);
+			else
+				mask |= 1<<m_channel_num;
+			m_pRecorder->setRecordMask(mask);
+			updateButtons();
+		}
+		else if (pMsg->sub_id == m_id + ID_TRACK_PLAY_BUTTON)
+		{
+			u16 mask = m_pRecorder->getPlayMask();
+			if (mask & (1<<m_channel_num))
+				mask &= ~(1<<m_channel_num);
+			else
+				mask |= 1<<m_channel_num;
+			m_pRecorder->setPlayMask(mask);
+			updateButtons();
+		}
+
+    }
+}
+
+
+
+void CRecordTrack::updateButtons()
+{
+	if (m_pRecorder)
+	{
+		bool is_play = m_pRecorder->getPlayMask() & (1<<m_channel_num);
+		bool is_record = m_pRecorder->getRecordMask() & (1<<m_channel_num);
+		
+		m_pRecordButton->SetBackColor(is_record ?
+			C_SALMON : UGUI_STANDARD_BACK_COLOR);
+		m_pRecordButton->SetForeColor(is_record ?
+			C_BLACK : C_DIM_GRAY);
+		m_pPlayButton->SetBackColor(is_play ?
+			C_LIGHT_STEEL_BLUE : UGUI_STANDARD_BACK_COLOR);
+		m_pPlayButton->SetForeColor(is_play ?
+			C_BLACK : C_DIM_GRAY);
+	}
+}
+    
+	

@@ -32,14 +32,23 @@ public:
     // vuMeter controls should be sized so that their major dimension plus 1
     // is evenly divisible by num_divs
     
-	CVuMeter(CWindow *win, u8 instance, u8 id, s16 x, s16 y, s16 xe, s16 ye,
+	CVuMeter(
+        CWindow *win,
+        u8 id, s16 x, s16 y, s16 xe, s16 ye,
         u8 horz, u8 num_divs);
+    
+    void setAudioDevice(
+        const char *name,
+        u8         instance,
+        u8         channel);
+    
 
     bool Callback(UG_MESSAGE *pMsg);
     
 private:
 
-    AudioAnalyzePeak *m_pAudioObj;
+    AudioAnalyzePeak *m_pPeak;
+    AudioConnection  *m_pConnection;
     
     CWindow *m_pWin;
     u8 m_horz;

@@ -24,7 +24,7 @@ private:
     CTitlebar    *m_pTitlebar;
     
     AudioRecorder *m_pRecorder;
-    CTrackDisplay *m_pTrack[RECORD_CHANNELS];
+    CRecordTrack  *m_pRecordTrack[RECORD_CHANNELS];
 
 };
 
