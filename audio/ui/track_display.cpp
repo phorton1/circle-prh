@@ -169,7 +169,7 @@ void CTrackDisplay::draw(bool cold)
 	UG_DrawLine(m_area.xs, y_zero, m_area.xe, y_zero, C_DARK_BLUE);
 	
 	s16 last_y = 0;
-	double area_height = (m_area.ye-5) - (m_area.ys+5) + 1;
+	double area_height = m_area.ye - m_area.ys + 1;
 	
 	for (double fTime = m_fWindowLeft;
 				fTime < m_fWindowRight;
@@ -193,7 +193,7 @@ void CTrackDisplay::draw(bool cold)
 			// 1..0
 		value *= area_height;
 			// scaled to the area height
-		value += m_area.ys + 5;
+		value += m_area.ys;
 			// offset to the areay
 		u16 y = value;
 			// converted to an integer
@@ -379,12 +379,32 @@ CRecordTrack::CRecordTrack(
 
 
 
+void CRecordTrack::updateButtons()
+{
+	if (m_pRecorder)
+	{
+		bool is_play = m_pRecorder->getPlayMask() & (1<<m_channel_num);
+		bool is_record = m_pRecorder->getRecordMask() & (1<<m_channel_num);
+		
+		m_pRecordButton->SetBackColor(is_record ?
+			C_SALMON : UGUI_STANDARD_BACK_COLOR);
+		m_pRecordButton->SetForeColor(is_record ?
+			C_BLACK : C_DIM_GRAY);
+		m_pPlayButton->SetBackColor(is_play ?
+			C_LIGHT_STEEL_BLUE : UGUI_STANDARD_BACK_COLOR);
+		m_pPlayButton->SetForeColor(is_play ?
+			C_BLACK : C_DIM_GRAY);
+	}
+}
+    
+	
+
 void CRecordTrack::Callback(UG_MESSAGE *pMsg)
 {
     if (pMsg->type == MSG_TYPE_WINDOW &&
 		pMsg->event == WIN_EVENT_UI_FRAME)
     {
-		// m_pTrack->draw(true);
+		m_pTrack->draw(true);
 		m_pMeter->Callback(pMsg);
     }
 
@@ -419,22 +439,3 @@ void CRecordTrack::Callback(UG_MESSAGE *pMsg)
 
 
 
-void CRecordTrack::updateButtons()
-{
-	if (m_pRecorder)
-	{
-		bool is_play = m_pRecorder->getPlayMask() & (1<<m_channel_num);
-		bool is_record = m_pRecorder->getRecordMask() & (1<<m_channel_num);
-		
-		m_pRecordButton->SetBackColor(is_record ?
-			C_SALMON : UGUI_STANDARD_BACK_COLOR);
-		m_pRecordButton->SetForeColor(is_record ?
-			C_BLACK : C_DIM_GRAY);
-		m_pPlayButton->SetBackColor(is_play ?
-			C_LIGHT_STEEL_BLUE : UGUI_STANDARD_BACK_COLOR);
-		m_pPlayButton->SetForeColor(is_play ?
-			C_BLACK : C_DIM_GRAY);
-	}
-}
-    
-	

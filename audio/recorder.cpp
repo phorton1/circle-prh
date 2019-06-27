@@ -20,10 +20,6 @@
 //------------------------------------------
 
 
-// static
-int16_t AudioRecorder::m_buffer[RECORD_CHANNELS][RECORD_BUFFER_SAMPLES];
-
-
 AudioRecorder::AudioRecorder() :
     AudioStream(RECORD_CHANNELS, inputQueueArray)
 {
@@ -32,13 +28,22 @@ AudioRecorder::AudioRecorder() :
     m_running      = 0;
     m_record_mask  = 0;
     m_play_mask    = 0xffff;
-    
-    clear();
+    for (int i=0; i<RECORD_CHANNELS; i++)
+        m_buffer[i] = 0;
 }    
 
 
 void AudioRecorder::begin()
 {
+    for (int i=0; i<RECORD_CHANNELS; i++)
+    {
+        if (!m_buffer[i])
+        {
+            m_buffer[i] = (int16_t *) malloc(RECORD_BUFFER_BYTES);
+            assert(m_buffer[i]);
+        }
+    }
+    clear();
 }
 
 
@@ -49,7 +54,8 @@ void AudioRecorder::clear()
     m_num_blocks   = 0;
     for (u16 i=0; i<RECORD_CHANNELS; i++)
     {
-        memset(m_buffer[i],0,RECORD_BUFFER_BYTES);
+        if (m_buffer[i])
+            memset(m_buffer[i],0,RECORD_BUFFER_BYTES);
     }
 }
 
@@ -57,6 +63,7 @@ void AudioRecorder::clear()
 void AudioRecorder::start()
 {
     LOG("start()",0);
+    m_cur_block = 0;
     m_running = true;
 }
 
@@ -93,8 +100,9 @@ void AudioRecorder::update(void)
     }
 
     // move the input data into the buffer
+    // check 0th buffer jic we are called before begin() somehow
     
-    if (m_running)
+    if (m_running && m_buffer[0])   
     {
         // if recording, capture the data to the buffer
 
@@ -129,7 +137,6 @@ void AudioRecorder::update(void)
 
         // bump the block number and quit if out of memory
         
-        m_cur_block++;
         m_cur_block++;
         if (m_cur_block > m_num_blocks)
             m_num_blocks = m_cur_block;

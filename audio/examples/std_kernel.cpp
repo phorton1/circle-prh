@@ -8,22 +8,27 @@
 #include <circle/gpiopin.h>
 #include <audio/AudioStream.h>
 
+static const char log_name[] = "kernel";
+
 #if USE_UGUI
 	#include <audio/ui/app.h>
-	// #include <audio/ui/scopewindow.h>
-	// #include <audio/ui/controlwindow.h>
 #endif
 
-#if 0 	// USE_SCREEN
-	#include "statusScreen.h"
-#endif
+
+// memory usage (980M+ available on rPi3b)
+//
+// 0x00008000   Kernal program and BSS are limited to 2MB total.
+// ....
+// 0x00500000   Heap Start at 5M and allows almost all memory to be malloc'd
+// 0x1F000000	Not using rpi_stub would get in the way
+// 0x3b001000   Page allocator start at 988M and alllows for 4M of pages
+// 0x3c000000   standard 64MB of GPU memory starts here (from top)
+// 0x3F000000	16 MByte Peripherals
+// 0x40000000	1GB address Local peripherals
 
 
 extern void setup();
 extern void loop();
-
-
-static const char log_name[] = "kernel";
 
 
 CKernel::CKernel(void) :
@@ -37,7 +42,7 @@ CKernel::CKernel(void) :
 	#if USE_MAIN_SERIAL
 		m_Serial(&m_Interrupt, TRUE),
 	#endif
-	m_Logger(m_Options.GetLogLevel(), &m_Timer)
+	m_Logger(LogDebug,&m_Timer)	// m_Options.GetLogLevel(), &m_Timer)
 	#if USE_USB
 		,m_DWHCI(&m_Interrupt, &m_Timer)
 	#endif
@@ -100,8 +105,6 @@ boolean CKernel::Initialize (void)
 		}
 	#endif
 	
-	printf("kernel intialize finished\n");
-	
 	return bOK;
 }
 
@@ -112,30 +115,15 @@ u32 main_loop_counter = 0;
 
 TShutdownMode CKernel::Run(void)
 {
-	LOG("std_kernel " __DATE__ " " __TIME__,0);
-
-#if 0 // USE_SCREEN
-	LOG("using statusScreen",0);
-	print_screen("hello\n");
-#endif
-
+	LOG("std_kernel " __DATE__ " " __TIME__ " available memory=%d",mem_get_size());
 	setup();
+	printf("memory after setup()=%d\n",mem_get_size());
 	
-#if 0 // USE_SCREEN
-	// statusScreen status(&m_Screen);
-	// status.init();
-#endif	
-
 #if USE_UGUI
-	// CScopeConfig ui_Config;
-	// ui_Config.AddParamSet(20, 44, 0);
-
-	// CScopeWindow ScopeWindow(0, 0); // , /* &m_Recorder,*/ &ui_Config);
-	// CControlWindow ControlWindow(600, 0, &ScopeWindow);	// , /* &m_Recorder,*/ &ui_Config);
-	
 	CApplication app;
+	printf("memory after app constructed()=%d\n",mem_get_size());
 #endif
-
+	
 	m_Timer.MsDelay(500);
 	printf("ready ...\n");
 	

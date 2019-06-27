@@ -8,7 +8,7 @@
 // the buffer is public for the UI to display it
 
 #define RECORD_CHANNELS         4
-#define RECORD_SECONDS          1
+#define RECORD_SECONDS          30
 #define RECORD_SAMPLE_RATE      44100
     // we always fill an integral number of AUDIO_BLOCK_SAMPLES
     // the seconds is approximate
@@ -55,8 +55,8 @@ private:
     u32     m_cur_block;
     
 	audio_block_t *inputQueueArray[RECORD_CHANNELS];
-    static int16_t m_buffer[RECORD_CHANNELS][RECORD_BUFFER_SAMPLES];
-   
+    int16_t *m_buffer[RECORD_CHANNELS];
+
 };
 
 

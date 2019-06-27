@@ -83,10 +83,33 @@ void CRecordWindow::Callback(UG_MESSAGE *pMsg)
         return;
     }
     
-	if (pMsg->type  == MSG_TYPE_OBJECT && 
+	if (m_pRecorder &&
+        pMsg->type  == MSG_TYPE_OBJECT && 
 	    pMsg->id    == OBJ_TYPE_BUTTON && 
 	    pMsg->event == OBJ_EVENT_PRESSED)
 	{
+        if (pMsg->sub_id == ID_BUTTON_RUN)
+        {
+            m_pRecorder->start();
+        }
+        else if (pMsg->sub_id == ID_BUTTON_STOP)
+        {
+            m_pRecorder->stop();
+        }
+        if (pMsg->sub_id == ID_BUTTON_RUN)
+        {
+            m_pRecorder->start();
+        }
+        else if (pMsg->sub_id == ID_BUTTON_ZOOM_IN ||
+                 pMsg->sub_id == ID_BUTTON_ZOOM_OUT)
+        {
+            double zoom = m_pRecordTrack[0]->getDisplay()->getZoom();
+            zoom = pMsg->sub_id == ID_BUTTON_ZOOM_IN ?
+                zoom * 1.10 :
+                zoom / 1.10;
+            for (int i=0; i<4; i++)
+                m_pRecordTrack[i]->getDisplay()->setZoom(zoom);
+        }
     }
 
     for (int i=0; i<4; i++)

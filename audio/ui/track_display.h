@@ -96,6 +96,8 @@ public:
     void setStartOffset(u32 offset);
     void setPosition(u32 position);
     
+    double getZoom()  { return m_fZoom; }
+    
     void draw(bool cold);
 
 private:
@@ -141,7 +143,7 @@ public:
         u16 xe,
         u16 ye);
     
-    CTrackDisplay *getTrack() { return m_pTrack; }
+    CTrackDisplay *getDisplay() { return m_pTrack; }
     
    	void Callback(UG_MESSAGE *pMsg);
     
