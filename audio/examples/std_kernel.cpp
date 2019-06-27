@@ -30,6 +30,58 @@ static const char log_name[] = "kernel";
 extern void setup();
 extern void loop();
 
+u32 main_loop_counter = 0;
+
+
+#ifdef USE_MULTI_CORE
+	
+	CCoreTask::CCoreTask(CKernel *pKernel)	:
+		CMultiCoreSupport(&pKernel->m_Memory),
+		m_pKernel(pKernel)
+	{
+	}
+	
+	CCoreTask::~CCoreTask()
+	{
+		m_pKernel = 0;
+	}
+
+	void CCoreTask::Run(unsigned nCore)
+	{
+		printf("CoreTask::Run(%d)\n",nCore);
+		if (nCore == 0)
+		{
+			while (1)
+			{
+				loop();
+				m_pKernel->m_Scheduler.Yield();
+				main_loop_counter++;
+			}
+		}
+		else if (nCore == 1)
+		{
+			setup();
+			printf("memory after setup()=%d\n",mem_get_size());
+			
+			#if USE_UGUI
+				if (m_pKernel->m_GUI.Initialize())
+				{
+					CApplication app;
+					printf("memory after app constructed()=%d\n",mem_get_size());
+	
+					while (1)
+					{
+						m_pKernel->m_GUI.Update ();
+						m_pKernel->m_Timer.MsDelay(50);
+					}
+				}
+			#endif
+		}
+	}
+#endif
+
+
+
 
 CKernel::CKernel(void) :
 	#if USE_SCREEN
@@ -48,6 +100,9 @@ CKernel::CKernel(void) :
 	#endif
 	#if USE_UGUI
 		,m_GUI(&m_Screen)
+	#endif
+	#ifdef USE_MULTI_CORE
+		,m_CoreTask(this)
 	#endif
 {
 	m_ActLED.Toggle();
@@ -97,11 +152,18 @@ boolean CKernel::Initialize (void)
 			bOK = m_DWHCI.Initialize ();
 	#endif
 	
+	#ifdef USE_MULTI_CORE
+		if (bOK)
+			bOK = m_CoreTask.Initialize();
+	#endif
+	
 	#if USE_UGUI
 		if (bOK)
 		{
 			m_TouchScreen.Initialize ();
-			bOK = m_GUI.Initialize ();
+			#ifndef USE_MULTI_CORE
+				bOK = m_GUI.Initialize ();
+			#endif
 		}
 	#endif
 	
@@ -110,38 +172,45 @@ boolean CKernel::Initialize (void)
 
 
 
-u32 main_loop_counter = 0;
-
-
 TShutdownMode CKernel::Run(void)
 {
 	LOG("std_kernel " __DATE__ " " __TIME__ " available memory=%d",mem_get_size());
-	setup();
-	printf("memory after setup()=%d\n",mem_get_size());
-	
-#if USE_UGUI
-	CApplication app;
-	printf("memory after app constructed()=%d\n",mem_get_size());
-#endif
-	
+
 	m_Timer.MsDelay(500);
 	printf("ready ...\n");
-	
+
 	#if 1
 		CGPIOPin toTeensy(25,GPIOModeOutput);
 		toTeensy.Write(1);
 	#endif
+
+	#ifdef USE_MULTI_CORE
 	
-	while (1)
-	{
+		printf("Calling core->Run(0)\n");
+		m_CoreTask.Run(0);
+	
+	#else	// Single core version
+	
+		setup();
+		printf("memory after setup()=%d\n",mem_get_size());
+
 		#if USE_UGUI
-			m_GUI.Update ();
+			CApplication app;
+			printf("memory after app constructed()=%d\n",mem_get_size());
 		#endif
 		
-		loop();
-		m_Scheduler.Yield();
-		main_loop_counter++;
-	}
+		while (1)
+		{
+			#if USE_UGUI
+				m_GUI.Update ();
+			#endif
+			
+			loop();
+			m_Scheduler.Yield();
+			main_loop_counter++;
+		}
+		
+	#endif	// Single core version
 	
 	return ShutdownHalt;
 

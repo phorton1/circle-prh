@@ -61,6 +61,29 @@
 #endif
 
 
+#ifdef ARM_ALLOW_MULTI_CORE
+#define USE_MULTI_CORE
+#endif
+
+
+
+
+#ifdef USE_MULTI_CORE
+	#include <circle/multicore.h>
+
+	class CKernel;
+	class CCoreTask : public CMultiCoreSupport
+	{
+		public:
+			CCoreTask(CKernel *pKernel);
+			~CCoreTask();
+			void Run(unsigned nCore);
+		private:
+			CKernel *m_pKernel;
+	};
+#endif
+
+
 
 
 enum TShutdownMode
@@ -81,6 +104,8 @@ public:
 	TShutdownMode Run (void);
 
 private:
+	
+	friend class CCoreTask;
 
 	CMemorySystem		m_Memory;
 	CActLED				m_ActLED;
@@ -101,12 +126,16 @@ private:
 	CLogger				m_Logger;
 	CScheduler			m_Scheduler;
 	#if USE_USB
-		CDWHCIDevice		m_DWHCI;
+		CDWHCIDevice	m_DWHCI;
 	#endif
 	#if USE_UGUI
 		CTouchScreenDevice	m_TouchScreen;
 		CUGUI			m_GUI;
 	#endif
+	#ifdef USE_MULTI_CORE
+		CCoreTask 	m_CoreTask;
+	#endif
+	
 };
 
 
