@@ -1,6 +1,10 @@
 
 #include "window_status.h"
 #include <circle/sched/scheduler.h>
+#include <circle/logger.h>
+
+#define log_name "win_status"
+
 
 // After hooking this up for the first time I have a solid indication
 // that the mouse is messing with the audio ... looking into prioritizing tasks.
@@ -15,13 +19,14 @@ CStatusWindow::~CStatusWindow(void) {}
 #define STATUS_MARGIN   10
 
 
-bool started = 0;
-
 
 CStatusWindow::CStatusWindow(CApplication *app) :
     CWindow(0,0,UG_GetXDim()-1,UG_GetYDim()-1,0),
-    m_pApp(app)
+    m_pApp(app),
+    m_bStarted(0)
 {
+    // LOG("ctor",0);
+    
     m_pTitlebar = new CTitlebar(this,m_pApp,1);
     CTextbox *box = new CTextbox(
         this,
@@ -44,6 +49,7 @@ CStatusWindow::CStatusWindow(CApplication *app) :
         BTN_STYLE_3D);
     pb->SetFont(&FONT_8X12);
         
+    // LOG("ctor finished",0);
 }
 
 
@@ -60,7 +66,7 @@ void CStatusWindow::Callback(UG_MESSAGE *pMsg)
         }
         else if (pMsg->event == WIN_EVENT_ACTIVATE)
         {
-            started = 0;
+            m_bStarted = 0;
         }
     }
 	else if (pMsg->type  == MSG_TYPE_OBJECT && 
@@ -240,7 +246,7 @@ void CStatusWindow::init()
     AudioStream::update_overflow = 0;
     AudioStream::update_needed = 0;
         // clear overflows that occur during startup    
-    started = true;
+    m_bStarted = true;
     
 }
 
@@ -250,7 +256,7 @@ void CStatusWindow::draw()
     UG_FontSelect(&FONT_NAME);
     UG_SetForecolor(C_CYAN);
 
-    if (!started)
+    if (!m_bStarted)
     {
         init();
         return;

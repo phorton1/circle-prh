@@ -1,8 +1,10 @@
 
 #include "window_record.h"
 #include "app.h"
+#include <circle/logger.h>
 
-CRecordWindow::~CRecordWindow(void) {}
+#define log_name "win_record"
+
 
 #define TRACK_HEIGHT        92
 #define SCALE_MARGIN        20
@@ -33,10 +35,16 @@ CRecordWindow::~CRecordWindow(void) {}
 const char *button_label[] = { "-", "<<", "<", "\xdb ", "\x10", ">", ">>", "+" };
     // for some reason the square stop button single character is not centered correctly
 
+
+CRecordWindow::~CRecordWindow(void) {}
+
+
 CRecordWindow::CRecordWindow(CApplication *app) :
     CWindow(0,0,UG_GetXDim()-1,UG_GetYDim()-1,0),
     m_pApp(app)
 {
+    // LOG("ctor",0);
+    
     m_pTitlebar = new CTitlebar(this,m_pApp,2);
     m_pRecorder = (AudioRecorder *) AudioStream::find("recorder",0);
     assert(m_pRecorder);
@@ -69,6 +77,7 @@ CRecordWindow::CRecordWindow(CApplication *app) :
             &FONT_16X26 :
             &FONT_12X16);
     }
+    // LOG("ctor finished",0);
 }
 
 
