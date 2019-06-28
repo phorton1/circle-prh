@@ -7,13 +7,22 @@
 #include "AudioStream.h"
 #include <circle/logger.h>
 #include <circle/sched/scheduler.h>
+#include <audio/examples/std_kernel.h>
+	// For definition of CORE_FOR_AUDIO_SYSTEM and access to
+	// CCoreTask::Get()->SendIPI()
+	
+
+#if CORE_FOR_AUDIO_SYSTEM == 0
+	// #define USE_AUDIO_UPDATE_TASK
+		// otherwise. Core 0, do_update() will be called directly
+		// from the update_all() (the bcm_pcm interrupt)
+#endif
+
 
 #define log_name  "astream"
 
 #define MAX_AUDIO_MEMORY 229376
 	// prh - pick a number
-#define USE_AUDIO_UPDATE_TASK
-	// otherwise do_update() will be called directly from the interupt
 
 #define NUM_MASKS  (((MAX_AUDIO_MEMORY / AUDIO_BLOCK_SAMPLES / 2) + 31) / 32)
 
@@ -495,13 +504,18 @@ void AudioStream::update_all(void)
 			update_needed++;
 			s_pUpdateTask->wake();
 		}
-	#else
+	#elif CORE_FOR_AUDIO_SYSTEM == 0
 		if (update_needed)
 			update_overflow++;
 		update_needed++;
 		do_update();
+	#else
+		CCoreTask::Get()->SendIPI(CORE_FOR_AUDIO_SYSTEM,IPI_AUDIO_UPDATE);
 	#endif
 }
+
+
+
 
 
 void AudioStream::do_update(void)

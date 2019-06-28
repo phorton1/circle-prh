@@ -1,27 +1,33 @@
 // std_kernel.cpp
-// Circle - A C++ bare metal environment for Raspberry Pi
-// Copyright (C) 2015-2016  R. Stange <rsta2@o2online.de>
+//
+// Based on Circle - A C++ bare metal environment for Raspberry Pi
+// which is Copyright (C) 2015-2019  R. Stange <rsta2@o2online.de>
+//
+// This code is Copyright (C) 2019, Patrick Horton, no rights reserved.
+
 
 #include "std_kernel.h"
 #include <circle/util.h>
 #include <circle/types.h>
 #include <circle/gpiopin.h>
 #include <audio/AudioStream.h>
-
-static const char log_name[] = "kernel";
-
 #if USE_UGUI
 	#include <audio/ui/app.h>
 #endif
 
+#define USE_GPIO_READY_PIN    25
+
+static const char log_name[] = "kernel";
+
 
 // memory usage (980M+ available on rPi3b)
-//
 // 0x00008000   Kernal program and BSS are limited to 2MB total.
-// ....
+//     ...      limited to 2MB!!
 // 0x00500000   Heap Start at 5M and allows almost all memory to be malloc'd
+//     ...      986+ MB Available
 // 0x1F000000	Not using rpi_stub would get in the way
 // 0x3b001000   Page allocator start at 988M and alllows for 4M of pages
+//     ...      4MB available
 // 0x3c000000   standard 64MB of GPU memory starts here (from top)
 // 0x3F000000	16 MByte Peripherals
 // 0x40000000	1GB address Local peripherals
@@ -33,55 +39,171 @@ extern void loop();
 u32 main_loop_counter = 0;
 
 
-#ifdef USE_MULTI_CORE
-	
-	CCoreTask::CCoreTask(CKernel *pKernel)	:
-		CMultiCoreSupport(&pKernel->m_Memory),
-		m_pKernel(pKernel)
-	{
-	}
-	
-	CCoreTask::~CCoreTask()
-	{
-		m_pKernel = 0;
-	}
+//---------------------------------------------
+// CoreTask
+//---------------------------------------------
 
-	void CCoreTask::Run(unsigned nCore)
+CCoreTask *CCoreTask::s_pCoreTask = 0;
+
+
+CCoreTask::CCoreTask(CKernel *pKernel)	:
+	#ifdef USE_MULTI_CORE
+		CMultiCoreSupport(&pKernel->m_Memory),
+	#endif
+	m_pKernel(pKernel),
+	m_bAudioStarted(0),
+	m_bUIStarted(0)
+{
+	s_pCoreTask = this;
+}
+
+
+CCoreTask::~CCoreTask()
+{
+	m_pKernel = 0;
+}
+
+
+void CCoreTask::runAudioSystem(unsigned nCore, bool init)
+{
+	if (init)
 	{
-		printf("CoreTask::Run(%d)\n",nCore);
+		LOG("AudioSystem starting on Core(%d) mem=%dM",nCore,mem_get_size()/1000000);
+		setup();
+		m_bAudioStarted = 1;
+		LOG("after AudioSystem started mem=%dM",mem_get_size()/1000000);
+	}
+	else
+	{
+		loop();
 		if (nCore == 0)
+			m_pKernel->m_Scheduler.Yield();
+	}
+}
+
+
+
+#if USE_UGUI
+	void CCoreTask::runUISystem(unsigned nCore, bool init)
+	{
+		if (init)
 		{
-			while (1)
+			while (!m_bAudioStarted);
+			
+			LOG("UI starting on Core(%d) mem=%dM",nCore,mem_get_size()/1000000);
+			CApplication *app = new CApplication();
+			if (!app)
 			{
-				loop();
-				m_pKernel->m_Scheduler.Yield();
-				main_loop_counter++;
+				LOG_ERROR("Could not create CApplication",0);
+			}
+			else
+			{
+				LOG("after UI initialization mem=%dM",mem_get_size()/1000000);
+				m_bUIStarted = 1;
 			}
 		}
-		else if (nCore == 1)
+		else if (m_bAudioStarted)
 		{
-			setup();
-			printf("memory after setup()=%d\n",mem_get_size());
-			
-			#if USE_UGUI
-				if (m_pKernel->m_GUI.Initialize())
-				{
-					CApplication app;
-					printf("memory after app constructed()=%d\n",mem_get_size());
-	
-					while (1)
-					{
-						m_pKernel->m_GUI.Update ();
-						m_pKernel->m_Timer.MsDelay(50);
-					}
-				}
-			#endif
+			m_pKernel->m_GUI.Update ();
+			if (nCore == 0)
+				m_pKernel->m_Scheduler.Yield();
+			else
+				m_pKernel->m_Timer.MsDelay(50);
+
 		}
 	}
 #endif
 
 
 
+void CCoreTask::Run(unsigned nCore)
+{
+	LOG("Core(%d) starting ... mem=%dM",nCore,mem_get_size()/1000000);
+	bool bCore0StartupReported = 0;
+		
+	// initialize the audio system on the given core
+	
+	if (nCore == CORE_FOR_AUDIO_SYSTEM)
+		runAudioSystem(nCore,true);
+	
+	// initialilze the ui on the given core
+	
+	#if USE_UGUI
+		if (nCore == CORE_FOR_UI_SYSTEM)
+			runUISystem(nCore,true);
+	#endif
+
+	while (1)
+	{
+		// do a timeslice of the audio system on given core
+		// if it's not core 0, this will just call Arduion loop()
+		// method very rapidly, as audio will be handled by
+		// inter-processor interrupts
+
+		if (nCore == CORE_FOR_AUDIO_SYSTEM)
+			runAudioSystem(nCore,false);
+		
+		// do a timeslice of the ui system on given core
+		// this always happns in the Run() loop, either
+		// with a Yield (very rapidly) on Core0, or a 50ms
+		// delay on other cores (at this time).
+		
+		#if USE_UGUI
+			if (nCore == CORE_FOR_UI_SYSTEM)
+				runUISystem(nCore,false);
+		#endif
+		
+		// on core0 increment loop counter and
+		// notify when everything is setup
+		
+		if (nCore == 0)
+		{
+			main_loop_counter++;
+			
+			if (!bCore0StartupReported &&
+				#if USE_UGUI
+					m_bUIStarted &&
+				#endif
+				m_bAudioStarted)
+			{
+				bCore0StartupReported = 1;
+				printf("ready ...\n");
+				CScheduler::Get()->MsSleep(500);
+					// to give the printf time before we change
+					// the pin, just a minor aesthetic issue ...
+			
+				#if USE_GPIO_READY_PIN
+					CGPIOPin toTeensy(USE_GPIO_READY_PIN,GPIOModeOutput);
+					toTeensy.Write(1);
+				#endif
+			}
+		}
+
+	}	// while (1)
+}	// CCoreTask::Run()
+
+
+//---------------------------------------------
+// AudioStream::update_all() IPI handler
+//---------------------------------------------
+
+#if CORE_FOR_AUDIO_SYSTEM != 0
+
+	void CCoreTask::IPIHandler(unsigned nCore, unsigned nIPI)
+	{
+		if (nCore == CORE_FOR_AUDIO_SYSTEM &&
+			nIPI == IPI_AUDIO_UPDATE)
+		{
+			AudioStream::do_update();
+		}
+	}
+#endif
+
+
+
+//----------------------------------------------
+// Kernel Construction and Initialization
+//----------------------------------------------
 
 CKernel::CKernel(void) :
 	#if USE_SCREEN
@@ -101,9 +223,7 @@ CKernel::CKernel(void) :
 	#if USE_UGUI
 		,m_GUI(&m_Screen)
 	#endif
-	#ifdef USE_MULTI_CORE
-		,m_CoreTask(this)
-	#endif
+	,m_CoreTask(this)
 {
 	m_ActLED.Toggle();
 }
@@ -161,9 +281,7 @@ boolean CKernel::Initialize (void)
 		if (bOK)
 		{
 			m_TouchScreen.Initialize ();
-			#ifndef USE_MULTI_CORE
-				bOK = m_GUI.Initialize ();
-			#endif
+			bOK = m_GUI.Initialize ();
 		}
 	#endif
 	
@@ -173,44 +291,11 @@ boolean CKernel::Initialize (void)
 
 
 TShutdownMode CKernel::Run(void)
+	// calls the CoreTask to do all the work
 {
 	LOG("std_kernel " __DATE__ " " __TIME__ " available memory=%d",mem_get_size());
 
-	m_Timer.MsDelay(500);
-	printf("ready ...\n");
-
-	#if 1
-		CGPIOPin toTeensy(25,GPIOModeOutput);
-		toTeensy.Write(1);
-	#endif
-
-	#ifdef USE_MULTI_CORE
-	
-		printf("Calling core->Run(0)\n");
-		m_CoreTask.Run(0);
-	
-	#else	// Single core version
-	
-		setup();
-		printf("memory after setup()=%d\n",mem_get_size());
-
-		#if USE_UGUI
-			CApplication app;
-			printf("memory after app constructed()=%d\n",mem_get_size());
-		#endif
-		
-		while (1)
-		{
-			#if USE_UGUI
-				m_GUI.Update ();
-			#endif
-			
-			loop();
-			m_Scheduler.Yield();
-			main_loop_counter++;
-		}
-		
-	#endif	// Single core version
+	m_CoreTask.Run(0);
 	
 	return ShutdownHalt;
 

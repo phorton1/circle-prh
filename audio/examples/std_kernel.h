@@ -71,17 +71,73 @@
 #ifdef USE_MULTI_CORE
 	#include <circle/multicore.h>
 
-	class CKernel;
-	class CCoreTask : public CMultiCoreSupport
-	{
-		public:
-			CCoreTask(CKernel *pKernel);
-			~CCoreTask();
-			void Run(unsigned nCore);
-		private:
-			CKernel *m_pKernel;
-	};
+	#define CORE_FOR_AUDIO_SYSTEM    1
+		// The Audio System hardware interrupts (bcm_pcm) always
+		// take place on Core 0, as do the USB interrupts.
+		//
+		// If the audio system runs on Core 0, then it uses a
+		// Circle Task which is signalled for each interrupt
+		// and Yield must be called from withing the Core0 Run() loop.
+		// Note that I have found that you cannot call just Yield()
+		// in a tight loop.
+		//
+		// If it is running on a different core, it is implemented
+		// as an inter-processor interrupt which is triggered
+		// from the Core 0 hardware interrupt, and the Run() loop
+		// on that processor is currently unused and available.
+		//
+		// As currently implemented, the psudo-Arudino setup() and
+		// loop() calls are made from the core running the Audio
+		// system.
+		
+	#define CORE_FOR_UI_SYSTEM       2
+		// The UI System is updated in the Run() loop on the
+		// given core. If running on Core 0 with the Audio System,
+		// then care must be taken to call Yield often, as well
+		// as from the main Run() loop.
+
+#else	// Single Core defines
+	#define CORE_FOR_AUDIO_SYSTEM    0
+	#define CORE_FOR_UI_SYSTEM       0
 #endif
+
+
+#if CORE_FOR_AUDIO_SYSTEM != 0
+	#define IPI_AUDIO_UPDATE  11		// first user IPI + 1 (arbitrary upto 30)
+#endif
+
+
+
+class CKernel;
+class CCoreTask
+	#ifdef USE_MULTI_CORE
+		: public CMultiCoreSupport
+	#endif
+{
+	public:
+		
+		CCoreTask(CKernel *pKernel);
+		~CCoreTask();
+		void Run(unsigned nCore);
+		static CCoreTask *Get() {return s_pCoreTask;}
+		
+		#if CORE_FOR_AUDIO_SYSTEM != 0
+			void IPIHandler(unsigned nCore, unsigned nIPI);
+		#endif
+		
+	private:
+
+		CKernel *m_pKernel;
+		static CCoreTask *s_pCoreTask;
+		
+		void runAudioSystem(unsigned nCore, bool init);
+		volatile bool m_bAudioStarted;
+		
+	#if USE_UGUI
+		void runUISystem(unsigned nCore, bool init);
+		volatile bool m_bUIStarted;
+	#endif
+};
 
 
 
@@ -132,9 +188,8 @@ private:
 		CTouchScreenDevice	m_TouchScreen;
 		CUGUI			m_GUI;
 	#endif
-	#ifdef USE_MULTI_CORE
-		CCoreTask 	m_CoreTask;
-	#endif
+	
+	CCoreTask 	m_CoreTask;
 	
 };
 
