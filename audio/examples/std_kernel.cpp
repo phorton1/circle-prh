@@ -76,8 +76,6 @@ void CCoreTask::runAudioSystem(unsigned nCore, bool init)
 	else
 	{
 		loop();
-		if (nCore == 0)
-			m_pKernel->m_Scheduler.Yield();
 	}
 }
 
@@ -105,11 +103,6 @@ void CCoreTask::runAudioSystem(unsigned nCore, bool init)
 		else if (m_bAudioStarted)
 		{
 			m_pKernel->m_GUI.Update ();
-			if (nCore == 0)
-				m_pKernel->m_Scheduler.Yield();
-			else
-				m_pKernel->m_Timer.MsDelay(50);
-
 		}
 	}
 #endif
@@ -144,9 +137,6 @@ void CCoreTask::Run(unsigned nCore)
 			runAudioSystem(nCore,false);
 		
 		// do a timeslice of the ui system on given core
-		// this always happns in the Run() loop, either
-		// with a Yield (very rapidly) on Core0, or a 50ms
-		// delay on other cores (at this time).
 		
 		#if USE_UGUI
 			if (nCore == CORE_FOR_UI_SYSTEM)

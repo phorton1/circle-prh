@@ -74,17 +74,12 @@
 	#define CORE_FOR_AUDIO_SYSTEM    1
 		// The Audio System hardware interrupts (bcm_pcm) always
 		// take place on Core 0, as do the USB interrupts.
+		// If the audio system runs on Core 0, then do_update()
+		// is called directly from the audio IRQ (update responsibility)
 		//
-		// If the audio system runs on Core 0, then it uses a
-		// Circle Task which is signalled for each interrupt
-		// and Yield must be called from withing the Core0 Run() loop.
-		// Note that I have found that you cannot call just Yield()
-		// in a tight loop.
-		//
-		// If it is running on a different core, it is implemented
-		// as an inter-processor interrupt which is triggered
-		// from the Core 0 hardware interrupt, and the Run() loop
-		// on that processor is currently unused and available.
+		// If it is running on a different core, an inter-processor
+		// interrupt is triggered from the core0 code (IRQ) to the
+		// core which will just call do_update on the IPI.
 		//
 		// As currently implemented, the psudo-Arudino setup() and
 		// loop() calls are made from the core running the Audio
@@ -92,9 +87,7 @@
 		
 	#define CORE_FOR_UI_SYSTEM       2
 		// The UI System is updated in the Run() loop on the
-		// given core. If running on Core 0 with the Audio System,
-		// then care must be taken to call Yield often, as well
-		// as from the main Run() loop.
+		// given core.
 
 #else	// Single Core defines
 	#define CORE_FOR_AUDIO_SYSTEM    0

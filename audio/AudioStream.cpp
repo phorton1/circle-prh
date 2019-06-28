@@ -10,21 +10,16 @@
 #include <audio/examples/std_kernel.h>
 	// For definition of CORE_FOR_AUDIO_SYSTEM and access to
 	// CCoreTask::Get()->SendIPI()
-	
-
-#if CORE_FOR_AUDIO_SYSTEM == 0
-	// #define USE_AUDIO_UPDATE_TASK
-		// otherwise. Core 0, do_update() will be called directly
-		// from the update_all() (the bcm_pcm interrupt)
-#endif
 
 
 #define log_name  "astream"
+
 
 #define MAX_AUDIO_MEMORY 229376
 	// prh - pick a number
 
 #define NUM_MASKS  (((MAX_AUDIO_MEMORY / AUDIO_BLOCK_SAMPLES / 2) + 31) / 32)
+
 
 audio_block_t *AudioStream::memory_pool;
 
@@ -40,47 +35,6 @@ bool AudioStream::update_scheduled = false;
 volatile u32 AudioStream::update_needed = 0;
 u32 AudioStream::update_overflow = 0;
 
-	
-#ifdef USE_AUDIO_UPDATE_TASK
-
-	class AudioUpdateTask : public CTask
-	{
-	public:
-
-		AudioUpdateTask() {}
-		~AudioUpdateTask() {}
-		
-		void wake()
-		{
-			if (GetState() == TaskStateBlocked)
-			{
-				CTask *pTask = this;
-				CScheduler::Get()->WakeTask(&pTask);
-			}
-		}
-	
-		void Run(void)
-		{
-			// We start by blocking ourselves.
-			// We will be awakened by the update_all() method as needed.
-			
-			CTask *pTask = 0;
-			CScheduler::Get()->BlockTask(&pTask);
-			AudioStream::update_needed = 1;
-			AudioStream::update_overflow = 0;
-			while (1)
-			{
-				if (AudioStream::update_needed)
-					AudioStream::do_update();
-				CScheduler::Get()->BlockTask(&pTask);
-			}
-		}
-	};
-
-	AudioUpdateTask *s_pUpdateTask = 0;
-	
-#endif	// USE_AUDIO_UPDATE_TASK
-	
 
 //-----------------------------------
 // AudioStream ctor, accessors
@@ -327,12 +281,6 @@ void AudioStream::initialize_memory(audio_block_t *data, unsigned int num)
 		p->begin();
 	}
 
-	// Start the audio update task
-	
-	#ifdef USE_AUDIO_UPDATE_TASK
-		s_pUpdateTask = new AudioUpdateTask();
-	#endif
-	
 }	// AudioStream::initialize_memory();
 
 
@@ -496,18 +444,15 @@ bool AudioStream::update_setup(void)
 
 void AudioStream::update_all(void)
 {
-	#ifdef USE_AUDIO_UPDATE_TASK
-		if (s_pUpdateTask)
-		{
-			if (update_needed)
-				update_overflow++;
-			update_needed++;
-			s_pUpdateTask->wake();
-		}
-	#elif CORE_FOR_AUDIO_SYSTEM == 0
-		if (update_needed)
-			update_overflow++;
-		update_needed++;
+	if (update_needed)
+		update_overflow++;
+	update_needed++;
+
+	// If single core we call do_update() directly from the audio IRQ.
+	// If multi-core, the IRQ is running on core0 and we send an IPI
+	// to the given core which will then call do_update()
+	
+	#if CORE_FOR_AUDIO_SYSTEM == 0
 		do_update();
 	#else
 		CCoreTask::Get()->SendIPI(CORE_FOR_AUDIO_SYSTEM,IPI_AUDIO_UPDATE);
