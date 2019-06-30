@@ -251,11 +251,11 @@ CTitlebar::CTitlebar(CWindow *win, CApplication *app, u8 window_num) :
         VU_TOP+VU_HEIGHT+VU_TWEEN+VU_HEIGHT-1,
         true,14);
     
-    AudioStream *first = AudioStream::first_update;
+    AudioStream *first = AudioSystem::getFirstStream();
     if (first)
     {
-        m_vu1->setAudioDevice(first->dbgName(),first->dbgInstance(),0);
-        m_vu2->setAudioDevice(first->dbgName(),first->dbgInstance(),1);
+        m_vu1->setAudioDevice(first->getName(),first->getInstance(),0);
+        m_vu2->setAudioDevice(first->getName(),first->getInstance(),1);
     }
 }    
 
@@ -282,8 +282,8 @@ bool CTitlebar::Callback(UG_MESSAGE *pMsg)
             // update the status text
             
             float usPerBuffer = 1000000 / bcm_pcm.getSampleRate();
-            u32 cpui = AudioStream::cpu_cycles_total;            
-            u32 cpui_max = AudioStream::cpu_cycles_total_max;
+            u32 cpui = AudioSystem::getCPUCycles();            
+            u32 cpui_max = AudioSystem::getCPUCyclesMax();
             float cpu = ((float)cpui)/usPerBuffer;
             float cpu_max = ((float)cpui_max)/usPerBuffer;
             
@@ -292,7 +292,9 @@ bool CTitlebar::Callback(UG_MESSAGE *pMsg)
             
             CString str;
             str.Format("cpu: %5.1f  max: %5.1f    \nmem:  %4d  max:  %4d    ",
-                cpu,cpu_max,AudioStream::memory_used,AudioStream::memory_used_max);
+                cpu,cpu_max,
+                AudioSystem::getMemoryBlocksUsed(),
+                AudioSystem::getMemoryBlocksUsedMax());
             m_pStatus->SetText((const char *)str);
         }
         else if (pMsg->event == WIN_EVENT_ACTIVATE)

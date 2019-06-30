@@ -32,15 +32,14 @@
     
 #else   // wm8731 in master or slave mode
 
-    #define I2S_MASTER    0
+    #define I2S_MASTER    1
+    AudioInputI2S input;
+    AudioOutputI2S output;
+
     #if I2S_MASTER
-        AudioInputI2S input;
-        AudioOutputI2S output;
         AudioControlWM8731 control;
     #else
-        AudioInputI2Sslave input;
-        AudioOutputI2Sslave output;
-        AudioControlWM8731master control;
+        AudioControlWM8731Slave control;
     #endif
     
 #endif
@@ -72,14 +71,17 @@ void setup()
         new AudioConnection(input, 0, peak0, 0);
         new AudioConnection(input, 1, peak1, 0);
     #endif
+
+    // The audio memory system can now be instantiated
+    // with very large buffers ..
     
-    #if !USE_TEENSY_QUAD_SLAVE
-        control.enable();
-    #endif
+    AudioSystem::initialize(150);
     
-    AudioMemory(80);
-    
+    // The audio system now starts any i2s devices,
+    // so you don't need to call control.enable().
+   
     #if !USE_CS42448 && !USE_TEENSY_QUAD_SLAVE
+        // some devices do not have these controls
         control.inputSelect(AUDIO_INPUT_LINEIN);
         control.inputLevel(1.0);
     #endif

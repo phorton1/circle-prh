@@ -24,11 +24,9 @@ public:
 	AudioRecorder();
         // skip does undersampling
 
-	void begin(void);
-	virtual void update(void);
-    virtual const char *dbgName()   { return "recorder"; }
-    virtual u8 getNumOutputs()	    { return RECORD_CHANNELS; }
-
+	virtual const char *getName() 	{ return "recorder"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_OTHER; }
+        
     u16  getRecordMask()            { return m_record_mask; }
     void setRecordMask(u16 mask)    { m_record_mask = mask; }
     u16  getPlayMask()              { return m_play_mask; }
@@ -39,9 +37,9 @@ public:
     
     bool isRunning()                { return m_running; }
     
-    void clear();   // erase existing recording
-    void start();   // start recording or playing (if there's blocks)
-    void stop();    // stop recording or playing
+    void clearRecording();   // erase existing recording
+    void startRecording();   // start recording or playing (if there's blocks)
+    void stopRecording();    // stop recording or playing
 
     int16_t *getBuffer(int channel)            { return m_buffer[channel]; }
     
@@ -57,6 +55,9 @@ private:
 	audio_block_t *inputQueueArray[RECORD_CHANNELS];
     int16_t *m_buffer[RECORD_CHANNELS];
 
+	void start(void);
+    void update(void);
+    
 };
 
 

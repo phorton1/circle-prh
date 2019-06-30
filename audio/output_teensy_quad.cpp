@@ -40,16 +40,16 @@
 #endif
 	
 
-audio_block_t * AudioOutputTeensyQuad::block_left_1st = NULL;
-audio_block_t * AudioOutputTeensyQuad::block_right_1st = NULL;
-audio_block_t * AudioOutputTeensyQuad::block_left_2nd = NULL;
-audio_block_t * AudioOutputTeensyQuad::block_right_2nd = NULL;
-bool AudioOutputTeensyQuad::update_responsibility = false;
+audio_block_t * AudioOutputTeensyQuad::s_block_left_1st = NULL;
+audio_block_t * AudioOutputTeensyQuad::s_block_right_1st = NULL;
+audio_block_t * AudioOutputTeensyQuad::s_block_left_2nd = NULL;
+audio_block_t * AudioOutputTeensyQuad::s_block_right_2nd = NULL;
+bool AudioOutputTeensyQuad::s_update_responsibility = false;
 
 
     
 AudioOutputTeensyQuad::AudioOutputTeensyQuad(void) :
-	AudioStream(2, inputQueueArray)
+	AudioStream(2,2, inputQueueArray)
 {
 	bcm_pcm.setOutISR(isr);
 }
@@ -77,15 +77,15 @@ void AudioOutputTeensyQuad::config_i2s()
 }
 
 
-void AudioOutputTeensyQuad::begin(void)
+void AudioOutputTeensyQuad::start(void)
 {
-	QUAD_LOG("begin()",0);
-	block_left_1st = NULL;
-	block_right_1st = NULL;
+	QUAD_LOG("start()",0);
+	s_block_left_1st = NULL;
+	s_block_right_1st = NULL;
 	config_i2s();
-	update_responsibility = update_setup();
+	s_update_responsibility = AudioSystem::takeUpdateResponsibility();
 	bcm_pcm.start();
-	QUAD_LOG("begin() finished",0);
+	QUAD_LOG("start() finished",0);
 }
 
 
@@ -103,9 +103,9 @@ void AudioOutputTeensyQuad::isr(void)
 	
 	// if we have update responsibility, call the client update methods
 	
-	if (update_responsibility)
-		update_all();
-	
+	if (s_update_responsibility)
+		AudioSystem::startUpdate();
+ 	
 	// note that the bcm_pcm block size is such that it can
 	// hold a full teensy LR block.  Therefore, unlike the
 	// teensy code that acts on HALF of a block at a time,
@@ -113,8 +113,8 @@ void AudioOutputTeensyQuad::isr(void)
 	// and the "block_offsets" are always zero.
 	// existing teensy code()
 	
-	audio_block_t *blockL = block_left_1st;
-	audio_block_t *blockR = block_right_1st;
+	audio_block_t *blockL = s_block_left_1st;
+	audio_block_t *blockR = s_block_right_1st;
 	
 	if (blockL && blockR)
 	{
@@ -125,12 +125,12 @@ void AudioOutputTeensyQuad::isr(void)
 			*dest++ = *(uint32_t *) lptr++;
 			*dest++ = *(uint32_t *) rptr++;
 		}
-		block_left_1st = block_left_2nd;
-		block_right_1st = block_right_2nd;
-		block_left_2nd = NULL;
-		block_right_2nd = NULL;
-		release(blockL);
-		release(blockR);
+		s_block_left_1st = s_block_left_2nd;
+		s_block_right_1st = s_block_right_2nd;
+		s_block_left_2nd = NULL;
+		s_block_right_2nd = NULL;
+		AudioSystem::release(blockL);
+		AudioSystem::release(blockR);
 	}
 	else if (blockL)
 	{
@@ -140,9 +140,9 @@ void AudioOutputTeensyQuad::isr(void)
 			*dest++ = *(uint32_t *) lptr++;
 			*dest++ = 0;
 		}
-		block_left_1st = block_left_2nd;
-		block_left_2nd = NULL;
-		release(blockL);
+		s_block_left_1st = s_block_left_2nd;
+		s_block_left_2nd = NULL;
+		AudioSystem::release(blockL);
 	}
 	else if (blockR)
 	{
@@ -152,9 +152,9 @@ void AudioOutputTeensyQuad::isr(void)
 			*dest++ = 0;
 			*dest++ = *(uint32_t *) rptr++;
 		}
-		block_right_1st = block_right_2nd;
-		block_right_2nd = NULL;
-		release(blockR);
+		s_block_right_1st = s_block_right_2nd;
+		s_block_right_2nd = NULL;
+		AudioSystem::release(blockR);
 	}
 	else
 	{
@@ -180,23 +180,23 @@ void AudioOutputTeensyQuad::update(void)
 	if (block)
 	{
 		__disable_irq();
-		if (block_left_1st == NULL)
+		if (s_block_left_1st == NULL)
 		{
-			block_left_1st = block;
+			s_block_left_1st = block;
 			__enable_irq();
 		}
-		else if (block_left_2nd == NULL)
+		else if (s_block_left_2nd == NULL)
 		{
-			block_left_2nd = block;
+			s_block_left_2nd = block;
 			__enable_irq();
 		}
 		else
 		{
-			audio_block_t *tmp = block_left_1st;
-			block_left_1st = block_left_2nd;
-			block_left_2nd = block;
+			audio_block_t *tmp = s_block_left_1st;
+			s_block_left_1st = s_block_left_2nd;
+			s_block_left_2nd = block;
 			__enable_irq();
-			release(tmp);
+			AudioSystem::release(tmp);
 		}
 	}
 	
@@ -205,23 +205,23 @@ void AudioOutputTeensyQuad::update(void)
 	if (block)
 	{
 		__disable_irq();
-		if (block_right_1st == NULL)
+		if (s_block_right_1st == NULL)
 		{
-			block_right_1st = block;
+			s_block_right_1st = block;
 			__enable_irq();
 		}
-		else if (block_right_2nd == NULL)
+		else if (s_block_right_2nd == NULL)
 		{
-			block_right_2nd = block;
+			s_block_right_2nd = block;
 			__enable_irq();
 		}
 		else
 		{
-			audio_block_t *tmp = block_right_1st;
-			block_right_1st = block_right_2nd;
-			block_right_2nd = block;
+			audio_block_t *tmp = s_block_right_1st;
+			s_block_right_1st = s_block_right_2nd;
+			s_block_right_2nd = block;
 			__enable_irq();
-			release(tmp);
+			AudioSystem::release(tmp);
 		}
 	}
 }

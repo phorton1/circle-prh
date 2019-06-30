@@ -33,7 +33,7 @@
 
 #include "bcm_pcm.h"
 #include <circle/logger.h>
-#define log_name "teensy_quad_input"
+#define log_name "tquadi"
 #if 0
 	#define QUAD_LOG(f,...)           CLogger::Get()->Write(log_name,LogNotice,f,__VA_ARGS__)
 #else
@@ -41,25 +41,25 @@
 #endif
 
 
-audio_block_t * AudioInputTeensyQuad::block_left = NULL;
-audio_block_t * AudioInputTeensyQuad::block_right = NULL;
-bool AudioInputTeensyQuad::update_responsibility = false;
+audio_block_t * AudioInputTeensyQuad::s_block_left = NULL;
+audio_block_t * AudioInputTeensyQuad::s_block_right = NULL;
+bool AudioInputTeensyQuad::s_update_responsibility = false;
 
 
 
 AudioInputTeensyQuad::AudioInputTeensyQuad(void) :
-	AudioStream(0, NULL)
+	AudioStream(0,2,NULL)
 {
 	bcm_pcm.setInISR(isr);
 }
 
 
 
-void AudioInputTeensyQuad::begin(void)
+void AudioInputTeensyQuad::start()
 {
-	QUAD_LOG("begin()",0);
+	QUAD_LOG("start()",0);
 	AudioOutputTeensyQuad::config_i2s();
-	update_responsibility = update_setup();
+	s_update_responsibility = AudioSystem::takeUpdateResponsibility();
 	bcm_pcm.start();
 	QUAD_LOG("begin() finished",0);
 }
@@ -78,8 +78,8 @@ void AudioInputTeensyQuad::isr(void)
 	// moving pairs of u32's from the dma buffer into pairs
 	// of int16's in the "client" teensy audio blocks
 
-	audio_block_t *left = block_left;
-	audio_block_t *right = block_right;
+	audio_block_t *left = s_block_left;
+	audio_block_t *right = s_block_right;
 	int16_t *dest_left = left ? left->data : 0;
 	int16_t *dest_right = right ? right->data : 0;
 	
@@ -110,8 +110,8 @@ void AudioInputTeensyQuad::isr(void)
 	
 	// buffer is ready: call the client update method.
 	
-	if (update_responsibility)
-		update_all();
+	if (s_update_responsibility)
+		AudioSystem::startUpdate();
 		
 	// this routine MUST complete before the DMA issues
 	// the next interrupt!! 
@@ -120,20 +120,22 @@ void AudioInputTeensyQuad::isr(void)
 
 
 
-
 void AudioInputTeensyQuad::update(void)
 {
-	audio_block_t *new_left=NULL, *new_right=NULL, *out_left=NULL, *out_right=NULL;
+	audio_block_t *new_left  = NULL;
+	audio_block_t *new_right = NULL;
+	audio_block_t *out_left  = NULL;
+	audio_block_t *out_right = NULL;
 
 	// allocate 2 new blocks, but if one fails, allocate neither
 	
-	new_left = allocate();
+	new_left = AudioSystem::allocate();
 	if (new_left != NULL)
 	{
-		new_right = allocate();
+		new_right = AudioSystem::allocate();
 		if (new_right == NULL)
 		{
-			release(new_left);
+			AudioSystem::release(new_left);
 			new_left = NULL;
 		}
 	}
@@ -142,17 +144,17 @@ void AudioInputTeensyQuad::update(void)
 	// and block_offset will always be >= AUDIO_BLOCK_SAMPLES at this point
 
 	__disable_irq();
-	out_left = block_left;		// grab the block filled in by DMA
-	block_left = new_left;		// give it a new one
-	out_right = block_right;
-	block_right = new_right;
+	out_left = s_block_left;		// grab the block filled in by DMA
+	s_block_left = new_left;		// give it a new one
+	out_right = s_block_right;
+	s_block_right = new_right;
 	__enable_irq();
 
 	// then transmit the DMA's former blocks
 
 	transmit(out_left, 0);		// send it to everyone
-	release(out_left);			// and we release it
+	AudioSystem::release(out_left);			// and we release it
 	transmit(out_right, 1);
-	release(out_right);
+	AudioSystem::release(out_right);
 }
 

@@ -24,45 +24,39 @@
  * THE SOFTWARE.
  */
 
-#include <Arduino.h>
 #include "analyze_peak.h"
 
-#ifdef __circle__
-	DEFINE_AUDIO_INSTANCE(AudioAnalyzePeak)        
-#endif
 
+u16 AudioAnalyzePeak::s_nextInstance = 0;
 
 
 void AudioAnalyzePeak::update(void)
 {
-	#ifdef __circle__
-		if (!m_running)
-			return;
-	#endif
-	
 	audio_block_t *block;
 	const int16_t *p, *end;
 	int32_t min, max;
 	
 	block = receiveReadOnly();
-	if (!block) {
+	if (!block)
 		return;
-	}
+		
 	p = block->data;
 	end = p + AUDIO_BLOCK_SAMPLES;
 	min = min_sample;
 	max = max_sample;
-	do {
+	do
+	{
 		int16_t d=*p++;
-		// TODO: can we speed this up with SSUB16 and SEL
-		// http://www.m4-unleashed.com/parallel-comparison/
 		if (d<min) min=d;
 		if (d>max) max=d;
-	} while (p < end);
+	}
+	while (p < end);
+	
 	min_sample = min;
 	max_sample = max;
-	new_output = true;
-	release(block);
+	m_bChanged = true;
+
+	AudioSystem::release(block);
 
 }
 

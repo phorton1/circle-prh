@@ -27,115 +27,42 @@
 #ifndef control_cs42448_h_
 #define control_cs42448_h_
 
-#include "AudioControl.h"
+#include "AudioDevice.h"
 #include <math.h>
 
-#ifdef __circle__
-    #define AUDIO_INJECTOR_OCTO 
-        // The only cs42448 device I have is the Audio Injector Octo
-        // It uses an additional 5 gpio pins for reset and rate setting.
-		// Theoretically this is a generic cs42448 device if OCTO is
-		// not defined, but that has not been tested.
-#endif
+
+#define AUDIO_INJECTOR_OCTO 
+	// The only cs42448 device I have is the Audio Injector Octo
+	// It uses an additional 5 gpio pins for reset and rate setting.
+	// Theoretically this is a generic cs42448 device if OCTO is
+	// not defined, but that has not been tested.
 
 
-class AudioControlCS42448 : public AudioControl
+class AudioControlCS42448 : public AudioCodec
 {
 public:
-	AudioControlCS42448(void)
-		#ifdef __circle__
-			;
-		#else
-			: i2c_addr(0x48), muted(true) { }
-		#endif
-	
-	void setAddress(uint8_t addr)
-	{
-		i2c_addr = 0x48 | (addr & 3);
-	}
-	
-	bool enable(void);
-	
-	
-	// supported methods
-	
-	bool volume(float level)
-	{
-		return volumeInteger(volumebyte(level));
-	}
 
-	bool volume(int channel, float level)
-	{
-		if (channel < 1 || channel > 8) return false;
-		return volumeInteger(channel, volumebyte(level));
-	}
+	AudioControlCS42448();
 	
+	virtual const char *getName()  { return "cs42448"; }
+	
+	void volume(float level);
+	void volume(int channel, float level);
 
-	// unsupported methods	
-
-	bool disable(void)
-	{
-		return false;
-	}
+	virtual void start();
+		// public until AudioSystem starts it ...
 	
-	bool inputLevel(float level)
-	{
-		return inputLevelInteger(inputlevelbyte(level));
-	}
-	
-	bool inputSelect(int n)
-	{
-		return (n == 0) ? true : false;
-	}
-	
-	bool inputLevel(int channel, float level)
-	{
-		if (channel < 1 || channel > 6) return false;
-		return inputLevelInteger(channel, inputlevelbyte(level));
-	}
-		
 private:
 	
-	uint8_t i2c_addr;
-	bool muted;
-	
-	// the only method here that is actually supported
-	// at this time is the overall volumeInteger() method
-	
-	bool volumeInteger(uint32_t n);
-	bool volumeInteger(int channel, uint32_t n);
-	bool inputLevelInteger(int32_t n);
-	bool inputLevelInteger(int chnnel, int32_t n);
-	
-	uint32_t volumebyte(float level)
-		// convert level to volume byte, section 6.9.1, page 50
-	{
-		if (level >= 1.0) return 0;
-		if (level <= 0.0000003981) return 128;
-		return roundf(log10f(level) * -20.0);
-	}
+	u8   m_muteMask;
 
-	int32_t inputlevelbyte(float level)
-		// convert level to input gain, section 6.11.1, page 51
-	{
-		if (level > 15.8489) return 48;
-		if (level < 0.00063095734) return -128;
-		return roundf(log10f(level) * 40.0);
-	}
+	u8 read(u8 address);
+	void write(uint32_t address, uint32_t data);
+	void write(uint32_t address, const void *data, uint32_t len, bool auto_inc=true);
 
-	bool write(uint32_t address, uint32_t data);
-	bool write(uint32_t address, const void *data, uint32_t len, bool auto_inc=true);
-
-	
-	#ifdef __circle__
-		u8 read(u8 address);
-	#endif
 	#ifdef AUDIO_INJECTOR_OCTO
 		static void reset();
-			// called once
 		static void startClock();
-			// called each time the device is started or stopped
-			// call with 0 to stop, or with sample rate (i.e. 44100)
 	#endif
 	
 };

@@ -46,7 +46,7 @@ CRecordWindow::CRecordWindow(CApplication *app) :
     // LOG("ctor",0);
     
     m_pTitlebar = new CTitlebar(this,m_pApp,2);
-    m_pRecorder = (AudioRecorder *) AudioStream::find("recorder",0);
+    m_pRecorder = (AudioRecorder *) AudioSystem::find(0,"recorder",0);
     assert(m_pRecorder);
     for (int i=0; i<RECORD_CHANNELS; i++)
     {
@@ -99,15 +99,11 @@ void CRecordWindow::Callback(UG_MESSAGE *pMsg)
 	{
         if (pMsg->sub_id == ID_BUTTON_RUN)
         {
-            m_pRecorder->start();
+            m_pRecorder->startRecording();
         }
         else if (pMsg->sub_id == ID_BUTTON_STOP)
         {
-            m_pRecorder->stop();
-        }
-        if (pMsg->sub_id == ID_BUTTON_RUN)
-        {
-            m_pRecorder->start();
+            m_pRecorder->stopRecording();
         }
         else if (pMsg->sub_id == ID_BUTTON_ZOOM_IN ||
                  pMsg->sub_id == ID_BUTTON_ZOOM_OUT)

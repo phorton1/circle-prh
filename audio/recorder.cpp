@@ -5,15 +5,6 @@
 
 #define log_name "record"
 
-// #define RECORD_CHANNELS         4
-// #define RECORD_SECONDS          10
-// #define RECORD_SAMPLE_RATE      44100
-//     // we always fill an integral number of AUDIO_BLOCK_SAMPLES
-//     // the seconds is approximate
-// #define RECORD_BUFFER_BLOCKS    ((RECORD_SECONDS * RECORD_SAMPLE_RATE) / AUDIO_BLOCK_SAMPLES)
-// #define RECORD_BUFFER_SAMPLES   (RECORD_BUFFER_BLOCKS * AUDIO_BLOCK_SAMPLES)
-// #define RECORD_BUFFER_BYTES     (RECORD_BUFFER_SAMPLES * sizeof(s16))
-
 
 //------------------------------------------
 // AudioRecorder initialization, etc
@@ -21,7 +12,7 @@
 
 
 AudioRecorder::AudioRecorder() :
-    AudioStream(RECORD_CHANNELS, inputQueueArray)
+    AudioStream(RECORD_CHANNELS,RECORD_CHANNELS,inputQueueArray)
 {
     m_cur_block    = 0;
     m_num_blocks   = 0;
@@ -33,7 +24,7 @@ AudioRecorder::AudioRecorder() :
 }    
 
 
-void AudioRecorder::begin()
+void AudioRecorder::start()
 {
     for (int i=0; i<RECORD_CHANNELS; i++)
     {
@@ -43,11 +34,11 @@ void AudioRecorder::begin()
             assert(m_buffer[i]);
         }
     }
-    clear();
+    clearRecording();
 }
 
 
-void AudioRecorder::clear()
+void AudioRecorder::clearRecording()
 {
     m_running      = 0;
     m_cur_block    = 0;
@@ -60,16 +51,16 @@ void AudioRecorder::clear()
 }
 
     
-void AudioRecorder::start()
+void AudioRecorder::startRecording()
 {
-    LOG("start()",0);
+    LOG("startRecording()",0);
     m_cur_block = 0;
     m_running = true;
 }
 
-void AudioRecorder::stop()
+void AudioRecorder::stopRecording()
 {
-    LOG("stop()",0);
+    LOG("stopRecording()",0);
     m_running = false;
 }
 
@@ -129,8 +120,8 @@ void AudioRecorder::update(void)
             if (!(record_mask & mask(j)))
             {
                 if (in[j])
-                    release(in[j]);
-                in[j] = allocate();
+                    AudioSystem::release(in[j]);
+                in[j] = AudioSystem::allocate();
                 memcpy(in[j]->data,&m_buffer[j][offset],AUDIO_BLOCK_BYTES);
             }                
         }
@@ -151,7 +142,7 @@ void AudioRecorder::update(void)
         if (in[j])
         {
     		transmit(in[j], j);
-            release(in[j]);
+            AudioSystem::release(in[j]);
         }
     }
 }

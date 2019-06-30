@@ -27,106 +27,108 @@
 #ifndef control_sgtl5000_h_
 #define control_sgtl5000_h_
 
-#include "AudioControl.h"
+#include "AudioDevice.h"
+#include <circle/gpiopin.h>
+#include <circle/gpioclock.h>
 
-#ifdef __circle__
-	#include <circle/gpiopin.h>
-	#include <circle/gpioclock.h>
-#endif
 
-class AudioControlSGTL5000 : public AudioControl
+class AudioControlSGTL5000 : public AudioCodec
 {
 public:
 	
-    #ifdef __circle__
-        AudioControlSGTL5000();
-    #else	
-		AudioControlSGTL5000(void) : i2c_addr(0x0A) { }
-	#endif
+	AudioControlSGTL5000();
 	
 	void setAddress(uint8_t level);
-	bool enable(void);
-	bool disable(void) { return false; }
-	bool volume(float n) { return volumeInteger(n * 129 + 0.499); }
-	bool inputLevel(float n) {return false;}
-	bool muteHeadphone(void) { return write(0x0024, ana_ctrl | (1<<4)); }
-	bool unmuteHeadphone(void) { return write(0x0024, ana_ctrl & ~(1<<4)); }
-	bool muteLineout(void) { return write(0x0024, ana_ctrl | (1<<8)); }
-	bool unmuteLineout(void) { return write(0x0024, ana_ctrl & ~(1<<8)); }
-	bool inputSelect(int n)
+	
+	virtual const char *getName()  { return "sgtl5000m"; }
+	virtual void start();
+		// public until AudioSystem starts it ...
+	
+	
+	void volume(float n) { return volumeInteger(n * 129 + 0.499); }
+	void muteHeadphone(void) { return write(0x0024, ana_ctrl | (1<<4)); }
+	void unmuteHeadphone(void) { return write(0x0024, ana_ctrl & ~(1<<4)); }
+	void muteLineout(void) { return write(0x0024, ana_ctrl | (1<<8)); }
+	void unmuteLineout(void) { return write(0x0024, ana_ctrl & ~(1<<8)); }
+	
+	void inputSelect(int n)
 	{
 		if (n == AUDIO_INPUT_LINEIN)
 		{
-			return write(0x0020, 0x055) // +7.5dB gain (1.3Vp-p full scale)
-				&& write(0x0024, ana_ctrl | (1<<2)); // enable linein
+			write(0x0020, 0x055);				// +7.5dB gain (1.3Vp-p full scale)
+			write(0x0024, ana_ctrl | (1<<2)); 	// enable linein
 		}
 		else if (n == AUDIO_INPUT_MIC)
 		{
-			return write(0x002A, 0x0173) // mic preamp gain = +40dB
-				 && write(0x0020, 0x088)     // input gain +12dB (is this enough?)
-				 && write(0x0024, ana_ctrl & ~(1<<2)); // enable mic
-		}
-		else
-		{
-			return false;
+			write(0x002A, 0x0173);				// mic preamp gain = +40dB
+			write(0x0020, 0x088);     			// input gain +12dB (is this enough?)
+			write(0x0024, ana_ctrl & ~(1<<2)); 	// enable mic
 		}
 	}
 	
-	bool volume(float left, float right);
-	bool micGain(unsigned int dB);
-	bool lineInLevel(uint8_t n) { return lineInLevel(n, n); }
-	bool lineInLevel(uint8_t left, uint8_t right);
-	unsigned short lineOutLevel(uint8_t n);
-	unsigned short lineOutLevel(uint8_t left, uint8_t right);
-	unsigned short dacVolume(float n);
-	unsigned short dacVolume(float left, float right);
-	bool dacVolumeRamp();
-	bool dacVolumeRampLinear();
-	bool dacVolumeRampDisable();
-	unsigned short adcHighPassFilterEnable(void);
-	unsigned short adcHighPassFilterFreeze(void);
-	unsigned short adcHighPassFilterDisable(void);
-	unsigned short audioPreProcessorEnable(void);
-	unsigned short audioPostProcessorEnable(void);
-	unsigned short audioProcessorDisable(void);
-	unsigned short eqFilterCount(uint8_t n);
-	unsigned short eqSelect(uint8_t n);
-	unsigned short eqBand(uint8_t bandNum, float n);
+	void volume(float left, float right);
+	
+	void micGain(unsigned int dB);
+	void lineInLevel(uint8_t n) { return lineInLevel(n, n); }
+	void lineInLevel(uint8_t left, uint8_t right);
+	void lineOutLevel(uint8_t n);
+	void lineOutLevel(uint8_t left, uint8_t right);
+	void dacVolume(float n);
+	void dacVolume(float left, float right);
+	void dacVolumeRamp();
+	void dacVolumeRampLinear();
+	void dacVolumeRampDisable();
+	void adcHighPassFilterEnable(void);
+	void adcHighPassFilterFreeze(void);
+	void adcHighPassFilterDisable(void);
+	void audioPreProcessorEnable(void);
+	void audioPostProcessorEnable(void);
+	void audioProcessorDisable(void);
+	void eqFilterCount(uint8_t n);
+	void eqSelect(uint8_t n);
+	void eqBand(uint8_t bandNum, float n);
 	void eqBands(float bass, float mid_bass, float midrange, float mid_treble, float treble);
 	void eqBands(float bass, float treble);
 	void eqFilter(uint8_t filterNum, int *filterParameters);
-	unsigned short autoVolumeControl(uint8_t maxGain, uint8_t lbiResponse, uint8_t hardLimit, float threshold, float attack, float decay);
-	unsigned short autoVolumeEnable(void);
-	unsigned short autoVolumeDisable(void);
-	unsigned short enhanceBass(float lr_lev, float bass_lev);
-	unsigned short enhanceBass(float lr_lev, float bass_lev, uint8_t hpf_bypass, uint8_t cutoff);
-	unsigned short enhanceBassEnable(void);
-	unsigned short enhanceBassDisable(void);
-	unsigned short surroundSound(uint8_t width);
-	unsigned short surroundSound(uint8_t width, uint8_t select);
-	unsigned short surroundSoundEnable(void);
-	unsigned short surroundSoundDisable(void);
+	void autoVolumeControl(uint8_t maxGain, uint8_t lbiResponse, uint8_t hardLimit, float threshold, float attack, float decay);
+	void autoVolumeEnable(void);
+	void autoVolumeDisable(void);
+	void enhanceBass(float lr_lev, float bass_lev);
+	void enhanceBass(float lr_lev, float bass_lev, uint8_t hpf_bypass, uint8_t cutoff);
+	void enhanceBassEnable(void);
+	void enhanceBassDisable(void);
+	void surroundSound(uint8_t width);
+	void surroundSound(uint8_t width, uint8_t select);
+	void surroundSoundEnable(void);
+	void surroundSoundDisable(void);
 	void killAutomation(void) { semi_automated=false; }
 
 protected:
 	
 	bool muted;
-	bool volumeInteger(unsigned int n); // range: 0x00 to 0x80
+	void volumeInteger(unsigned int n); // range: 0x00 to 0x80
+	
 	uint16_t ana_ctrl;
 	uint8_t i2c_addr;
+	
 	unsigned char calcVol(float n, unsigned char range);
 	unsigned int read(unsigned int reg);
-	bool write(unsigned int reg, unsigned int val);
-	unsigned int modify(unsigned int reg, unsigned int val, unsigned int iMask);
-	unsigned short dap_audio_eq_band(uint8_t bandNum, float n);
+	void write(unsigned int reg, unsigned int val);
+	void modify(unsigned int reg, unsigned int val, unsigned int iMask);
+	
+	void dap_audio_eq_band(uint8_t bandNum, float n);
 
-#ifndef __circle__
 private:
-#endif
 
 	bool semi_automated;
 	void automate(uint8_t dap, uint8_t eq);
 	void automate(uint8_t dap, uint8_t eq, uint8_t filterCount);
+	
+	// uses GPIO4 to send 11.289Mhz MCLK to the shield
+
+	CGPIOPin   m_MPIN;
+	CGPIOClock m_MCLK;
+	
 };
 
 
@@ -149,23 +151,4 @@ private:
 void calcBiquad(uint8_t filtertype, float fC, float dB_Gain, float Q, uint32_t quantization_unit, uint32_t fS, int *coef);
 
 
-
-#ifdef __circle__
-
-	class AudioControlSGTL5000master : public AudioControlSGTL5000
-	{
-		public:
-			
-			AudioControlSGTL5000master();
-			bool enable(void);
-			
-		private:
-			
-			// uses GPIO4 to send 11.289Mhz MCLK to the shield
-			
-			CGPIOPin   m_MPIN;
-			CGPIOClock m_MCLK;
-	};
-	
-#endif	// __circle__
-#endif 	// h file
+#endif 	// !control_sgtl5000_h_

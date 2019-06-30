@@ -31,148 +31,177 @@
 #include "AudioStream.h"
 #include "arm_math.h"
 
-// TODO: investigate making a high resolution sine wave
-// using Taylor series expansion.
-// http://www.musicdsp.org/showone.php?id=13
 
 class AudioSynthWaveformSine : public AudioStream
 {
 public:
-	AudioSynthWaveformSine() : AudioStream(0, NULL), magnitude(16384)
+
+	AudioSynthWaveformSine() :
+		AudioStream(0,1, NULL),
+		magnitude(16384)
 	{
-        SET_AUDIO_INSTANCE()        
+        m_instance = s_nextInstance++;
 	}
 	
-	void frequency(float freq) {
+	virtual const char *getName() 	{ return "sine"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_SYNTH; }
+	
+	void frequency(float freq)
+	{
 		if (freq < 0.0) freq = 0.0;
-		else if (freq > AUDIO_SAMPLE_RATE_EXACT/2) freq = AUDIO_SAMPLE_RATE_EXACT/2;
-		phase_increment = freq * (4294967296.0 / AUDIO_SAMPLE_RATE_EXACT);
+		else if (freq > AUDIO_SAMPLE_RATE/2) freq = AUDIO_SAMPLE_RATE/2;	// AUDIO_SAMPLE_RATE_EXACT
+		phase_increment = freq * (4294967296.0 / AUDIO_SAMPLE_RATE);
 	}
-	void phase(float angle) {
-		if (angle < 0.0) angle = 0.0;
-		else if (angle > 360.0) {
+	
+	void phase(float angle)
+	{
+		if (angle < 0.0)
+			angle = 0.0;
+		else if (angle > 360.0)
+		{
 			angle = angle - 360.0;
 			if (angle >= 360.0) return;
 		}
 		phase_accumulator = angle * (4294967296.0 / 360.0);
 	}
-	void amplitude(float n) {
+	
+	void amplitude(float n)
+	{
 		if (n < 0) n = 0;
 		else if (n > 1.0) n = 1.0;
 		magnitude = n * 65536.0;
 	}
-	virtual void update(void);
 	
-    #ifdef __circle__
-   		virtual u8 getNumOutputs()	{ return 1; }
-    #endif
-    	
 private:
+
+	static u16 s_nextInstance;
+
 	uint32_t phase_accumulator;
 	uint32_t phase_increment;
 	int32_t magnitude;
 
-    #ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-		virtual u8 dbgInstance()    { return instance_num; }
-		virtual const char *dbgName()  { return "sine"; }
-	#endif
+	virtual void update(void);
+
 };
 
 
 class AudioSynthWaveformSineHires : public AudioStream
 {
 public:
-	AudioSynthWaveformSineHires() : AudioStream(0, NULL), magnitude(16384)
+	
+	AudioSynthWaveformSineHires() :
+		AudioStream(0,1, NULL),
+		magnitude(16384)
 	{
-        SET_AUDIO_INSTANCE()        
+        m_instance = s_nextInstance++;
 	}
-	void frequency(float freq) {
+	
+	virtual const char *getName() 	{ return "sine_hires"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_SYNTH; }
+
+	void frequency(float freq)
+	{
 		if (freq < 0.0) freq = 0.0;
-		else if (freq > AUDIO_SAMPLE_RATE_EXACT/2) freq = AUDIO_SAMPLE_RATE_EXACT/2;
-		phase_increment = freq * (4294967296.0 / AUDIO_SAMPLE_RATE_EXACT);
+		else if (freq > AUDIO_SAMPLE_RATE/2) freq = AUDIO_SAMPLE_RATE/2;	//AUDIO_SAMPLE_RATE_EXACT
+		phase_increment = freq * (4294967296.0 / AUDIO_SAMPLE_RATE);
 	}
-	void phase(float angle) {
-		if (angle < 0.0) angle = 0.0;
-		else if (angle > 360.0) {
+	
+	void phase(float angle)
+	{
+		if (angle < 0.0)
+			angle = 0.0;
+		else if (angle > 360.0)
+		{
 			angle = angle - 360.0;
-			if (angle >= 360.0) return;
+			if (angle >= 360.0)
+				return;
 		}
 		phase_accumulator = angle * (4294967296.0 / 360.0);
 	}
-	void amplitude(float n) {
-		if (n < 0) n = 0;
-		else if (n > 1.0) n = 1.0;
+	
+	void amplitude(float n)
+	{
+		if (n < 0)
+			n = 0;
+		else if (n > 1.0)
+			n = 1.0;
 		magnitude = n * 65536.0;
 	}
-	virtual void update(void);
-	
-    #ifdef __circle__
-   		virtual u8 getNumOutputs()	{ return 1; }
-    #endif
 	
 private:
+
+	static u16 s_nextInstance;
+
 	uint32_t phase_accumulator;
 	uint32_t phase_increment;
 	int32_t magnitude;
-	
 
-    #ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-		virtual u8 dbgInstance()    { return instance_num; }
-		virtual const char *dbgName()  { return "sine_hr"; }
-	#endif	
+	virtual void update(void);
+
 };
+
+
 
 
 class AudioSynthWaveformSineModulated : public AudioStream
 {
 public:
-	AudioSynthWaveformSineModulated() : AudioStream(1, inputQueueArray), magnitude(16384)
+	
+	AudioSynthWaveformSineModulated() :
+		AudioStream(1,1, inputQueueArray),
+		magnitude(16384)
 	{
-        SET_AUDIO_INSTANCE()        
+        m_instance = s_nextInstance++;
 	}
-	// maximum unmodulated carrier frequency is 11025 Hz
-	// input = +1.0 doubles carrier
-	// input = -1.0 DC output
-	void frequency(float freq) {
-		if (freq < 0.0) freq = 0.0;
-		else if (freq > AUDIO_SAMPLE_RATE_EXACT/4) freq = AUDIO_SAMPLE_RATE_EXACT/4;
-		phase_increment = freq * (4294967296.0 / AUDIO_SAMPLE_RATE_EXACT);
+	
+	virtual const char *getName() 	{ return "sine_hires"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_SYNTH; }
+
+	void frequency(float freq)
+		// maximum unmodulated carrier frequency is 11025 Hz
+		// input = +1.0 doubles carrier
+		// input = -1.0 DC output
+	{
+		if (freq < 0.0)
+			freq = 0.0;
+		else if (freq > AUDIO_SAMPLE_RATE/4)		// AUDIO_SAMPLE_RATE_EXACT
+			freq = AUDIO_SAMPLE_RATE/4;
+		phase_increment = freq * (4294967296.0 / AUDIO_SAMPLE_RATE);
 	}
-	void phase(float angle) {
+	
+	void phase(float angle)
+	{
 		if (angle < 0.0) angle = 0.0;
-		else if (angle > 360.0) {
+		else if (angle > 360.0)
+		{
 			angle = angle - 360.0;
-			if (angle >= 360.0) return;
+			if (angle >= 360.0)
+				return;
 		}
 		phase_accumulator = angle * (4294967296.0 / 360.0);
 	}
-	void amplitude(float n) {
-		if (n < 0) n = 0;
-		else if (n > 1.0) n = 1.0;
+	
+	void amplitude(float n)
+	{
+		if (n < 0)
+			n = 0;
+		else if (n > 1.0)
+			n = 1.0;
 		magnitude = n * 65536.0;
 	}
-	virtual void update(void);
-
-    #ifdef __circle__
-   		virtual u8 getNumOutputs()	{ return 1; }
-    #endif
+	
 	
 private:
+
+	audio_block_t *inputQueueArray[1];
+	static u16 s_nextInstance;
+
 	uint32_t phase_accumulator;
 	uint32_t phase_increment;
-	audio_block_t *inputQueueArray[1];
 	int32_t magnitude;
 
-    #ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-		virtual u8 dbgInstance()    { return instance_num; }
-		virtual const char *dbgName()  { return "sine_mod"; }
-	#endif	
+	virtual void update(void);
+
 };
 
 

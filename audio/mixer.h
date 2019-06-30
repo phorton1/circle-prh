@@ -30,82 +30,72 @@
 #include "Arduino.h"
 #include "AudioStream.h"
 
+
 class AudioMixer4 : public AudioStream
 {
-#if defined(KINETISK) || defined(__circle__)
 public:
-	AudioMixer4(void) : AudioStream(4, inputQueueArray)
+
+	AudioMixer4(void) :
+		AudioStream(4,4, inputQueueArray)
 	{
-        SET_AUDIO_INSTANCE()        
-		for (int i=0; i<4; i++) multiplier[i] = 65536;
+        m_instance = s_nextInstance++;
+		for (int i=0; i<4; i++)
+		multiplier[i] = 65536;
 	}
-	virtual void update(void);
-	void gain(unsigned int channel, float gain) {
+	
+	virtual const char *getName()  	{ return "mixer"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_MIXER; }
+
+	
+	void gain(unsigned int channel, float gain)
+	{
 		if (channel >= 4) return;
 		if (gain > 32767.0f) gain = 32767.0f;
 		else if (gain < -32767.0f) gain = -32767.0f;
 		multiplier[channel] = gain * 65536.0f; // TODO: proper roundoff?
 	}
-    #ifdef __circle__
-   		virtual u8 getNumOutputs()	{ return 1; }
-    #endif
 	
 private:
+
+	audio_block_t *inputQueueArray[4];
 	int32_t multiplier[4];
-	audio_block_t *inputQueueArray[4];
+	static u16 s_nextInstance;
 
-#elif defined(KINETISL)
-public:
-	AudioMixer4(void) : AudioStream(4, inputQueueArray)
-	{
-		for (int i=0; i<4; i++) multiplier[i] = 256;
-	}
 	virtual void update(void);
-	void gain(unsigned int channel, float gain) {
-		if (channel >= 4) return;
-		if (gain > 127.0f) gain = 127.0f;
-		else if (gain < -127.0f) gain = -127.0f;
-		multiplier[channel] = gain * 256.0f; // TODO: proper roundoff?
-	}
-private:
-	int16_t multiplier[4];
-	audio_block_t *inputQueueArray[4];
-#endif
-
-	#ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-		virtual u8 dbgInstance()    { return instance_num; }
-		virtual const char *dbgName()  { return "mixer"; }
-	#endif
-
+	
 };
+
+
 
 
 class AudioAmplifier : public AudioStream
 {
 public:
-	AudioAmplifier(void) : AudioStream(1, inputQueueArray), multiplier(65536)
+	
+	AudioAmplifier(void) :
+		AudioStream(1,1, inputQueueArray),
+		multiplier(65536)
 	{
-        SET_AUDIO_INSTANCE()        
+        m_instance = s_nextInstance++;
 	}
 	
-	virtual void update(void);
+	virtual const char *getName()  	{ return "amp"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_EFFECT; }
+	
 	void gain(float n) {
 		if (n > 32767.0f) n = 32767.0f;
 		else if (n < -32767.0f) n = -32767.0f;
 		multiplier = n * 65536.0f;
 	}
+	
 private:
+	
 	int32_t multiplier;
 	audio_block_t *inputQueueArray[1];
-
-	#ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-		virtual u8 dbgInstance()    { return instance_num; }
-		virtual const char *dbgName()  { return "amp"; }
-	#endif
+	static u16 s_nextInstance;
+	
+	virtual void update(void);
+	
 };
 
 #endif

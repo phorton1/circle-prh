@@ -36,9 +36,9 @@ void CVuMeter::setAudioDevice(
     u8         instance,
     u8         channel)
 {
-    LOG("setAudioDevice(%s:%d)[%d]",name,instance,channel);
+    // LOG("setAudioDevice(%s:%d)[%d]",name,instance,channel);
     
-    AudioStream *stream = AudioStream::find(name,instance);
+    AudioStream *stream = AudioSystem::find(0,name,instance);
     if (!stream)
     {
         LOG_ERROR("Could not find AudioStream %s:%d",name,instance);
@@ -46,13 +46,13 @@ void CVuMeter::setAudioDevice(
     }
     if (!stream->getNumOutputs())
     {
-        LOG_ERROR("Cannot connect to %s which has no outputs",stream->dbgName());
+        LOG_ERROR("Cannot connect to %s which has no outputs",stream->getName());
         return;
     }
     if (channel >= stream->getNumOutputs())
     {
         LOG_ERROR("Cannot connect to %s[%d] which has only has %d outputs",
-            stream->dbgName(),
+            stream->getName(),
             channel,
             stream->getNumOutputs());
         return;
@@ -80,10 +80,10 @@ void CVuMeter::setAudioDevice(
         m_pConnection = new AudioConnection(
             *stream, channel, *m_pPeak, 0);
         assert(m_pConnection);
-        m_pPeak->set_running(1);
     }
-    
 }
+
+
 
 bool CVuMeter::Callback(UG_MESSAGE *pMsg)
 {
@@ -93,16 +93,20 @@ bool CVuMeter::Callback(UG_MESSAGE *pMsg)
         
         if (pMsg->event == WIN_EVENT_ACTIVATE)
         {
-            // LOG("Activate(%d,%d)",(u32)m_pPeak,pMsg->id);
+            // LOG("Activate(%s%d,%d)",
+            //     m_pPeak ? m_pPeak->getName() : "null",
+            //     m_pPeak ? m_pPeak->getInstance() : 0,
+            //     pMsg->id);
+            
             m_running = pMsg->id;
-            // m_pPeak->set_running(pMsg->id);
         }
         
         // Paint the control on frame events
         
-        else if (m_running &&
-                 pMsg->event == WIN_EVENT_UI_FRAME)
-                //  m_pPeak->is_running())
+        else if (pMsg->event == WIN_EVENT_UI_FRAME &&
+                 m_running &&
+                 m_pPeak &&
+                 m_pPeak->available())
         {
             float peak = m_pPeak->read();
         
@@ -111,7 +115,7 @@ bool CVuMeter::Callback(UG_MESSAGE *pMsg)
             
             u8 value = (peak * ((float)m_num_divs) + 0.8);
             u8 num_yellows = (((float) m_num_divs) * 0.20);
-            // printf("%s[%d]=%0.4f value=%d red=%d\n",m_pPeak->dbgName(),m_pPeak->dbgInstance(),peak,value,m_hold_red);
+            // printf("%s[%d]=%0.4f value=%d red=%d\n",m_pPeak->getName(),m_pPeak->getInstance(),peak,value,m_hold_red);
             
             if (m_hold_red || (value != m_last_value))
             {

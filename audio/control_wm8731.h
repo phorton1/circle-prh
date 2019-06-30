@@ -27,33 +27,49 @@
 #ifndef control_wm8731_h_
 #define control_wm8731_h_
 
-#include "AudioControl.h"
+#include "AudioDevice.h"
 
-class AudioControlWM8731 : public AudioControl
+
+class AudioControlWM8731 : public AudioCodec
 {
 public:
-    #ifdef __circle__
-        AudioControlWM8731();
-    #endif
     
-	bool enable(void);
-	bool disable(void) { return false; }
-	bool volume(float n) { return volumeInteger(n * 80.0 + 47.499); }
-	bool inputLevel(float n); // range: 0.0f to 1.0f
-	bool inputSelect(int n);
+    AudioControlWM8731();
+    
+    virtual const char *getName() { return "wm8731"; }
+	virtual void start();
+		// public until AudioSystem starts it ...
+
+	void volume(float n) { return volumeInteger(n * 80.0 + 47.499); }
+	void inputLevel(float n); // range: 0.0f to 1.0f
+	void inputSelect(int n);
+    
 protected:
-	bool write(unsigned int reg, unsigned int val);
-	bool volumeInteger(unsigned int n); // range: 0x2F to 0x7F
+    
+    AudioControlWM8731(u16 dummy) {}
+	void write(unsigned int reg, unsigned int val);
+    
+private:
+    
+	void volumeInteger(unsigned int n); // range: 0x2F to 0x7F
+
 };
 
-class AudioControlWM8731master : public AudioControlWM8731
+
+
+class AudioControlWM8731Slave : public AudioControlWM8731
 {
 public:
-    #ifdef __circle__
-        AudioControlWM8731master();
-    #endif
 
-	bool enable(void);
+    AudioControlWM8731Slave();
+
+    virtual const char *getName() { return "wm8731s"; }
+    
+private:
+    
+	virtual void start();
+
 };
+
 
 #endif

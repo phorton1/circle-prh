@@ -26,24 +26,20 @@
 
 #include <Arduino.h>
 #include "control_sgtl5000.h"
+#include <assert.h>
+#include <audio/bcm_pcm.h>
+#include <circle/logger.h>
+#include "khrn_int_math.h"
 #include "Wire.h"
+    
+#define log_name "sgtl5000m"
 
-#ifdef __circle__
-    #include <assert.h>
-    #include <audio/bcm_pcm.h>
-	#include <circle/logger.h>
-    #include "khrn_int_math.h"
-	#define log_name "sgtl5000"
-#else
-	#define LOG(...)
-#endif
 
 //---------------------------------------------
 // circle notes
 //---------------------------------------------
-// You must use the AudioControlSGTL5000slave device on rPi.
-// There is an assert in AudioControlSGTL5000::enable() to
-// prevent you from calling it.
+// You must use the AudioControlSGTL5000 device on rPi,
+// so there is no implementation of AudioControlSGTL5000.
 //
 // The teensy audio shield SGTL5000 *REQUIRES* an MCLK !
 // It has no crystal or internal clock, only dividers.
@@ -74,7 +70,6 @@
 //	    FCLK    19   <----  23   
 //	    RXD     20   ---->  22 tx0   
 //	    TXD     21   <----  13 rx0   
-
 
 
 //-------------------------------------
@@ -520,133 +515,165 @@
 // 1:0	MODE_CM		Behavior of capless headphone central short detection
 //				(same settings as MODE_LR)
 
-#define DAP_CONTROL			0x0100
-#define DAP_PEQ				0x0102
-#define DAP_BASS_ENHANCE		0x0104
-#define DAP_BASS_ENHANCE_CTRL		0x0106
-#define DAP_AUDIO_EQ			0x0108
-#define DAP_SGTL_SURROUND		0x010A
-#define DAP_FILTER_COEF_ACCESS		0x010C
-#define DAP_COEF_WR_B0_MSB		0x010E
-#define DAP_COEF_WR_B0_LSB		0x0110
-#define DAP_AUDIO_EQ_BASS_BAND0		0x0116 // 115 Hz
-#define DAP_AUDIO_EQ_BAND1		0x0118 // 330 Hz
-#define DAP_AUDIO_EQ_BAND2		0x011A // 990 Hz
-#define DAP_AUDIO_EQ_BAND3		0x011C // 3000 Hz
+#define DAP_CONTROL			        0x0100
+#define DAP_PEQ				        0x0102
+#define DAP_BASS_ENHANCE		    0x0104
+#define DAP_BASS_ENHANCE_CTRL	    0x0106
+#define DAP_AUDIO_EQ			    0x0108
+#define DAP_SGTL_SURROUND		    0x010A
+#define DAP_FILTER_COEF_ACCESS	    0x010C
+#define DAP_COEF_WR_B0_MSB		    0x010E
+#define DAP_COEF_WR_B0_LSB		    0x0110
+#define DAP_AUDIO_EQ_BASS_BAND0	    0x0116 // 115 Hz
+#define DAP_AUDIO_EQ_BAND1		    0x0118 // 330 Hz
+#define DAP_AUDIO_EQ_BAND2		    0x011A // 990 Hz
+#define DAP_AUDIO_EQ_BAND3		    0x011C // 3000 Hz
 #define DAP_AUDIO_EQ_TREBLE_BAND4	0x011E // 9900 Hz
-#define DAP_MAIN_CHAN			0x0120
-#define DAP_MIX_CHAN			0x0122
-#define DAP_AVC_CTRL			0x0124
-#define DAP_AVC_THRESHOLD		0x0126
-#define DAP_AVC_ATTACK			0x0128
-#define DAP_AVC_DECAY			0x012A
-#define DAP_COEF_WR_B1_MSB		0x012C
-#define DAP_COEF_WR_B1_LSB		0x012E
-#define DAP_COEF_WR_B2_MSB		0x0130
-#define DAP_COEF_WR_B2_LSB		0x0132
-#define DAP_COEF_WR_A1_MSB		0x0134
-#define DAP_COEF_WR_A1_LSB		0x0136
-#define DAP_COEF_WR_A2_MSB		0x0138
-#define DAP_COEF_WR_A2_LSB		0x013A
+#define DAP_MAIN_CHAN			    0x0120
+#define DAP_MIX_CHAN			    0x0122
+#define DAP_AVC_CTRL			    0x0124
+#define DAP_AVC_THRESHOLD		    0x0126
+#define DAP_AVC_ATTACK			    0x0128
+#define DAP_AVC_DECAY			    0x012A
+#define DAP_COEF_WR_B1_MSB		    0x012C
+#define DAP_COEF_WR_B1_LSB		    0x012E
+#define DAP_COEF_WR_B2_MSB		    0x0130
+#define DAP_COEF_WR_B2_LSB		    0x0132
+#define DAP_COEF_WR_A1_MSB		    0x0134
+#define DAP_COEF_WR_A1_LSB		    0x0136
+#define DAP_COEF_WR_A2_MSB		    0x0138
+#define DAP_COEF_WR_A2_LSB		    0x013A
 
 #define SGTL5000_I2C_ADDR_CS_LOW	0x0A  // CTRL_ADR0_CS pin low (normal configuration)
 #define SGTL5000_I2C_ADDR_CS_HIGH	0x2A // CTRL_ADR0_CS  pin high
 
 
-#ifdef __circle__
-	AudioControlSGTL5000::AudioControlSGTL5000()
-        : i2c_addr(0x0A)
-	{
-		bcm_pcm.static_init(
-			false,			// bcm_pcm is master device
-			44100,          // sample_rate
-			16,             // sample_size
-			2,              // num_channels
-			32,             // channel_width
-			1,1,            // channel offsets 
-			0,				// don't invert BCLK
-			1,              // do invert FCLK
-			0);             // no callback to start the clock
-	}                       
-#endif
+//-------------------------------------------------
+// master device (for rPi to be the slave
+//-------------------------------------------------
+// The rPi MUST be a slave to an sgtl5000, as it cannot provide 3 clocks.
+// Even so, the rPi must generate MCLK, as the sgtl5000 has no crystal.
+// So, we generate MCLK on GPIO4, send it to the teensy audio shield,
+// which then generaets BCLK and MCLK and sends them back to us.
+
+
+#define PIN_MCLK     4
+#define CLOCK_RATE   500000000
+#define SAMPLE_RATE  44100
+
+AudioControlSGTL5000::AudioControlSGTL5000() :
+   	AudioCodec(0,NULL),
+    i2c_addr(0x0A),
+    m_MPIN(PIN_MCLK,GPIOModeAlternateFunction0),
+    m_MCLK(GPIOClock0,GPIOClockSourcePLLD)
+{
+    bcm_pcm.static_init(
+        true,			// bcm_pcm is slave device
+        SAMPLE_RATE,    // sample_rate
+        16,             // sample_size
+        2,              // num_channels
+        32,             // channel_width
+        1,1,            // channel offsets
+        1,				// invert BCLK
+        0,              // don't invert FCLK
+        0);             // no callback to start the clock
+}                       
 
 
 void AudioControlSGTL5000::setAddress(uint8_t level)
 {
-	if (level == LOW) {
+	if (level == LOW)
+    {
 		i2c_addr = SGTL5000_I2C_ADDR_CS_LOW;
-	} else {
+	}
+    else
+    {
 		i2c_addr = SGTL5000_I2C_ADDR_CS_HIGH;
 	}
 }
 
 
-bool AudioControlSGTL5000::enable(void)
+void AudioControlSGTL5000::start()
 {
-	muted = true;
-	Wire.begin();
-	delay(5);
-    
-    LOG("AudioControlSGTL5000::enable()",0);
-    #ifdef __circle__
-        // see ctor for comments
-        assert(false && "the rpi cannot be a master to the sgtl5000!");
-        return false;
-    #endif
-    
-	//Serial.print("chip ID = ");
-	//delay(5);
-	//unsigned int n = read(CHIP_ID);
-	//Serial.println(n, HEX);
+    LOG("start()",0);
 
-	write(CHIP_ANA_POWER, 0x4060);  // VDDD is externally driven with 1.8V
-	write(CHIP_LINREG_CTRL, 0x006C);  // VDDA & VDDIO both over 3.1V
-	write(CHIP_REF_CTRL, 0x01F2); // VAG=1.575, normal ramp, +12.5% bias current
-	write(CHIP_LINE_OUT_CTRL, 0x0F22); // LO_VAGCNTRL=1.65V, OUT_CURRENT=0.54mA
-	write(CHIP_SHORT_CTRL, 0x4446);  // allow up to 125mA
-	write(CHIP_ANA_CTRL, 0x0137);  // enable zero cross detectors
-	write(CHIP_ANA_POWER, 0x40FF); // power up: lineout, hp, adc, dac
-	write(CHIP_DIG_POWER, 0x0073); // power up all digital stuff
-	delay(400);
-	write(CHIP_LINE_OUT_VOL, 0x1D1D); // default approx 1.3 volts peak-to-peak
-	write(CHIP_CLK_CTRL, 0x0004);  // 44.1 kHz, 256*Fs
-	write(CHIP_I2S_CTRL, 0x0130); // SCLK=32*Fs, 16bit, I2S format
-	// default signal routing is ok?
-	write(CHIP_SSS_CTRL, 0x0010); // ADC->I2S, I2S->DAC
-	write(CHIP_ADCDAC_CTRL, 0x0000); // disable dac mute
-	write(CHIP_DAC_VOL, 0x3C3C); // digital gain, 0dB
-	write(CHIP_ANA_HP_CTRL, 0x7F7F); // set volume (lowest level)
-	write(CHIP_ANA_CTRL, 0x0036);  // enable zero cross detectors
-	//mute = false;
-	semi_automated = true;
-	return true;
+    // Even though the rPi is running as the BCLK/FCLK slave,
+    // we have to provide the master MCLK to the sgtl5000
+    
+    LOG("starting MCLK",0);
+    u32 freq = SAMPLE_RATE * 256;           // 11289600
+    u32 divi = CLOCK_RATE / freq;           // 44
+    u32 modi = CLOCK_RATE % freq;           // 3257600
+    u32 divf = (modi*4096 + freq/2) / freq; // 1182
+    // printf("divf=%d should equal 1182\n",divf);
+    // the above math overflows 32 bits
+    divf = 1182;
+    m_MCLK.Start(divi, divf, 1);
+    delay(500);
+    
+    muted = true;
+    Wire.begin();
+    delay(5);
+    
+    LOG("chip ID=0x%04x",read(CHIP_ID));
+
+    write(CHIP_ANA_POWER, 0x4060);          // VDDD is externally driven with 1.8V
+    write(CHIP_LINREG_CTRL, 0x006C);        // VDDA & VDDIO both over 3.1V
+    write(CHIP_REF_CTRL, 0x01F2);           // VAG=1.575, normal ramp, +12.5% bias current
+    write(CHIP_LINE_OUT_CTRL, 0x0F22);      // LO_VAGCNTRL=1.65V, OUT_CURRENT=0.54mA
+    write(CHIP_SHORT_CTRL, 0x4446);         // allow up to 125mA
+    write(CHIP_ANA_CTRL, 0x0137);           // enable zero cross detectors
+    write(CHIP_ANA_POWER, 0x40FF);          // power up: lineout, hp, adc, dac
+    write(CHIP_DIG_POWER, 0x0073);          // power up all digital stuff
+    delay(400);
+    write(CHIP_LINE_OUT_VOL, 0x1D1D);       // default approx 1.3 volts peak-to-peak
+
+    write(CHIP_CLK_CTRL,
+          0x00 |                    // b0:1 = MCLK_FREQUENCY 0x0=256fs 0x3=USE_PLL
+          0x04 |                    // b2:3 = 0x04 == 44.1khz
+          0x00 );                   // rate mode
+    
+    write(CHIP_I2S_CTRL,            // default LR sense, is I2S
+          0x00 |                    // b0 = 0 = don't invert LRCLCK
+          0x00 |                    // b1 = 0 = data starts one BCLK after LR; 0x02 = no delay
+          0x00 |                    // b2:3 = 0 = i2s mode, 0x4=rjust, 0x8=pcm, 
+          0x30 |                    // b4:5 = 3 = i2s data length = 16 bits
+          0x00 |                    // b6 = 0 = SCLK (BCLK) invert 
+          0x80 |                    // b7 = 0x80 = Master LRCLK and SCLK (BCLK)
+          0x00 );                   // b8 = 0 = SCLK frequencey=64fs (0x100==32fs)
+    
+    write(CHIP_SSS_CTRL, 0x0010);           // ADC->I2S, I2S->DAC
+    write(CHIP_ADCDAC_CTRL, 0x0000);        // disable dac mute
+    write(CHIP_DAC_VOL, 0x3C3C);            // digital gain, 0dB
+    write(CHIP_ANA_HP_CTRL, 0x7F7F);        // set volume (lowest level)
+    write(CHIP_ANA_CTRL, 0x0036);           // enable zero cross detectors
+    
+    //mute = false;
+    semi_automated = true;
 }
 
+    
 
 unsigned int AudioControlSGTL5000::read(unsigned int reg)
 {
 	unsigned int val;
+
 	Wire.beginTransmission(i2c_addr);
 	Wire.write(reg >> 8);
 	Wire.write(reg);
-    
-    #ifdef __circle__
-        u8 buf[2];
-    	if (Wire.endTransmission() != 0) return 0;
-        CTimer::Get()->usDelay(100);
-		if (Wire.read(i2c_addr,buf,2) < 2) return 0;
-        CTimer::Get()->usDelay(100);
-        val = (buf[0] << 8) | buf[1];
-    #else
-    	if (Wire.endTransmission(false) != 0) return 0;
-        if (Wire.requestFrom((int)i2c_addr, 2) < 2) return 0;
-        val = Wire.read() << 8;
-        val |= Wire.read();
-    #endif
+    Wire.endTransmission();
+
+    u8 buf[2];
+    CTimer::Get()->usDelay(100);
+    if (Wire.read(i2c_addr,buf,2) < 2) return 0;
+    CTimer::Get()->usDelay(100);
+    val = (buf[0] << 8) | buf[1];
+
     return val;
 }
 
-bool AudioControlSGTL5000::write(unsigned int reg, unsigned int val)
+
+void AudioControlSGTL5000::write(unsigned int reg, unsigned int val)
 {
 	if (reg == CHIP_ANA_CTRL) ana_ctrl = val;
 	Wire.beginTransmission(i2c_addr);
@@ -654,64 +681,79 @@ bool AudioControlSGTL5000::write(unsigned int reg, unsigned int val)
 	Wire.write(reg);
 	Wire.write(val >> 8);
 	Wire.write(val);
-	if (Wire.endTransmission() == 0) return true;
-	return false;
+	Wire.endTransmission();
 }
 
-unsigned int AudioControlSGTL5000::modify(unsigned int reg, unsigned int val, unsigned int iMask)
+void AudioControlSGTL5000::modify(unsigned int reg, unsigned int val, unsigned int iMask)
 {
 	unsigned int val1 = (read(reg)&(~iMask))|val;
-	if(!write(reg,val1)) return 0;
-	return val1;
+	write(reg,val1);
 }
 
-bool AudioControlSGTL5000::volumeInteger(unsigned int n)
+void AudioControlSGTL5000::volumeInteger(unsigned int n)
 {
-	if (n == 0) {
+	if (n == 0)
+    {
 		muted = true;
 		write(CHIP_ANA_HP_CTRL, 0x7F7F);
-		return muteHeadphone();
-	} else if (n > 0x80) {
+		muteHeadphone();
+	}
+    else if (n > 0x80)
+    {
 		n = 0;
-	} else {
+	}
+    else
+    {
 		n = 0x80 - n;
 	}
-	if (muted) {
+	if (muted)
+    {
 		muted = false;
 		unmuteHeadphone();
 	}
 	n = n | (n << 8);
-	return write(CHIP_ANA_HP_CTRL, n);  // set volume
+	write(CHIP_ANA_HP_CTRL, n);  // set volume
 }
 
-bool AudioControlSGTL5000::volume(float left, float right)
+
+void AudioControlSGTL5000::volume(float left, float right)
 {
 	unsigned short m=((0x7F-calcVol(right,0x7F))<<8)|(0x7F-calcVol(left,0x7F));
-	return write(CHIP_ANA_HP_CTRL, m);
+	write(CHIP_ANA_HP_CTRL, m);
 }
 
-bool AudioControlSGTL5000::micGain(unsigned int dB)
+
+void AudioControlSGTL5000::micGain(unsigned int dB)
 {
 	unsigned int preamp_gain, input_gain;
 
-	if (dB >= 40) {
+	if (dB >= 40)
+    {
 		preamp_gain = 3;
 		dB -= 40;
-	} else if (dB >= 30) {
+	}
+    else if (dB >= 30)
+    {
 		preamp_gain = 2;
 		dB -= 30;
-	} else if (dB >= 20) {
+	}
+    else if (dB >= 20)
+    {
 		preamp_gain = 1;
 		dB -= 20;
-	} else {
+	}
+    else
+    {
 		preamp_gain = 0;
 	}
 	input_gain = (dB * 2) / 3;
-	if (input_gain > 15) input_gain = 15;
+	if (input_gain > 15)
+        input_gain = 15;
 
-	return write(CHIP_MIC_CTRL, 0x0170 | preamp_gain)
-	    && write(CHIP_ANA_ADC_CTRL, (input_gain << 4) | input_gain);
+	write(CHIP_MIC_CTRL, 0x0170 | preamp_gain);
+	write(CHIP_ANA_ADC_CTRL, (input_gain << 4) | input_gain);
 }
+
 
 // CHIP_ANA_ADC_CTRL
 // Actual measured full-scale peak-to-peak sine wave input for max signal
@@ -731,11 +773,12 @@ bool AudioControlSGTL5000::micGain(unsigned int dB)
 // 13: 0.34 Volts p-p
 // 14: 0.29 Volts p-p
 // 15: 0.24 Volts p-p
-bool AudioControlSGTL5000::lineInLevel(uint8_t left, uint8_t right)
+
+void AudioControlSGTL5000::lineInLevel(uint8_t left, uint8_t right)
 {
 	if (left > 15) left = 15;
 	if (right > 15) right = 15;
-	return write(CHIP_ANA_ADC_CTRL, (left << 4) | right);
+	write(CHIP_ANA_ADC_CTRL, (left << 4) | right);
 }
 
 // CHIP_LINE_OUT_VOL
@@ -760,111 +803,116 @@ bool AudioControlSGTL5000::lineInLevel(uint8_t left, uint8_t right)
 //  29: 1.29 Volts p-p
 //  30: 1.22 Volts p-p
 //  31: 1.16 Volts p-p
-unsigned short AudioControlSGTL5000::lineOutLevel(uint8_t n)
+
+void AudioControlSGTL5000::lineOutLevel(uint8_t n)
 {
 	if (n > 31) n = 31;
 	else if (n < 13) n = 13;
-	return modify(CHIP_LINE_OUT_VOL,(n<<8)|n,(31<<8)|31);
+	modify(CHIP_LINE_OUT_VOL,(n<<8)|n,(31<<8)|31);
 }
 
-unsigned short AudioControlSGTL5000::lineOutLevel(uint8_t left, uint8_t right)
+void AudioControlSGTL5000::lineOutLevel(uint8_t left, uint8_t right)
 {
 	if (left > 31) left = 31;
 	else if (left < 13) left = 13;
 	if (right > 31) right = 31;
 	else if (right < 13) right = 13;
-	return modify(CHIP_LINE_OUT_VOL,(right<<8)|left,(31<<8)|31);
+	modify(CHIP_LINE_OUT_VOL,(right<<8)|left,(31<<8)|31);
 }
 
-unsigned short AudioControlSGTL5000::dacVolume(float n) // set both directly
+void AudioControlSGTL5000::dacVolume(float n) // set both directly
 {
 	if ((read(CHIP_ADCDAC_CTRL)&(3<<2)) != ((n>0 ? 0:3)<<2)) {
 		modify(CHIP_ADCDAC_CTRL,(n>0 ? 0:3)<<2,3<<2);
 	}
 	unsigned char m=calcVol(n,0xC0);
-	return modify(CHIP_DAC_VOL,((0xFC-m)<<8)|(0xFC-m),65535);
+	modify(CHIP_DAC_VOL,((0xFC-m)<<8)|(0xFC-m),65535);
 }
-unsigned short AudioControlSGTL5000::dacVolume(float left, float right)
+
+void AudioControlSGTL5000::dacVolume(float left, float right)
 {
 	unsigned short adcdac=((right>0 ? 0:2)|(left>0 ? 0:1))<<2;
 	if ((read(CHIP_ADCDAC_CTRL)&(3<<2)) != adcdac) {
 		modify(CHIP_ADCDAC_CTRL,adcdac,1<<2);
 	}
 	unsigned short m=(0xFC-calcVol(right,0xC0))<<8|(0xFC-calcVol(left,0xC0));
-	return modify(CHIP_DAC_VOL,m,65535);
+	modify(CHIP_DAC_VOL,m,65535);
 }
 
-bool AudioControlSGTL5000::dacVolumeRamp()
+void AudioControlSGTL5000::dacVolumeRamp()
 {
-	return modify(CHIP_ADCDAC_CTRL, 0x300, 0x300);
+	modify(CHIP_ADCDAC_CTRL, 0x300, 0x300);
 }
 
-bool AudioControlSGTL5000::dacVolumeRampLinear()
+void AudioControlSGTL5000::dacVolumeRampLinear()
 {
-	return modify(CHIP_ADCDAC_CTRL, 0x200, 0x300);
+	modify(CHIP_ADCDAC_CTRL, 0x200, 0x300);
 }
 
-bool AudioControlSGTL5000::dacVolumeRampDisable()
+void AudioControlSGTL5000::dacVolumeRampDisable()
 {
-	return modify(CHIP_ADCDAC_CTRL, 0, 0x300);
+	modify(CHIP_ADCDAC_CTRL, 0, 0x300);
 }
 
 
 
-
-unsigned short AudioControlSGTL5000::adcHighPassFilterEnable(void)
+void AudioControlSGTL5000::adcHighPassFilterEnable(void)
 {
-	return modify(CHIP_ADCDAC_CTRL, 0, 3);
+	modify(CHIP_ADCDAC_CTRL, 0, 3);
 }
 
-unsigned short AudioControlSGTL5000::adcHighPassFilterFreeze(void)
+void AudioControlSGTL5000::adcHighPassFilterFreeze(void)
 {
-	return modify(CHIP_ADCDAC_CTRL, 2, 3);
+	modify(CHIP_ADCDAC_CTRL, 2, 3);
 }
 
-unsigned short AudioControlSGTL5000::adcHighPassFilterDisable(void)
+void AudioControlSGTL5000::adcHighPassFilterDisable(void)
 {
-	return modify(CHIP_ADCDAC_CTRL, 1, 3);
+	modify(CHIP_ADCDAC_CTRL, 1, 3);
 }
 
 
 // DAP_CONTROL
 
-unsigned short AudioControlSGTL5000::audioPreProcessorEnable(void)
+void AudioControlSGTL5000::audioPreProcessorEnable(void)
 {
 	// audio processor used to pre-process analog input before Teensy
-	return write(DAP_CONTROL, 1) && write(CHIP_SSS_CTRL, 0x0013);
+	write(DAP_CONTROL, 1);
+    write(CHIP_SSS_CTRL, 0x0013);
 }
 
-unsigned short AudioControlSGTL5000::audioPostProcessorEnable(void)
+void AudioControlSGTL5000::audioPostProcessorEnable(void)
 {
 	// audio processor used to post-process Teensy output before headphones/lineout
-	return write(DAP_CONTROL, 1) && write(CHIP_SSS_CTRL, 0x0070);
+	write(DAP_CONTROL, 1);
+    write(CHIP_SSS_CTRL, 0x0070);
 }
 
-unsigned short AudioControlSGTL5000::audioProcessorDisable(void)
+void AudioControlSGTL5000::audioProcessorDisable(void)
 {
-	return write(CHIP_SSS_CTRL, 0x0010) && write(DAP_CONTROL, 0);
+	write(CHIP_SSS_CTRL, 0x0010);
+    write(DAP_CONTROL, 0);
 }
 
 
 // DAP_PEQ
-unsigned short AudioControlSGTL5000::eqFilterCount(uint8_t n) // valid to n&7, 0 thru 7 filters enabled.
+void AudioControlSGTL5000::eqFilterCount(uint8_t n) // valid to n&7, 0 thru 7 filters enabled.
 {
-	return modify(DAP_PEQ,(n&7),7);
+	modify(DAP_PEQ,(n&7),7);
 }
 
 // DAP_AUDIO_EQ
-unsigned short AudioControlSGTL5000::eqSelect(uint8_t n) // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
+void AudioControlSGTL5000::eqSelect(uint8_t n) // 0=NONE, 1=PEQ (7 IIR Biquad filters), 2=TONE (tone), 3=GEQ (5 band EQ)
 {
-	return modify(DAP_AUDIO_EQ,n&3,3);
+	modify(DAP_AUDIO_EQ,n&3,3);
 }
 
-unsigned short AudioControlSGTL5000::eqBand(uint8_t bandNum, float n)
+void AudioControlSGTL5000::eqBand(uint8_t bandNum, float n)
 {
 	if(semi_automated) automate(1,3);
-	return dap_audio_eq_band(bandNum, n);
+	dap_audio_eq_band(bandNum, n);
 }
+
 void AudioControlSGTL5000::eqBands(float bass, float mid_bass, float midrange, float mid_treble, float treble)
 {
 	if(semi_automated) automate(1,3);
@@ -874,6 +922,7 @@ void AudioControlSGTL5000::eqBands(float bass, float mid_bass, float midrange, f
 	dap_audio_eq_band(3,mid_treble);
 	dap_audio_eq_band(4,treble);
 }
+
 void AudioControlSGTL5000::eqBands(float bass, float treble) // dap_audio_eq(2);
 {
 	if(semi_automated) automate(1,2);
@@ -926,7 +975,8 @@ void AudioControlSGTL5000::eqFilter(uint8_t filterNum, int *filterParameters)
 	decay
 	floating point figure is dB/s rate at which gain is reduced
 */
-unsigned short AudioControlSGTL5000::autoVolumeControl(uint8_t maxGain, uint8_t lbiResponse, uint8_t hardLimit, float threshold, float attack, float decay)
+
+void AudioControlSGTL5000::autoVolumeControl(uint8_t maxGain, uint8_t lbiResponse, uint8_t hardLimit, float threshold, float attack, float decay)
 {
 	//if(semi_automated&&(!read(DAP_CONTROL)&1)) audioProcessorEnable();
 	if(maxGain>2) maxGain=2;
@@ -938,49 +988,58 @@ unsigned short AudioControlSGTL5000::autoVolumeControl(uint8_t maxGain, uint8_t 
 	write(DAP_AVC_THRESHOLD,thresh);
 	write(DAP_AVC_ATTACK,att);
 	write(DAP_AVC_DECAY,dec);
-	return 	modify(DAP_AVC_CTRL,maxGain<<12|lbiResponse<<8|hardLimit<<5,3<<12|3<<8|1<<5);
-}
-unsigned short AudioControlSGTL5000::autoVolumeEnable(void)
-{
-	return modify(DAP_AVC_CTRL, 1, 1);
-}
-unsigned short AudioControlSGTL5000::autoVolumeDisable(void)
-{
-	return modify(DAP_AVC_CTRL, 0, 1);
+	modify(DAP_AVC_CTRL,maxGain<<12|lbiResponse<<8|hardLimit<<5,3<<12|3<<8|1<<5);
 }
 
-unsigned short AudioControlSGTL5000::enhanceBass(float lr_lev, float bass_lev)
+void AudioControlSGTL5000::autoVolumeEnable(void)
 {
-	return modify(DAP_BASS_ENHANCE_CTRL,((0x3F-calcVol(lr_lev,0x3F))<<8) | (0x7F-calcVol(bass_lev,0x7F)), (0x3F<<8) | 0x7F);
+	modify(DAP_AVC_CTRL, 1, 1);
 }
-unsigned short AudioControlSGTL5000::enhanceBass(float lr_lev, float bass_lev, uint8_t hpf_bypass, uint8_t cutoff)
+
+void AudioControlSGTL5000::autoVolumeDisable(void)
+{
+	modify(DAP_AVC_CTRL, 0, 1);
+}
+
+void AudioControlSGTL5000::enhanceBass(float lr_lev, float bass_lev)
+{
+	modify(DAP_BASS_ENHANCE_CTRL,((0x3F-calcVol(lr_lev,0x3F))<<8) | (0x7F-calcVol(bass_lev,0x7F)), (0x3F<<8) | 0x7F);
+}
+
+void AudioControlSGTL5000::enhanceBass(float lr_lev, float bass_lev, uint8_t hpf_bypass, uint8_t cutoff)
 {
 	modify(DAP_BASS_ENHANCE,(hpf_bypass&1)<<8|(cutoff&7)<<4,1<<8|7<<4);
 	return enhanceBass(lr_lev,bass_lev);
 }
-unsigned short AudioControlSGTL5000::enhanceBassEnable(void)
+
+void AudioControlSGTL5000::enhanceBassEnable(void)
 {
-	return modify(DAP_BASS_ENHANCE, 1, 1);
+	modify(DAP_BASS_ENHANCE, 1, 1);
 }
-unsigned short AudioControlSGTL5000::enhanceBassDisable(void)
+
+void AudioControlSGTL5000::enhanceBassDisable(void)
 {
-	return modify(DAP_BASS_ENHANCE, 0, 1);
+	modify(DAP_BASS_ENHANCE, 0, 1);
 }
-unsigned short AudioControlSGTL5000::surroundSound(uint8_t width)
+
+void AudioControlSGTL5000::surroundSound(uint8_t width)
 {
-	return modify(DAP_SGTL_SURROUND,(width&7)<<4,7<<4);
+	modify(DAP_SGTL_SURROUND,(width&7)<<4,7<<4);
 }
-unsigned short AudioControlSGTL5000::surroundSound(uint8_t width, uint8_t select)
+
+void AudioControlSGTL5000::surroundSound(uint8_t width, uint8_t select)
 {
-	return modify(DAP_SGTL_SURROUND,((width&7)<<4)|(select&3), (7<<4)|3);
+	modify(DAP_SGTL_SURROUND,((width&7)<<4)|(select&3), (7<<4)|3);
 }
-unsigned short AudioControlSGTL5000::surroundSoundEnable(void)
+
+void AudioControlSGTL5000::surroundSoundEnable(void)
 {
-	return modify(DAP_SGTL_SURROUND, 3, 3);
+	modify(DAP_SGTL_SURROUND, 3, 3);
 }
-unsigned short AudioControlSGTL5000::surroundSoundDisable(void)
+
+void AudioControlSGTL5000::surroundSoundDisable(void)
 {
-	return modify(DAP_SGTL_SURROUND, 0, 3);
+	modify(DAP_SGTL_SURROUND, 0, 3);
 }
 
 unsigned char AudioControlSGTL5000::calcVol(float n, unsigned char range)
@@ -992,13 +1051,13 @@ unsigned char AudioControlSGTL5000::calcVol(float n, unsigned char range)
 }
 
 // DAP_AUDIO_EQ_BASS_BAND0 & DAP_AUDIO_EQ_BAND1 & DAP_AUDIO_EQ_BAND2 etc etc
-unsigned short AudioControlSGTL5000::dap_audio_eq_band(uint8_t bandNum, float n) // by signed percentage -100/+100; dap_audio_eq(3);
+void AudioControlSGTL5000::dap_audio_eq_band(uint8_t bandNum, float n) // by signed percentage -100/+100; dap_audio_eq(3);
 {
 	n=(n*48)+0.499;
 	if(n<-47) n=-47;
 	if(n>48) n=48;
 	n+=47;
-	return modify(DAP_AUDIO_EQ_BASS_BAND0+(bandNum*2),(unsigned int)n,127);
+	modify(DAP_AUDIO_EQ_BASS_BAND0+(bandNum*2),(unsigned int)n,127);
 }
 
 void AudioControlSGTL5000::automate(uint8_t dap, uint8_t eq)
@@ -1113,96 +1172,3 @@ void calcBiquad(uint8_t filtertype, float fC, float dB_Gain, float Q, uint32_t q
 }
 
 
-
-//-------------------------------------------------
-// master device (for rPi to be the slave
-//-------------------------------------------------
-// The rPi MUST be a slave to an sgtl5000, as it cannot provide 3 clocks.
-// Even so, the rPi must generate MCLK, as the sgtl5000 has no crystal.
-// So, we generate MCLK on GPIO4, send it to the teensy audio shield,
-// which then generaets BCLK and MCLK and sends them back to us.
-
-#ifdef __circle__
-
-    #define PIN_MCLK     4
-    #define CLOCK_RATE   500000000
-    #define SAMPLE_RATE  44100
-    
-	AudioControlSGTL5000master::AudioControlSGTL5000master() :
-        m_MPIN(PIN_MCLK,GPIOModeAlternateFunction0),
-        m_MCLK(GPIOClock0,GPIOClockSourcePLLD)
-	{
-		bcm_pcm.static_init(
-			true,			// bcm_pcm is slave device
-			SAMPLE_RATE,    // sample_rate
-			16,             // sample_size
-			2,              // num_channels
-			32,             // channel_width
-			1,1,            // channel offsets
-			1,				// invert BCLK
-			0,              // don't invert FCLK
-			0);             // no callback to start the clock
-	}                       
-
-
-    bool AudioControlSGTL5000master::enable(void)
-    {
-        LOG("AudioControlSGTL5000master::enable()",0);
-
-        // Even though the rPi is running as the BCLK/FCLK slave,
-        // we have to provide the master MCLK to the sgtl5000
-        
-		LOG("starting MCLK",0);
-        u32 freq = SAMPLE_RATE * 256;           // 11289600
-        u32 divi = CLOCK_RATE / freq;           // 44
-        u32 modi = CLOCK_RATE % freq;           // 3257600
-        u32 divf = (modi*4096 + freq/2) / freq; // 1182
-        // printf("divf=%d should equal 1182\n",divf);
-        // the above math overflows 32 bits
-        divf = 1182;
-   		m_MCLK.Start(divi, divf, 1);
-        delay(500);
-        
-        muted = true;
-        Wire.begin();
-        delay(5);
-        
-        LOG("chip ID=0x%04x",read(CHIP_ID));
-    
-        write(CHIP_ANA_POWER, 0x4060);          // VDDD is externally driven with 1.8V
-        write(CHIP_LINREG_CTRL, 0x006C);        // VDDA & VDDIO both over 3.1V
-        write(CHIP_REF_CTRL, 0x01F2);           // VAG=1.575, normal ramp, +12.5% bias current
-        write(CHIP_LINE_OUT_CTRL, 0x0F22);      // LO_VAGCNTRL=1.65V, OUT_CURRENT=0.54mA
-        write(CHIP_SHORT_CTRL, 0x4446);         // allow up to 125mA
-        write(CHIP_ANA_CTRL, 0x0137);           // enable zero cross detectors
-        write(CHIP_ANA_POWER, 0x40FF);          // power up: lineout, hp, adc, dac
-        write(CHIP_DIG_POWER, 0x0073);          // power up all digital stuff
-        delay(400);
-        write(CHIP_LINE_OUT_VOL, 0x1D1D);       // default approx 1.3 volts peak-to-peak
-
-        write(CHIP_CLK_CTRL,
-              0x00 |                    // b0:1 = MCLK_FREQUENCY 0x0=256fs 0x3=USE_PLL
-              0x04 |                    // b2:3 = 0x04 == 44.1khz
-              0x00 );                   // rate mode
-        
-        write(CHIP_I2S_CTRL,            // default LR sense, is I2S
-              0x00 |                    // b0 = 0 = don't invert LRCLCK
-              0x00 |                    // b1 = 0 = data starts one BCLK after LR; 0x02 = no delay
-              0x00 |                    // b2:3 = 0 = i2s mode, 0x4=rjust, 0x8=pcm, 
-              0x30 |                    // b4:5 = 3 = i2s data length = 16 bits
-              0x00 |                    // b6 = 0 = SCLK (BCLK) invert 
-              0x80 |                    // b7 = 0x80 = Master LRCLK and SCLK (BCLK)
-              0x00 );                   // b8 = 0 = SCLK frequencey=64fs (0x100==32fs)
-        
-        write(CHIP_SSS_CTRL, 0x0010);           // ADC->I2S, I2S->DAC
-        write(CHIP_ADCDAC_CTRL, 0x0000);        // disable dac mute
-        write(CHIP_DAC_VOL, 0x3C3C);            // digital gain, 0dB
-        write(CHIP_ANA_HP_CTRL, 0x7F7F);        // set volume (lowest level)
-        write(CHIP_ANA_CTRL, 0x0036);           // enable zero cross detectors
-        
-        //mute = false;
-        semi_automated = true;
-        return true;
-    }
-
-#endif

@@ -10,9 +10,11 @@ CApplication::CApplication() :
     window_status(this),
     window_record(this)
 {
+    AudioSystem::sortStreams();
+    
     cur_window = 0;
 
-    LOG("ctor",0);
+    // LOG("ctor",0);
     showWindow(WINDOW_MAIN);
     // LOG("ctor finished",0);
 }

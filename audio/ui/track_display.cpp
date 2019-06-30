@@ -237,20 +237,21 @@ void CTrackDisplay::draw(bool cold)
 
 AudioStream *getFirstAudioStream()
 {
-	return AudioStream::first_update;
+	return AudioSystem::getFirstStream();
 }
+
 AudioStream *getLastAudioStream()
 	// kludge for peak. need to consider how
 	// topological sort treats things.
 	// may just say "order you declarem is update order"
 {
 	AudioStream *prev = 0;
-	AudioStream *obj = AudioStream::first_update;
+	AudioStream *obj = AudioSystem::getFirstStream();
 	while (obj)
 	{
-		if (strcmp(obj->dbgName(),"peak"))
+		if (strcmp(obj->getName(),"peak"))
 			prev = obj;
-		obj = obj->next_update;
+		obj = obj->getNextStream();
 	}
 	return prev;
 }
@@ -276,8 +277,16 @@ CRecordTrack::CRecordTrack(
     #define MY_DARK_SLATE_BLUE  0x0842
     SetBackColor(MY_DARK_SLATE_BLUE);
 
-    m_pRecorder = (AudioRecorder *) AudioStream::find("recorder",0);
+    m_pRecorder = (AudioRecorder *) AudioSystem::find(0,"recorder",0);
     assert(m_pRecorder);
+	
+	#if 0
+		printf("CRecordTrack(%d) recorder=%s:%d buffer=%08x\n",
+			m_channel_num,
+			m_pRecorder ? m_pRecorder->getName() : "null",
+			m_pRecorder ? m_pRecorder->getInstance() : 0,
+			m_pRecorder ? ((u32)m_pRecorder->getBuffer(m_channel_num)) : 0);
+	#endif					
 	
     m_pTrack = new CTrackDisplay(m_pWin,
 		m_id + ID_TRACK_DISPLAY,
@@ -307,8 +316,8 @@ CRecordTrack::CRecordTrack(
 		xs + VU_OFFSET - CONTROL_MARGIN*2,
 		control_y + CONTROL_HEIGHT - 1,
 		false,
-		first ? first->dbgName() : "",
-		first ? first->dbgInstance() : 0,
+		first ? first->getName() : "",
+		first ? first->getInstance() : 0,
 		first ? channel_num % first->getNumOutputs() : 0);
 
 	control_y += CONTROL_HEIGHT + CONTROL_MARGIN;
@@ -321,9 +330,9 @@ CRecordTrack::CRecordTrack(
 		xs + VU_OFFSET - CONTROL_MARGIN*2,
 		control_y + CONTROL_HEIGHT - 1,
 		true,
-		last ? last->dbgName() : "",
-		last ? last->dbgInstance() : 0,
-		last ? channel_num % last->num_inputs : 0);
+		last ? last->getName() : "",
+		last ? last->getInstance() : 0,
+		last ? channel_num % last->getNumInputs() : 0);
 		
 	control_y += CONTROL_HEIGHT + CONTROL_MARGIN;
 	
@@ -369,8 +378,8 @@ CRecordTrack::CRecordTrack(
 	if (first)
 	{
 		m_pMeter->setAudioDevice(
-			first->dbgName(),
-			first->dbgInstance(),
+			first->getName(),
+			first->getInstance(),
 			m_channel_num);
 	}
 	

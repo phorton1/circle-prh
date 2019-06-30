@@ -4,7 +4,7 @@
 // note that you must use 'master' control devices
 // if you use 'slave' i2s devices.
 
-#define USE_CS42448             0
+#define USE_CS42448             1
 #define USE_TEENSY_QUAD_SLAVE   0
 
 
@@ -12,12 +12,12 @@
     #define USE_MUSICAL_SCALE   1
     #define USE_MODULATION      0
     #define TOGGLE_SOUND        1
-    #define VOLUME_LEVEL        0.6
+    #define VOLUME_LEVEL        0.5
 #else
     #define USE_MUSICAL_SCALE   0
     #define USE_MODULATION      0
     #define TOGGLE_SOUND        1
-    #define VOLUME_LEVEL        0.6
+    #define VOLUME_LEVEL        0.5
 #endif
 
 
@@ -52,12 +52,12 @@
 
     #define I2S_MASTER   1
 
+    AudioOutputI2S output;
+
     #if I2S_MASTER
-        AudioOutputI2S output;
         AudioControlWM8731 control;
     #else
-        AudioOutputI2Sslave output;
-        AudioControlWM8731master control;
+        AudioControlWM8731Slave control;
     #endif
 #endif
 
@@ -114,11 +114,13 @@ void setup()
         input.frequency(440.0);
     #endif
     
-    #if !USE_TEENSY_QUAD_SLAVE
-        control.enable();       // setup up the condec control bits ...    
-    #endif
+    // The audio memory system can now be instantiated
+    // with very large buffers ..
     
-    AudioMemory(20);        // Also setups and starts DMA for bcm_pcm devices
+    AudioSystem::initialize(150);
+    
+    // The audio system now starts any i2s devices,
+    // so you don't need to call control.enable().
     
     #if !USE_TEENSY_QUAD_SLAVE
         control.volume(VOLUME_LEVEL);

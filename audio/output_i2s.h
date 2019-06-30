@@ -29,73 +29,44 @@
 
 #include "Arduino.h"
 #include "AudioStream.h"
+#include "bcm_pcm.h"
 
-#ifdef __circle__
-    #include "bcm_pcm.h"
-#else
-    #include "DMAChannel.h"
-#endif
 
+// there is only a single device on circle
+// whether or not it is a slave is determined
+// by the codec start() method
 
 class AudioOutputI2S : public AudioStream
 {
 public:
     
-	AudioOutputI2S(void) : AudioStream(2, inputQueueArray)
+	AudioOutputI2S(void) : AudioStream(2,0,inputQueueArray)
     {
-        #ifdef __circle__
-            bcm_pcm.setOutISR(isr);
-        #else
-            begin();
-        #endif
+		bcm_pcm.setOutISR(isr);
     }
-    
-	virtual void update(void);
-	void begin(void);
-	friend class AudioInputI2S;
+	
+	virtual const char *getName() 	{ return "i2so"; }
+	virtual u16   getType()  	  	{ return AUDIO_DEVICE_OUTPUT; }
+	
 protected:
-	AudioOutputI2S(int dummy): AudioStream(2, inputQueueArray) {} // to be used only inside AudioOutputI2Sslave !!
-	static void config_i2s(void);
-	static audio_block_t *block_left_1st;
-	static audio_block_t *block_right_1st;
-	static bool update_responsibility;
-    
-    #ifdef __circle__
-        virtual const char *dbgName()  { return "i2so"; }        
-    #else
-    	static DMAChannel dma;
-    #endif
-    
+	
 	static void isr(void);
+	
+	static audio_block_t *s_block_left_1st;
+	static audio_block_t *s_block_right_1st;
+	static bool s_update_responsibility;
+
 private:
-	static audio_block_t *block_left_2nd;
-	static audio_block_t *block_right_2nd;
-	static uint16_t block_left_offset;
-	static uint16_t block_right_offset;
+	
+	static audio_block_t *s_block_left_2nd;
+	static audio_block_t *s_block_right_2nd;
+
 	audio_block_t *inputQueueArray[2];
+	
+	virtual void start();
+	virtual void update(void);
+	
 };
 
-
-class AudioOutputI2Sslave : public AudioOutputI2S
-{
-public:
-	AudioOutputI2Sslave(void) : AudioOutputI2S(0)
-    {
-        #ifdef __circle__
-            bcm_pcm.setOutISR(isr);
-        #else
-            begin();
-        #endif
-    }
-	void begin(void);
-	friend class AudioInputI2Sslave;
-	friend void dma_ch0_isr(void);
-protected:
-	static void config_i2s(void);
-    
-    #ifdef __circle__
-        virtual const char *dbgName()  { return "i2sos"; }        
-    #endif
-};
 
 #endif

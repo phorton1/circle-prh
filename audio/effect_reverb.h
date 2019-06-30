@@ -57,39 +57,45 @@
 
 class AudioEffectReverb : public AudioStream
 {
-  public:
-    AudioEffectReverb(void) : AudioStream(1, inputQueueArray)
+public:
+
+    AudioEffectReverb(void) : AudioStream(1,1,inputQueueArray)
     {
-      SET_AUDIO_INSTANCE()        
-      init_comb_filters();
-      clear_buffers();
-      reverbTime(5.0);
+		m_instance = s_nextInstance++;
+		init_comb_filters();
+		clear_buffers();
+		reverbTime(5.0);
     }
-    virtual void update(void);
+	
+	virtual const char *getName() 	{ return "reverb"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_EFFECT; }
+    
     void reverbTime(float);
-    
-    #ifdef __circle__
-   		virtual u8 getNumOutputs()	{ return 1; }
-    #endif
-    
 
-  private:
-    struct comb_apf {
-      int32_t   g;
-      int32_t   *buffer;
-      uint32_t  buf_len;
-      uint32_t  delay, rd_idx, wr_idx;
+private:
+	
+	static u16 s_nextInstance;
+	
+    struct comb_apf
+	{
+		int32_t   g;
+		int32_t   *buffer;
+		uint32_t  buf_len;
+		uint32_t  delay, rd_idx, wr_idx;
     };
 
-    struct comb_lpf {
-      int32_t   g1, g2, z1;
-      int32_t   *buffer;
-      uint32_t  buf_len;
-      uint32_t  delay, rd_idx, wr_idx;
+    struct comb_lpf
+	{
+		int32_t   g1, g2, z1;
+		int32_t   *buffer;
+		uint32_t  buf_len;
+		uint32_t  delay, rd_idx, wr_idx;
     };
+	
     void init_comb_filters(void);
     void clear_buffers(void);
-    static void _do_comb_apf(struct comb_apf *apf, int32_t *in_buf, int32_t *out_buf);
+    
+	static void _do_comb_apf(struct comb_apf *apf, int32_t *in_buf, int32_t *out_buf);
     static void _do_comb_lpf(struct comb_lpf *lpf, int32_t *in_buf, int32_t *out_buf);
 
     audio_block_t *inputQueueArray[1];
@@ -120,14 +126,9 @@ class AudioEffectReverb : public AudioStream
     int32_t q31_buf[AUDIO_BLOCK_SAMPLES];
     int32_t sum_buf[AUDIO_BLOCK_SAMPLES];
     int32_t aux_buf[AUDIO_BLOCK_SAMPLES];
-    
-	#ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-		virtual u8 dbgInstance()    { return instance_num; }
-		virtual const char *dbgName()  { return "reverb"; }
-	#endif
-    
+
+    virtual void update(void);
+
 };
 
 #endif

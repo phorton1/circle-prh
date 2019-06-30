@@ -7,7 +7,7 @@
 #define USE_REVERB      0
 #define USE_FREEVERB    1
 #define USE_MIXER       1
-#define WITH_PROBE      1
+
 
 #define USE_CS42448  1
     // default is AudioInjector Stereo wm8731 running the clocks
@@ -17,15 +17,14 @@
     AudioOutputTDM output;
     AudioControlCS42448 control;
 #else
-    #define I2S_MASTER   0
+    #define I2S_MASTER   1
+    AudioInputI2S input;
+    AudioOutputI2S output;
+
     #if I2S_MASTER
-        AudioInputI2S input;
-        AudioOutputI2S output;
         AudioControlWM8731 control;
     #else
-        AudioInputI2Sslave input;
-        AudioOutputI2Sslave output;
-        AudioControlWM8731master control;
+        AudioControlWM8731Slave control;
     #endif
 
 #endif
@@ -62,20 +61,6 @@
 
 
 
-#if WITH_PROBE
-    AudioProbe probe(0);
-    AudioConnection p0(input,   0, probe, 0);
-    AudioConnection p1(input,   1, probe, 1);
-    #if USE_REVERB || USE_FREEVERB
-        AudioConnection p2(reverb,  0, probe, 2);
-        AudioConnection p3(reverb, SECOND_CHANNEL, probe, 3);
-    #elif USE_MIXER
-        AudioConnection p2(mixer1,  0, probe, 2);
-        AudioConnection p3(mixer2,  0, probe, 3);
-    #endif
-#endif
-
-
 void setup()
 {
     printf("03-FreeverbTest::setup()\n");
@@ -87,10 +72,14 @@ void setup()
         reverb.reverbTime(0.8);
     #endif
 
-    control.enable();
-        
-    AudioMemory(100);
-
+    // The audio memory system can now be instantiated
+    // with very large buffers ..
+    
+    AudioSystem::initialize(150);
+    
+    // The audio system now starts any i2s devices,
+    // so you don't need to call control.enable().
+    
     #if !USE_CS42448
         control.inputSelect(AUDIO_INPUT_LINEIN);
         control.inputLevel(1.0);

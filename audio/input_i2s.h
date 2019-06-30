@@ -29,68 +29,38 @@
 
 #include "Arduino.h"
 #include "AudioStream.h"
+#include "bcm_pcm.h"
 
-#ifdef __circle__
-    #include "bcm_pcm.h"
-#else
-    #include "DMAChannel.h"
-#endif
-
+// there is only a single device on circle
+// whether or not it is a slave is determined
+// by the codec start() method
 
 class AudioInputI2S : public AudioStream
 {
 public:
-	AudioInputI2S(void) : AudioStream(0, NULL)
+	
+	AudioInputI2S(void) : AudioStream(0,2,NULL)
     {
-        #ifdef __circle__
-            bcm_pcm.setInISR(isr);
-        #else
-            begin();
-        #endif
+		bcm_pcm.setInISR(isr);
     }
-	virtual void update(void);
-	void begin(void);
+
+	virtual const char *getName() 	{ return "i2si"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_INPUT; }
 	
-    #ifdef __circle__
-   		virtual u8 getNumOutputs()	{ return 2; }
-    #endif
-	
-protected:	
-	AudioInputI2S(int dummy): AudioStream(0, NULL) {} // to be used only inside AudioInputI2Sslave !!
-	static bool update_responsibility;
-    
-    #ifdef __circle__
-        virtual const char *dbgName()  { return "i2si"; }        
-    #else
-        static DMAChannel dma;
-    #endif
-    
+protected:
+
+	virtual void start();
 	static void isr(void);
+	static bool s_update_responsibility;
+	
 private:
-	static audio_block_t *block_left;
-	static audio_block_t *block_right;
-	static uint16_t block_offset;
+
+	virtual void update(void);
+	
+	static audio_block_t *s_block_left;
+	static audio_block_t *s_block_right;
+	
 };
 
-
-class AudioInputI2Sslave : public AudioInputI2S
-{
-public:
-	AudioInputI2Sslave(void) : AudioInputI2S(0)
-    {
-        #ifdef __circle__
-            bcm_pcm.setInISR(isr);
-        #else
-            begin();
-        #endif
-    }
-	void begin(void);
-	friend void dma_ch1_isr(void);
-    
-    #ifdef __circle__
-        virtual const char *dbgName()  { return "i2sis"; }        
-    #endif
-    
-};
 
 #endif

@@ -37,25 +37,27 @@ class AudioOutputTeensyQuad : public AudioStream
 public:
     
 	AudioOutputTeensyQuad(void);
-	virtual void update(void);
-	void begin(void);
-	friend class AudioInputTeensyQuad;
-
-protected:
-	
-	static void config_i2s(void);
-	static audio_block_t *block_left_1st;
-	static audio_block_t *block_right_1st;
-	
-	static bool update_responsibility;
-	static void isr(void);
-    virtual const char *dbgName()  { return "tquado"; }        
+	virtual const char *getName() 	{ return "tquado"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_OUTPUT; }
 
 private:
+	friend class AudioInputTeensyQuad;
 
-	static audio_block_t *block_left_2nd;
-	static audio_block_t *block_right_2nd;
+	static void isr(void);
+	static void config_i2s(void);
+	
+	static bool s_update_responsibility;
+
+	static audio_block_t *s_block_left_1st;
+	static audio_block_t *s_block_right_1st;
+	
+	static audio_block_t *s_block_left_2nd;
+	static audio_block_t *s_block_right_2nd;
 	audio_block_t *inputQueueArray[2];
+	
+	virtual void start(void);
+	virtual void update(void);
+	
 };
 
 #endif

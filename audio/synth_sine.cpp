@@ -28,20 +28,15 @@
 #include "synth_sine.h"
 #include "utility/dspinst.h"
 
-// data_waveforms.c
 extern "C"
 {
-	#ifdef __circle__
-		#include "data_waveforms.c"
-	#else
-		extern const int16_t AudioWaveformSine[257];
-	#endif
+	#include "data_waveforms.c"
 }
 
 
-DEFINE_AUDIO_INSTANCE(AudioSynthWaveformSine)
-DEFINE_AUDIO_INSTANCE(AudioSynthWaveformSineHires)
-DEFINE_AUDIO_INSTANCE(AudioSynthWaveformSineModulated)
+u16 AudioSynthWaveformSine::s_nextInstance = 0;
+u16 AudioSynthWaveformSineHires::s_nextInstance = 0;
+u16 AudioSynthWaveformSineModulated::s_nextInstance = 0;
 
 
 void AudioSynthWaveformSine::update(void)
@@ -50,37 +45,28 @@ void AudioSynthWaveformSine::update(void)
 	uint32_t i, ph, inc, index, scale;
 	int32_t val1, val2;
 
-	if (magnitude) {
-		block = allocate();
-		#ifdef __circle__
-			assert(block);
-		#endif
+	if (magnitude)
+	{
+		block = AudioSystem::allocate();
 		
-		if (block) {
+		if (block)
+		{
 			ph = phase_accumulator;
 			inc = phase_increment;
-			for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+			for (i=0; i < AUDIO_BLOCK_SAMPLES; i++)
+			{
 				index = ph >> 24;
 				val1 = AudioWaveformSine[index];
 				val2 = AudioWaveformSine[index+1];
 				scale = (ph >> 8) & 0xFFFF;
 				val2 *= scale;
 				val1 *= 0x10000 - scale;
-				
-				// prh - I can use either of these, so in general
-				// the KINETISK assembly code is working, and I assume
-				// it is faster.
-				
-#if defined(KINETISK) || defined(__circle__)
 				block->data[i] = multiply_32x32_rshift32(val1 + val2, magnitude);
-#elif defined(KINETISL) 
-				block->data[i] = (((val1 + val2) >> 16) * magnitude) >> 16;
-#endif
 				ph += inc;
 			}
 			phase_accumulator = ph;
 			transmit(block);
-			release(block);
+			AudioSystem::release(block);
 			return;
 		}
 	}
@@ -88,13 +74,6 @@ void AudioSynthWaveformSine::update(void)
 }
 
 
-
-
-
-#if defined(KINETISK)  || defined(__circle__)
-// High accuracy 11th order Taylor Series Approximation
-// input is 0 to 0xFFFFFFFF, representing 0 to 360 degree phase
-// output is 32 bit signed integer, top 25 bits should be very good
 static int32_t taylor(uint32_t ph)
 {
 	int32_t angle, sum, p1, p2, p3, p5, p7, p9, p11;
@@ -118,23 +97,24 @@ static int32_t taylor(uint32_t ph)
 	sum = multiply_subtract_32x32_rshift32_rounded(sum, p11, 881443);
 	return sum <<= 1;                                                 // return:  1.31
 }
-#endif
 
 
 void AudioSynthWaveformSineHires::update(void)
 {
-#if defined(KINETISK)  || defined(__circle__)
 	audio_block_t *msw, *lsw;
 	uint32_t i, ph, inc;
 	int32_t val;
 
-	if (magnitude) {
-		msw = allocate();
-		lsw = allocate();
-		if (msw && lsw) {
+	if (magnitude)
+	{
+		msw = AudioSystem::allocate();
+		lsw = AudioSystem::allocate();
+		if (msw && lsw)
+		{
 			ph = phase_accumulator;
 			inc = phase_increment;
-			for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+			for (i=0; i < AUDIO_BLOCK_SAMPLES; i++)
+			{
 				val = taylor(ph);
 				msw->data[i] = val >> 16;
 				lsw->data[i] = val & 0xFFFF;
@@ -142,22 +122,22 @@ void AudioSynthWaveformSineHires::update(void)
 			}
 			phase_accumulator = ph;
 			transmit(msw, 0);
-			release(msw);
+			AudioSystem::release(msw);
 			transmit(lsw, 1);
-			release(lsw);
+			AudioSystem::release(lsw);
 			return;
-		} else {
-			if (msw) release(msw);
-			if (lsw) release(lsw);
+		}
+		else
+		{
+			if (msw) AudioSystem::release(msw);
+			if (lsw) AudioSystem::release(lsw);
 		}
 	}
 	phase_accumulator += phase_increment * AUDIO_BLOCK_SAMPLES;
-#endif
 }
 
 
 
-#if defined(KINETISK)  || defined(__circle__)
 
 void AudioSynthWaveformSineModulated::update(void)
 {
@@ -169,31 +149,36 @@ void AudioSynthWaveformSineModulated::update(void)
 	modinput = receiveReadOnly();
 	ph = phase_accumulator;
 	inc = phase_increment;
-	block = allocate();
-	if (!block) {
-		// unable to allocate memory, so we'll send nothing
-		if (modinput) {
-			// but if we got modulation data, update the phase
-			for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+	block = AudioSystem::allocate();
+	
+	if (!block)
+	{
+		if (modinput)
+		{
+			for (i=0; i < AUDIO_BLOCK_SAMPLES; i++)
+			{
 				mod = modinput->data[i];
 				ph += inc + (multiply_32x32_rshift32(inc, mod << 16) << 1);
 			}
-			release(modinput);
-		} else {
+			AudioSystem::release(modinput);
+		}
+		else
+		{
 			ph += phase_increment * AUDIO_BLOCK_SAMPLES;
 		}
 		phase_accumulator = ph;
 		return;
 	}
-	if (modinput) {
-		for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+	if (modinput)
+	{
+		for (i=0; i < AUDIO_BLOCK_SAMPLES; i++)
+		{
 			index = ph >> 24;
 			val1 = AudioWaveformSine[index];
 			val2 = AudioWaveformSine[index+1];
 			scale = (ph >> 8) & 0xFFFF;
 			val2 *= scale;
 			val1 *= 0x10000 - scale;
-			//block->data[i] = (((val1 + val2) >> 16) * magnitude) >> 16;
 			block->data[i] = multiply_32x32_rshift32(val1 + val2, magnitude);
 			// -32768 = no phase increment
 			// 32767 = double phase increment
@@ -201,11 +186,14 @@ void AudioSynthWaveformSineModulated::update(void)
 			ph += inc + (multiply_32x32_rshift32(inc, mod << 16) << 1);
 			//ph += inc + (((int64_t)inc * (mod << 16)) >> 31);
 		}
-		release(modinput);
-	} else {
+		AudioSystem::release(modinput);
+	}
+	else
+	{
 		ph = phase_accumulator;
 		inc = phase_increment;
-		for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+		for (i=0; i < AUDIO_BLOCK_SAMPLES; i++)
+		{
 			index = ph >> 24;
 			val1 = AudioWaveformSine[index];
 			val2 = AudioWaveformSine[index+1];
@@ -218,18 +206,7 @@ void AudioSynthWaveformSineModulated::update(void)
 	}
 	phase_accumulator = ph;
 	transmit(block);
-	release(block);
+	AudioSystem::release(block);
 }
 
-#elif defined(KINETISL)
-
-void AudioSynthWaveformSineModulated::update(void)
-{
-	audio_block_t *block;
-
-	block = receiveReadOnly();
-	if (block) release(block);
-}
-
-#endif
 

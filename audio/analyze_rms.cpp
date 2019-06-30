@@ -25,13 +25,11 @@
  */
 
 
-#include <Arduino.h>
 #include "analyze_rms.h"
 #include "utility/dspinst.h"
 
-#ifdef __circle__
-	DEFINE_AUDIO_INSTANCE(AudioAnalyzeRMS)        
-#endif
+
+u16 AudioAnalyzeRMS::s_nextInstance = 0;
 
 
 void AudioAnalyzeRMS::update(void)
@@ -41,7 +39,6 @@ void AudioAnalyzeRMS::update(void)
 	if (!block)
 		return;
 
-#if defined(KINETISK) || defined(__circle__)
 	uint32_t *p = (uint32_t *)(block->data);
 	uint32_t *end = p + AUDIO_BLOCK_SAMPLES/2;
 	int64_t sum = accum;
@@ -56,7 +53,8 @@ void AudioAnalyzeRMS::update(void)
 		sum = multiply_accumulate_16tx16t_add_16bx16b(sum, n4, n4);
 	} while (p < end);
 	accum = sum;
-#else
+	
+#if 0	// KINETISL implementation
 	int16_t *p = block->data;
 	int16_t *end = p + AUDIO_BLOCK_SAMPLES;
 	int64_t sum = accum;
@@ -66,7 +64,8 @@ void AudioAnalyzeRMS::update(void)
 	} while (p < end);
 	accum = sum;
 #endif
-	release(block);
+
+	AudioSystem::release(block);
 }
 
 

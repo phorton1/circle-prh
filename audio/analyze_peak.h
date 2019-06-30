@@ -27,30 +27,36 @@
 #ifndef analyze_peakdetect_h_
 #define analyze_peakdetect_h_
 
-#include "Arduino.h"
 #include "AudioStream.h"
+
 
 class AudioAnalyzePeak : public AudioStream
 {
 public:
-	AudioAnalyzePeak(void) : AudioStream(1, inputQueueArray)
+	
+	AudioAnalyzePeak(void) :
+		AudioStream(1,0,inputQueueArray)
 	{
-		#ifdef __circle__
-	        SET_AUDIO_INSTANCE()
-			m_running = 1;
-		#endif
-		
+		m_instance = s_nextInstance++;
+		m_bChanged = 0;
 		min_sample = 32767;
 		max_sample = -32768;
 	}
-	bool available(void) {
+	
+	virtual const char *getName()	{ return "peak"; }
+	virtual u16   getType()  	  	{ return AUDIO_DEVICE_OTHER; }
+
+	bool available(void)
+	{
 		__disable_irq();
-		bool flag = new_output;
-		if (flag) new_output = false;
+		bool flag = m_bChanged;
+		if (flag) m_bChanged = false;
 		__enable_irq();
 		return flag;
 	}
-	float read(void) {
+	
+	float read(void)
+	{
 		__disable_irq();
 		int min = min_sample;
 		int max = max_sample;
@@ -62,7 +68,9 @@ public:
 		if (min > max) max = min;
 		return (float)max / 32767.0f;
 	}
-	float readPeakToPeak(void) {
+	
+	float readPeakToPeak(void)
+	{
 		__disable_irq();
 		int min = min_sample;
 		int max = max_sample;
@@ -72,27 +80,21 @@ public:
 		return (float)(max - min) / 32767.0f;
 	}
 
-	virtual void update(void);
-	
-    #ifdef __circle__
-		virtual const char *dbgName()  { return "peak"; }
-		virtual u8 dbgInstance()       { return instance_num; }
-		void set_running(bool running) { m_running = running; }
-		bool is_running()			   { return m_running; }
-	#endif	
-	
 private:
-	audio_block_t *inputQueueArray[1];
-	volatile bool new_output;
+	
+	static u16 s_nextInstance;
+
+	volatile bool m_bRunning;
+	volatile bool m_bChanged;
+	
 	int16_t min_sample;
 	int16_t max_sample;
 	
-    #ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-		bool m_running;
-	#endif	
+	audio_block_t *inputQueueArray[1];
 	
+	virtual void update(void);
+
 };
+
 
 #endif

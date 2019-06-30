@@ -32,14 +32,21 @@
 class AudioEffectFreeverb : public AudioStream
 {
 public:
+	
 	AudioEffectFreeverb();
-	virtual void update();
-	void roomsize(float n) {
+	
+	virtual const char *getName() 	{ return "freeverb"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_EFFECT; }
+	
+	void roomsize(float n)
+	{
 		if (n > 1.0f) n = 1.0f;
 		else if (n < 0.0) n = 0.0f;
 		combfeeback = (int)(n * 9175.04f) + 22937;
 	}
-	void damping(float n) {
+
+	void damping(float n)
+	{
 		if (n > 1.0f) n = 1.0f;
 		else if (n < 0.0) n = 0.0f;
 		int x1 = (int)(n * 13107.2f);
@@ -49,8 +56,13 @@ public:
 		combdamp2 = x2;
 		__enable_irq();
 	}
+	
 private:
+
+	static u16 s_nextInstance;
+	
 	audio_block_t *inputQueueArray[1];
+	
 	int16_t comb1buf[1116];
 	int16_t comb2buf[1188];
 	int16_t comb3buf[1277];
@@ -87,26 +99,29 @@ private:
 	uint16_t allpass3index;
 	uint16_t allpass4index;
 	
-	#ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-		virtual u8 dbgInstance()    { return instance_num; }
-		virtual const char *dbgName()  { return "freeverb"; }
-	#endif	
+	virtual void update();
+
 };
 
 
 class AudioEffectFreeverbStereo : public AudioStream
 {
 public:
+	
 	AudioEffectFreeverbStereo();
-	virtual void update();
-	void roomsize(float n) {
+	
+	virtual const char *getName() 	{ return "freeverbs"; }
+	virtual u16   getType()  		{ return AUDIO_DEVICE_EFFECT; }
+	
+	void roomsize(float n)
+	{
 		if (n > 1.0f) n = 1.0f;
 		else if (n < 0.0) n = 0.0f;
 		combfeeback = (int)(n * 9175.04f) + 22937;
 	}
-	void damping(float n) {
+	
+	void damping(float n)
+	{
 		if (n > 1.0f) n = 1.0f;
 		else if (n < 0.0) n = 0.0f;
 		int x1 = (int)(n * 13107.2f);
@@ -117,12 +132,12 @@ public:
 		__enable_irq();
 	}
 	
-    #ifdef __circle__
-   		virtual u8 getNumOutputs()	{ return 2; }
-    #endif
-    	
 private:
+
+	static u16 s_nextInstance;
+	
 	audio_block_t *inputQueueArray[1];
+	
 	int16_t comb1bufL[1116];
 	int16_t comb2bufL[1188];
 	int16_t comb3bufL[1277];
@@ -191,12 +206,8 @@ private:
 	uint16_t allpass3indexR;
 	uint16_t allpass4indexR;
 	
-	#ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-		virtual u8 dbgInstance()    { return instance_num; }
-		virtual const char *dbgName()  { return "freeverbs"; }
-	#endif	
+	virtual void update();
+	
 };
 
 

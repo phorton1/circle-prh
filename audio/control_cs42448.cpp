@@ -26,21 +26,23 @@
 
 #include <Arduino.h>
 #include "control_cs42448.h"
+#include <circle/timer.h>
+#include <circle/gpiopin.h>
+#include <circle/logger.h>
+#include <audio/bcm_pcm.h>
 #include "Wire.h"
 
+    
+#define log_name "cm42448"
+
+#define I2C_ADDR  0x48
+
+
 #ifdef AUDIO_INJECTOR_OCTO   
-    // __circle__ only code
-    //
+
     // Note: for the Audio Injector Octo both the bcm and the codec
     // are set as slaves, and you wake up the fpga with reset() and
     // setSampleRate() for it to become the clock master.
-
-    #include <circle/timer.h>
-    #include <circle/gpiopin.h>
-    #include <circle/logger.h>
-    #include <audio/bcm_pcm.h>
-    
-    #define log_name "cm42448"
 
 	#define OCTO_PIN_RESET	5
 	#define OCTO_PIN_MULT0  27
@@ -143,37 +145,40 @@
 // construction and initialization
 //------------------------------------------------------------------------
 
-#ifdef __circle__
-	AudioControlCS42448::AudioControlCS42448(void)
-		: i2c_addr(0x48), muted(true) 
-    {
-        g_sample_rate = 44100;
-        
-		bcm_pcm.static_init(
-            true,               // bcm_pcm is slave device
-            g_sample_rate,      // sample_rate
-            16,                 // sample_size
-            8,                  // num_channels
-            32,                 // channel_width
-            1,1,                // channel offsets must be zero for Octo
-            0,                  // don't invert BCLK
-            1,                  // do invert FCLK
-            &startClock);       // callback to start the clock
+AudioControlCS42448::AudioControlCS42448(void)
+{
+	m_muteMask = 0xff;
+		// start with all channels un-muted
+		// should match setup bytes below
+	
+	#ifdef AUDIO_INJECTOR_OCTO
+		g_sample_rate = 44100;
+	#endif
+	
+	bcm_pcm.static_init(
+		true,               // bcm_pcm is slave device
+		g_sample_rate,      // sample_rate
+		16,                 // sample_size
+		8,                  // num_channels
+		32,                 // channel_width
+		1,1,                // channel offsets must be zero for Octo
+		0,                  // don't invert BCLK
+		1,                  // do invert FCLK
+		&startClock);       // callback to start the clock
 
-        // This is not true TDM, but, rather, an Octo specific I2s variant,
-        // synchronized by starting the clock correctly.
-    }
-#endif
+	// This is not true TDM, but, rather, an Octo specific I2s variant,
+	// synchronized by starting the clock correctly.
+}
     
     
 
 static const uint8_t default_config[] =
 {
-#ifdef __circle__
+#ifdef AUDIO_INJECTOR_OCTO
     FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_4_TO_51_MHZ,
         // CS42448_Functional_Mode = 0xF9 = slave mode, MCLK 51.2 MHz max
 #else
-    // slave does not work
+    // slave does not work with Octo
     FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_2_TO_25_MHZ,
         // CS42448_Functional_Mode = 0xF6 = slave mode, MCLK 25.6 MHz max
 #endif
@@ -185,61 +190,54 @@ static const uint8_t default_config[] =
     TRANS_ADC_SZC0 | TRANS_ADC_SZC1 | TRANS_DAC_SZC0 | TRANS_DAC_SZC1,
         // CS42448_Transition_Control = 0x63 = soft vol control
 
-    #if 0
-        0x00    // unmute all for easier testing
-    #else
-        0xff    // CS42448_DAC_Channel_Mute = 0xff = all outputs mute
-    #endif
+    0xff    // CS42448_DAC_Channel_Mute = 0xff = all outputs mute
 };
 
             
 
-bool AudioControlCS42448::enable(void)
+void AudioControlCS42448::start(void)
 {
-	LOG("enable()",0);
+	LOG("start()",0);
 
-    #ifdef __circle__
+    #ifdef AUDIO_INJECTOR_OCTO
         reset();
     #endif
     
 	Wire.begin();
 
-	#ifdef __circle__
-    
-        // __circle__ sanity check code to make sure I am talking i2c
-        // My chip revision is 0x04 instead of documented 0x01
+	// __circle__ sanity check code to make sure I am talking i2c
+	// My chip revision is 0x04 instead of documented 0x01
 
-		LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
-        
-        #if 0
-            LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
-            LOG("0x03. Functional_Mode    = 0x%02x",read(CS42448_Functional_Mode));
-            LOG("0x04. Interface_Formats  = 0x%02x",read(CS42448_Interface_Formats));
-            LOG("0x05. ADC_Control        = 0x%02x",read(CS42448_ADC_Control));
-            LOG("0x06. Transition_Control = 0x%02x",read(CS42448_Transition_Control));
-            LOG("0x07. DAC_Channel_Mute   = 0x%02x",read(CS42448_DAC_Channel_Mute));
-            LOG("0x10. DAC_Channel_Invert = 0x%02x",read(CS42448_DAC_Channel_Invert));
-            LOG("0x17. ADC_Channel_Invert = 0x%02x",read(CS42448_ADC_Channel_Invert));
-            LOG("0x18. Status_Control     = 0x%02x",read(CS42448_Status_Control));
-            LOG("0x19. Status             = 0x%02x",read(CS42448_Status));
-            LOG("0x1A. Status_Mask        = 0x%02x",read(CS42448_Status_Mask));
-            LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
-            // test a read write operation
-            if (!write(CS42448_Power_Control,0x11)) return false;
-            assert(read(CS42448_Power_Control) == 0x11);
-        #endif
+	LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
+	
+	#if 0
+		LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
+		LOG("0x03. Functional_Mode    = 0x%02x",read(CS42448_Functional_Mode));
+		LOG("0x04. Interface_Formats  = 0x%02x",read(CS42448_Interface_Formats));
+		LOG("0x05. ADC_Control        = 0x%02x",read(CS42448_ADC_Control));
+		LOG("0x06. Transition_Control = 0x%02x",read(CS42448_Transition_Control));
+		LOG("0x07. DAC_Channel_Mute   = 0x%02x",read(CS42448_DAC_Channel_Mute));
+		LOG("0x10. DAC_Channel_Invert = 0x%02x",read(CS42448_DAC_Channel_Invert));
+		LOG("0x17. ADC_Channel_Invert = 0x%02x",read(CS42448_ADC_Channel_Invert));
+		LOG("0x18. Status_Control     = 0x%02x",read(CS42448_Status_Control));
+		LOG("0x19. Status             = 0x%02x",read(CS42448_Status));
+		LOG("0x1A. Status_Mask        = 0x%02x",read(CS42448_Status_Mask));
+		LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
+		// test a read write operation
+		if (!write(CS42448_Power_Control,0x11)) return false;
+		assert(read(CS42448_Power_Control) == 0x11);
 	#endif
 	
-	if (!write(CS42448_Power_Control, 0xFF)) return false; // power down
+	write(CS42448_Power_Control, 0xFF);
     delay(200);
 
-    if (!write(CS42448_Functional_Mode, default_config, sizeof(default_config))) return false;
+    write(CS42448_Functional_Mode, default_config, sizeof(default_config));
     delay(100);
 
-	if (!write(CS42448_Power_Control, 0)) return false; // power up
+	write(CS42448_Power_Control, 0); // power up
     delay(500);
     
-	#if 0   // #ifdef __circle__
+	#if 0   
 		LOG("cs42448 settings",0);
 		LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
 		LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
@@ -256,8 +254,6 @@ bool AudioControlCS42448::enable(void)
 		LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
         delay(200);
 	#endif
-    
-    return true;
 }
 
 
@@ -265,70 +261,61 @@ bool AudioControlCS42448::enable(void)
 // supported methods
 //------------------------------
 
-bool AudioControlCS42448::volumeInteger(uint32_t n)
+uint32_t volumebyte(float level)
+	// convert level to volume byte, section 6.9.1, page 50
 {
+	if (level >= 1.0) return 0;
+	if (level <= 0.0000003981) return 128;
+	return roundf(log10f(level) * -20.0);
+}
+
+
+void AudioControlCS42448::volume(float level)
+{
+	u32 n = volumebyte(level);
+	m_muteMask = n == 255 ? 0xff : 0;
 	uint8_t data[9];
-	data[0] = 0;
-	for (int i=1; i < 9; i++) {
+	data[0] = m_muteMask;
+	for (int i=1; i < 9; i++)
+	{
 		data[i] = n;
 	}
-	return write(CS42448_DAC_Channel_Mute, data, 9);
+	write(CS42448_DAC_Channel_Mute, data, 9);
 }
 
 
-
-
-//------------------------------
-// unsupported methods
-//------------------------------
-
-bool AudioControlCS42448::volumeInteger(int channel, uint32_t n)
+void AudioControlCS42448::volume(int channel, float level)
 {
-    #ifdef __circle__
-        assert(false);  // was not implemented on teensy
-    #endif
-    return true;
+	u32 mask = (1 << channel);
+	u32 n = volumebyte(level);
+	m_muteMask = n == 255 ?
+		m_muteMask | mask :
+		m_muteMask & ~mask;
+	write(CS42448_DAC_Channel_Mute, m_muteMask);
+	write(CS42448_DAC_Channel_Mute+channel+1, n);
 }
 
 
-bool AudioControlCS42448::inputLevelInteger(int32_t n)
-{
-    #ifdef __circle__
-        assert(false);  // was not implemented on teensy
-    #endif
-	return true;
-}
-
-
-bool AudioControlCS42448::inputLevelInteger(int chnnel, int32_t n)
-{
-    #ifdef __circle__
-        assert(false);  // was not implemented on teensy
-    #endif
-	return true;
-}
 
 
 //------------------------------
 // low level utilities
 //------------------------------
 
-bool AudioControlCS42448::write(uint32_t address, uint32_t data)
+void AudioControlCS42448::write(uint32_t address, uint32_t data)
 {
     // printf("write_reg(0x%02x,0x%02x)\n",address,data);
-	Wire.beginTransmission(i2c_addr);
+	Wire.beginTransmission(I2C_ADDR);
 	Wire.write(address);
 	Wire.write(data);
-	if (Wire.endTransmission() == 0) return true;
+	Wire.endTransmission();
     CTimer::Get()->usDelay(50);
-    
-	return false;
 }
 
 
-bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len, bool auto_inc)
+void AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len, bool auto_inc)
 {
-	Wire.beginTransmission(i2c_addr);
+	Wire.beginTransmission(I2C_ADDR);
     
     if (auto_inc)
     {
@@ -343,31 +330,26 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
 	const uint8_t *end = p + len;
 	while (p < end)
     {
-        // printf("write_bulk(0x%02x,0x%02x)\n",address++,*p);
 		Wire.write(*p++);
 	}
-	if (Wire.endTransmission() == 0) return true;
-	return false;
+	Wire.endTransmission();
 }
 
 
 
-#ifdef __circle__
-	u8 AudioControlCS42448::read(u8 address)
-		// read the value of a register
-	{
-		u8 buf[2];
-        buf[0] = 0;
-        Wire.beginTransmission(i2c_addr);
-        Wire.write(address);
-        Wire.endTransmission();
-        CTimer::Get()->usDelay(100);
-		Wire.read(i2c_addr,buf,1);
-        CTimer::Get()->usDelay(1200);
-		return buf[0];
-	}
-#endif
-
+u8 AudioControlCS42448::read(u8 address)
+	// read the value of a register
+{
+	u8 buf[2];
+	buf[0] = 0;
+	Wire.beginTransmission(I2C_ADDR);
+	Wire.write(address);
+	Wire.endTransmission();
+	CTimer::Get()->usDelay(100);
+	Wire.read(I2C_ADDR,buf,1);
+	CTimer::Get()->usDelay(1200);
+	return buf[0];
+}
 
 
 //------------------------------
@@ -375,9 +357,7 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
 //------------------------------
 
 #ifdef AUDIO_INJECTOR_OCTO
-    // __circle__ only at this time
     
-    // static
     void AudioControlCS42448::reset()
     {
         if (!octo_reset)
@@ -404,7 +384,6 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
     }
     
     
-    // static
     void AudioControlCS42448::startClock()
     {
         u8 mult[4];
@@ -453,6 +432,7 @@ bool AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
             octo_mult[i]->Write(mult[i]);
         }
     }
-#endif
+	
+#endif	// AUDIO_INJECTOR_OCTO
     
 

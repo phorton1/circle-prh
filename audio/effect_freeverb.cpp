@@ -32,11 +32,14 @@
 #include "effect_freeverb.h"
 #include "utility/dspinst.h"
 
-DEFINE_AUDIO_INSTANCE(AudioEffectFreeverb)        
 
-AudioEffectFreeverb::AudioEffectFreeverb() : AudioStream(1, inputQueueArray)
+u16 AudioEffectFreeverb::s_nextInstance = 0;
+
+
+AudioEffectFreeverb::AudioEffectFreeverb() :
+	AudioStream(1, 1, inputQueueArray)
 {
-    SET_AUDIO_INSTANCE()        
+    m_instance = s_nextInstance++;
 	
 	memset(comb1buf, 0, sizeof(comb1buf));
 	memset(comb2buf, 0, sizeof(comb2buf));
@@ -75,6 +78,7 @@ AudioEffectFreeverb::AudioEffectFreeverb() : AudioStream(1, inputQueueArray)
 	allpass4index = 0;
 }
 
+
 #if 1
 #define sat16(n, rshift) signed_saturate_rshift((n), 16, (rshift))
 #else
@@ -92,51 +96,59 @@ static int16_t sat16(int32_t n, int rshift)
 #endif
 
 // TODO: move this to one of the data files, use in output_adat.cpp, output_tdm.cpp, etc
-static const audio_block_t zeroblock = {
-0, 0, 0, {
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-#if AUDIO_BLOCK_SAMPLES > 16
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-#endif
-#if AUDIO_BLOCK_SAMPLES > 32
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-#endif
-#if AUDIO_BLOCK_SAMPLES > 48
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-#endif
-#if AUDIO_BLOCK_SAMPLES > 64
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-#endif
-#if AUDIO_BLOCK_SAMPLES > 80
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-#endif
-#if AUDIO_BLOCK_SAMPLES > 96
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-#endif
-#if AUDIO_BLOCK_SAMPLES > 112
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-#endif
-} };
+
+static const audio_block_t zeroblock =
+{
+	0, 0, 0,
+	{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		#if AUDIO_BLOCK_SAMPLES > 16
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		#endif
+		#if AUDIO_BLOCK_SAMPLES > 32
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		#endif
+		#if AUDIO_BLOCK_SAMPLES > 48
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		#endif
+		#if AUDIO_BLOCK_SAMPLES > 64
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		#endif
+		#if AUDIO_BLOCK_SAMPLES > 80
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		#endif
+		#if AUDIO_BLOCK_SAMPLES > 96
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		#endif
+		#if AUDIO_BLOCK_SAMPLES > 112
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		#endif
+	}
+};
+
 
 void AudioEffectFreeverb::update()
 {
-#if defined(KINETISK) || defined(__circle__)
 	const audio_block_t *block;
 	audio_block_t *outblock;
 	int i;
 	int16_t input, bufout, output;
 	int32_t sum;
 
-	outblock = allocate();
-	if (!outblock) {
+	outblock = AudioSystem::allocate();
+	if (!outblock)
+	{
 		audio_block_t *tmp = receiveReadOnly(0);
-		if (tmp) release(tmp);
+		if (tmp)
+			AudioSystem::release(tmp);
 		return;
 	}
 	block = receiveReadOnly(0);
-	if (!block) block = &zeroblock;
+	if (!block)
+		block = &zeroblock;
 
-	for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+	for (i=0; i < AUDIO_BLOCK_SAMPLES; i++)
+	{
 		// TODO: scale numerical range depending on roomsize & damping
 		input = sat16(block->data[i] * 8738, 17); // for numerical headroom
 		sum = 0;
@@ -145,91 +157,109 @@ void AudioEffectFreeverb::update()
 		sum += bufout;
 		comb1filter = sat16(bufout * combdamp2 + comb1filter * combdamp1, 15);
 		comb1buf[comb1index] = sat16(input + sat16(comb1filter * combfeeback, 15), 0);
-		if (++comb1index >= sizeof(comb1buf)/sizeof(int16_t)) comb1index = 0;
+		if (++comb1index >= sizeof(comb1buf)/sizeof(int16_t))
+			comb1index = 0;
 
 		bufout = comb2buf[comb2index];
 		sum += bufout;
 		comb2filter = sat16(bufout * combdamp2 + comb2filter * combdamp1, 15);
 		comb2buf[comb2index] = sat16(input + sat16(comb2filter * combfeeback, 15), 0);
-		if (++comb2index >= sizeof(comb2buf)/sizeof(int16_t)) comb2index = 0;
+		if (++comb2index >= sizeof(comb2buf)/sizeof(int16_t))
+			comb2index = 0;
 
 		bufout = comb3buf[comb3index];
 		sum += bufout;
 		comb3filter = sat16(bufout * combdamp2 + comb3filter * combdamp1, 15);
 		comb3buf[comb3index] = sat16(input + sat16(comb3filter * combfeeback, 15), 0);
-		if (++comb3index >= sizeof(comb3buf)/sizeof(int16_t)) comb3index = 0;
+		if (++comb3index >= sizeof(comb3buf)/sizeof(int16_t))
+			comb3index = 0;
 
 		bufout = comb4buf[comb4index];
 		sum += bufout;
 		comb4filter = sat16(bufout * combdamp2 + comb4filter * combdamp1, 15);
 		comb4buf[comb4index] = sat16(input + sat16(comb4filter * combfeeback, 15), 0);
-		if (++comb4index >= sizeof(comb4buf)/sizeof(int16_t)) comb4index = 0;
+		if (++comb4index >= sizeof(comb4buf)/sizeof(int16_t))
+			comb4index = 0;
 
 		bufout = comb5buf[comb5index];
 		sum += bufout;
 		comb5filter = sat16(bufout * combdamp2 + comb5filter * combdamp1, 15);
 		comb5buf[comb5index] = sat16(input + sat16(comb5filter * combfeeback, 15), 0);
-		if (++comb5index >= sizeof(comb5buf)/sizeof(int16_t)) comb5index = 0;
+		if (++comb5index >= sizeof(comb5buf)/sizeof(int16_t))
+			comb5index = 0;
 
 		bufout = comb6buf[comb6index];
 		sum += bufout;
 		comb6filter = sat16(bufout * combdamp2 + comb6filter * combdamp1, 15);
 		comb6buf[comb6index] = sat16(input + sat16(comb6filter * combfeeback, 15), 0);
-		if (++comb6index >= sizeof(comb6buf)/sizeof(int16_t)) comb6index = 0;
+		if (++comb6index >= sizeof(comb6buf)/sizeof(int16_t))
+			comb6index = 0;
 
 		bufout = comb7buf[comb7index];
 		sum += bufout;
 		comb7filter = sat16(bufout * combdamp2 + comb7filter * combdamp1, 15);
 		comb7buf[comb7index] = sat16(input + sat16(comb7filter * combfeeback, 15), 0);
-		if (++comb7index >= sizeof(comb7buf)/sizeof(int16_t)) comb7index = 0;
+		if (++comb7index >= sizeof(comb7buf)/sizeof(int16_t))
+			comb7index = 0;
 
 		bufout = comb8buf[comb8index];
 		sum += bufout;
 		comb8filter = sat16(bufout * combdamp2 + comb8filter * combdamp1, 15);
 		comb8buf[comb8index] = sat16(input + sat16(comb8filter * combfeeback, 15), 0);
-		if (++comb8index >= sizeof(comb8buf)/sizeof(int16_t)) comb8index = 0;
+		if (++comb8index >= sizeof(comb8buf)/sizeof(int16_t))
+			comb8index = 0;
 
 		output = sat16(sum * 31457, 17);
 
 		bufout = allpass1buf[allpass1index];
 		allpass1buf[allpass1index] = output + (bufout >> 1);
 		output = sat16(bufout - output, 1);
-		if (++allpass1index >= sizeof(allpass1buf)/sizeof(int16_t)) allpass1index = 0;
+		if (++allpass1index >= sizeof(allpass1buf)/sizeof(int16_t))
+			allpass1index = 0;
 
 		bufout = allpass2buf[allpass2index];
 		allpass2buf[allpass2index] = output + (bufout >> 1);
 		output = sat16(bufout - output, 1);
-		if (++allpass2index >= sizeof(allpass2buf)/sizeof(int16_t)) allpass2index = 0;
+		if (++allpass2index >= sizeof(allpass2buf)/sizeof(int16_t))
+			allpass2index = 0;
 
 		bufout = allpass3buf[allpass3index];
 		allpass3buf[allpass3index] = output + (bufout >> 1);
 		output = sat16(bufout - output, 1);
-		if (++allpass3index >= sizeof(allpass3buf)/sizeof(int16_t)) allpass3index = 0;
+		if (++allpass3index >= sizeof(allpass3buf)/sizeof(int16_t))
+			allpass3index = 0;
 
 		bufout = allpass4buf[allpass4index];
 		allpass4buf[allpass4index] = output + (bufout >> 1);
 		output = sat16(bufout - output, 1);
-		if (++allpass4index >= sizeof(allpass4buf)/sizeof(int16_t)) allpass4index = 0;
+		if (++allpass4index >= sizeof(allpass4buf)/sizeof(int16_t))
+			allpass4index = 0;
 
 		outblock->data[i] = sat16(output * 30, 0);
 	}
+	
 	transmit(outblock);
-	release(outblock);
-	if (block != &zeroblock) release((audio_block_t *)block);
+	AudioSystem::release(outblock);
+	if (block != &zeroblock)
+		AudioSystem::release((audio_block_t *)block);
 
-#elif defined(KINETISL)
-	audio_block_t *block;
-	block = receiveReadOnly(0);
-	if (block) release(block);
-#endif
 }
 
 
-DEFINE_AUDIO_INSTANCE(AudioEffectFreeverbStereo)        
 
-AudioEffectFreeverbStereo::AudioEffectFreeverbStereo() : AudioStream(1, inputQueueArray)
+
+//------------------------------------------------------------------
+// Stereo version
+//------------------------------------------------------------------
+
+
+u16 AudioEffectFreeverbStereo::s_nextInstance = 0;
+
+
+AudioEffectFreeverbStereo::AudioEffectFreeverbStereo() :
+	AudioStream(1, 2, inputQueueArray)
 {
-    SET_AUDIO_INSTANCE()        
+    m_instance = s_nextInstance++;
 	
 	memset(comb1bufL, 0, sizeof(comb1bufL));
 	memset(comb2bufL, 0, sizeof(comb2bufL));
@@ -300,9 +330,9 @@ AudioEffectFreeverbStereo::AudioEffectFreeverbStereo() : AudioStream(1, inputQue
 	allpass4indexR = 0;
 }
 
+
 void AudioEffectFreeverbStereo::update()
 {
-#if defined(KINETISK) || defined(__circle__)
 	const audio_block_t *block;
 	audio_block_t *outblockL;
 	audio_block_t *outblockR;
@@ -311,17 +341,23 @@ void AudioEffectFreeverbStereo::update()
 	int32_t sum;
 
 	block = receiveReadOnly(0);
-	outblockL = allocate();
-	outblockR = allocate();
-	if (!outblockL || !outblockR) {
-		if (outblockL) release(outblockL);
-		if (outblockR) release(outblockR);
-		if (block) release((audio_block_t *)block);
+	outblockL = AudioSystem::allocate();
+	outblockR = AudioSystem::allocate();
+	if (!outblockL || !outblockR)
+	{
+		if (outblockL)
+			AudioSystem::release(outblockL);
+		if (outblockR)
+			AudioSystem::release(outblockR);
+		if (block)
+			AudioSystem::release((audio_block_t *)block);
 		return;
 	}
-	if (!block) block = &zeroblock;
+	if (!block)
+		block = &zeroblock;
 
-	for (i=0; i < AUDIO_BLOCK_SAMPLES; i++) {
+	for (i=0; i < AUDIO_BLOCK_SAMPLES; i++)
+	{
 		// TODO: scale numerical range depending on roomsize & damping
 		input = sat16(block->data[i] * 8738, 17); // for numerical headroom
 		sum = 0;
@@ -330,49 +366,57 @@ void AudioEffectFreeverbStereo::update()
 		sum += bufout;
 		comb1filterL = sat16(bufout * combdamp2 + comb1filterL * combdamp1, 15);
 		comb1bufL[comb1indexL] = sat16(input + sat16(comb1filterL * combfeeback, 15), 0);
-		if (++comb1indexL >= sizeof(comb1bufL)/sizeof(int16_t)) comb1indexL = 0;
+		if (++comb1indexL >= sizeof(comb1bufL)/sizeof(int16_t))
+			comb1indexL = 0;
 
 		bufout = comb2bufL[comb2indexL];
 		sum += bufout;
 		comb2filterL = sat16(bufout * combdamp2 + comb2filterL * combdamp1, 15);
 		comb2bufL[comb2indexL] = sat16(input + sat16(comb2filterL * combfeeback, 15), 0);
-		if (++comb2indexL >= sizeof(comb2bufL)/sizeof(int16_t)) comb2indexL = 0;
+		if (++comb2indexL >= sizeof(comb2bufL)/sizeof(int16_t))
+			comb2indexL = 0;
 
 		bufout = comb3bufL[comb3indexL];
 		sum += bufout;
 		comb3filterL = sat16(bufout * combdamp2 + comb3filterL * combdamp1, 15);
 		comb3bufL[comb3indexL] = sat16(input + sat16(comb3filterL * combfeeback, 15), 0);
-		if (++comb3indexL >= sizeof(comb3bufL)/sizeof(int16_t)) comb3indexL = 0;
+		if (++comb3indexL >= sizeof(comb3bufL)/sizeof(int16_t))
+			comb3indexL = 0;
 
 		bufout = comb4bufL[comb4indexL];
 		sum += bufout;
 		comb4filterL = sat16(bufout * combdamp2 + comb4filterL * combdamp1, 15);
 		comb4bufL[comb4indexL] = sat16(input + sat16(comb4filterL * combfeeback, 15), 0);
-		if (++comb4indexL >= sizeof(comb4bufL)/sizeof(int16_t)) comb4indexL = 0;
+		if (++comb4indexL >= sizeof(comb4bufL)/sizeof(int16_t))
+			comb4indexL = 0;
 
 		bufout = comb5bufL[comb5indexL];
 		sum += bufout;
 		comb5filterL = sat16(bufout * combdamp2 + comb5filterL * combdamp1, 15);
 		comb5bufL[comb5indexL] = sat16(input + sat16(comb5filterL * combfeeback, 15), 0);
-		if (++comb5indexL >= sizeof(comb5bufL)/sizeof(int16_t)) comb5indexL = 0;
+		if (++comb5indexL >= sizeof(comb5bufL)/sizeof(int16_t))
+			comb5indexL = 0;
 
 		bufout = comb6bufL[comb6indexL];
 		sum += bufout;
 		comb6filterL = sat16(bufout * combdamp2 + comb6filterL * combdamp1, 15);
 		comb6bufL[comb6indexL] = sat16(input + sat16(comb6filterL * combfeeback, 15), 0);
-		if (++comb6indexL >= sizeof(comb6bufL)/sizeof(int16_t)) comb6indexL = 0;
+		if (++comb6indexL >= sizeof(comb6bufL)/sizeof(int16_t))
+			comb6indexL = 0;
 
 		bufout = comb7bufL[comb7indexL];
 		sum += bufout;
 		comb7filterL = sat16(bufout * combdamp2 + comb7filterL * combdamp1, 15);
 		comb7bufL[comb7indexL] = sat16(input + sat16(comb7filterL * combfeeback, 15), 0);
-		if (++comb7indexL >= sizeof(comb7bufL)/sizeof(int16_t)) comb7indexL = 0;
+		if (++comb7indexL >= sizeof(comb7bufL)/sizeof(int16_t))
+			comb7indexL = 0;
 
 		bufout = comb8bufL[comb8indexL];
 		sum += bufout;
 		comb8filterL = sat16(bufout * combdamp2 + comb8filterL * combdamp1, 15);
 		comb8bufL[comb8indexL] = sat16(input + sat16(comb8filterL * combfeeback, 15), 0);
-		if (++comb8indexL >= sizeof(comb8bufL)/sizeof(int16_t)) comb8indexL = 0;
+		if (++comb8indexL >= sizeof(comb8bufL)/sizeof(int16_t))
+			comb8indexL = 0;
 
 		outputL = sat16(sum * 31457, 17);
 		sum = 0;
@@ -381,107 +425,121 @@ void AudioEffectFreeverbStereo::update()
 		sum += bufout;
 		comb1filterR = sat16(bufout * combdamp2 + comb1filterR * combdamp1, 15);
 		comb1bufR[comb1indexR] = sat16(input + sat16(comb1filterR * combfeeback, 15), 0);
-		if (++comb1indexR >= sizeof(comb1bufR)/sizeof(int16_t)) comb1indexR = 0;
+		if (++comb1indexR >= sizeof(comb1bufR)/sizeof(int16_t))
+			comb1indexR = 0;
 
 		bufout = comb2bufR[comb2indexR];
 		sum += bufout;
 		comb2filterR = sat16(bufout * combdamp2 + comb2filterR * combdamp1, 15);
 		comb2bufR[comb2indexR] = sat16(input + sat16(comb2filterR * combfeeback, 15), 0);
-		if (++comb2indexR >= sizeof(comb2bufR)/sizeof(int16_t)) comb2indexR = 0;
+		if (++comb2indexR >= sizeof(comb2bufR)/sizeof(int16_t))
+			comb2indexR = 0;
 
 		bufout = comb3bufR[comb3indexR];
 		sum += bufout;
 		comb3filterR = sat16(bufout * combdamp2 + comb3filterR * combdamp1, 15);
 		comb3bufR[comb3indexR] = sat16(input + sat16(comb3filterR * combfeeback, 15), 0);
-		if (++comb3indexR >= sizeof(comb3bufR)/sizeof(int16_t)) comb3indexR = 0;
+		if (++comb3indexR >= sizeof(comb3bufR)/sizeof(int16_t))
+			comb3indexR = 0;
 
 		bufout = comb4bufR[comb4indexR];
 		sum += bufout;
 		comb4filterR = sat16(bufout * combdamp2 + comb4filterR * combdamp1, 15);
 		comb4bufR[comb4indexR] = sat16(input + sat16(comb4filterR * combfeeback, 15), 0);
-		if (++comb4indexR >= sizeof(comb4bufR)/sizeof(int16_t)) comb4indexR = 0;
+		if (++comb4indexR >= sizeof(comb4bufR)/sizeof(int16_t))
+			comb4indexR = 0;
 
 		bufout = comb5bufR[comb5indexR];
 		sum += bufout;
 		comb5filterR = sat16(bufout * combdamp2 + comb5filterR * combdamp1, 15);
 		comb5bufR[comb5indexR] = sat16(input + sat16(comb5filterR * combfeeback, 15), 0);
-		if (++comb5indexR >= sizeof(comb5bufR)/sizeof(int16_t)) comb5indexR = 0;
+		if (++comb5indexR >= sizeof(comb5bufR)/sizeof(int16_t))
+			comb5indexR = 0;
 
 		bufout = comb6bufR[comb6indexR];
 		sum += bufout;
 		comb6filterR = sat16(bufout * combdamp2 + comb6filterR * combdamp1, 15);
 		comb6bufR[comb6indexR] = sat16(input + sat16(comb6filterR * combfeeback, 15), 0);
-		if (++comb6indexR >= sizeof(comb6bufR)/sizeof(int16_t)) comb6indexR = 0;
+		if (++comb6indexR >= sizeof(comb6bufR)/sizeof(int16_t))
+			comb6indexR = 0;
 
 		bufout = comb7bufR[comb7indexR];
 		sum += bufout;
 		comb7filterR = sat16(bufout * combdamp2 + comb7filterR * combdamp1, 15);
 		comb7bufR[comb7indexR] = sat16(input + sat16(comb7filterR * combfeeback, 15), 0);
-		if (++comb7indexR >= sizeof(comb7bufR)/sizeof(int16_t)) comb7indexR = 0;
+		if (++comb7indexR >= sizeof(comb7bufR)/sizeof(int16_t))
+			comb7indexR = 0;
 
 		bufout = comb8bufR[comb8indexR];
 		sum += bufout;
 		comb8filterR = sat16(bufout * combdamp2 + comb8filterR * combdamp1, 15);
 		comb8bufR[comb8indexR] = sat16(input + sat16(comb8filterR * combfeeback, 15), 0);
-		if (++comb8indexR >= sizeof(comb8bufR)/sizeof(int16_t)) comb8indexR = 0;
+		if (++comb8indexR >= sizeof(comb8bufR)/sizeof(int16_t))
+			comb8indexR = 0;
 
 		outputR = sat16(sum * 31457, 17);
 
 		bufout = allpass1bufL[allpass1indexL];
 		allpass1bufL[allpass1indexL] = outputL + (bufout >> 1);
 		outputL = sat16(bufout - outputL, 1);
-		if (++allpass1indexL >= sizeof(allpass1bufL)/sizeof(int16_t)) allpass1indexL = 0;
+		if (++allpass1indexL >= sizeof(allpass1bufL)/sizeof(int16_t))
+			allpass1indexL = 0;
 
 		bufout = allpass2bufL[allpass2indexL];
 		allpass2bufL[allpass2indexL] = outputL + (bufout >> 1);
 		outputL = sat16(bufout - outputL, 1);
-		if (++allpass2indexL >= sizeof(allpass2bufL)/sizeof(int16_t)) allpass2indexL = 0;
+		if (++allpass2indexL >= sizeof(allpass2bufL)/sizeof(int16_t))
+			allpass2indexL = 0;
 
 		bufout = allpass3bufL[allpass3indexL];
 		allpass3bufL[allpass3indexL] = outputL + (bufout >> 1);
 		outputL = sat16(bufout - outputL, 1);
-		if (++allpass3indexL >= sizeof(allpass3bufL)/sizeof(int16_t)) allpass3indexL = 0;
+		if (++allpass3indexL >= sizeof(allpass3bufL)/sizeof(int16_t))
+			allpass3indexL = 0;
 
 		bufout = allpass4bufL[allpass4indexL];
 		allpass4bufL[allpass4indexL] = outputL + (bufout >> 1);
 		outputL = sat16(bufout - outputL, 1);
-		if (++allpass4indexL >= sizeof(allpass4bufL)/sizeof(int16_t)) allpass4indexL = 0;
+		if (++allpass4indexL >= sizeof(allpass4bufL)/sizeof(int16_t))
+			allpass4indexL = 0;
 
 		outblockL->data[i] = sat16(outputL * 30, 0);
 
 		bufout = allpass1bufR[allpass1indexR];
 		allpass1bufR[allpass1indexR] = outputR + (bufout >> 1);
 		outputR = sat16(bufout - outputR, 1);
-		if (++allpass1indexR >= sizeof(allpass1bufR)/sizeof(int16_t)) allpass1indexR = 0;
+		if (++allpass1indexR >= sizeof(allpass1bufR)/sizeof(int16_t))
+			allpass1indexR = 0;
 
 		bufout = allpass2bufR[allpass2indexR];
 		allpass2bufR[allpass2indexR] = outputR + (bufout >> 1);
 		outputR = sat16(bufout - outputR, 1);
-		if (++allpass2indexR >= sizeof(allpass2bufR)/sizeof(int16_t)) allpass2indexR = 0;
+		if (++allpass2indexR >= sizeof(allpass2bufR)/sizeof(int16_t))
+			allpass2indexR = 0;
 
 		bufout = allpass3bufR[allpass3indexR];
 		allpass3bufR[allpass3indexR] = outputR + (bufout >> 1);
 		outputR = sat16(bufout - outputR, 1);
-		if (++allpass3indexR >= sizeof(allpass3bufR)/sizeof(int16_t)) allpass3indexR = 0;
+		if (++allpass3indexR >= sizeof(allpass3bufR)/sizeof(int16_t))
+			allpass3indexR = 0;
 
 		bufout = allpass4bufR[allpass4indexR];
 		allpass4bufR[allpass4indexR] = outputR + (bufout >> 1);
 		outputR = sat16(bufout - outputR, 1);
-		if (++allpass4indexR >= sizeof(allpass4bufR)/sizeof(int16_t)) allpass4indexR = 0;
+		if (++allpass4indexR >= sizeof(allpass4bufR)/sizeof(int16_t))
+			allpass4indexR = 0;
 
 		outblockR->data[i] = sat16(outputL * 30, 0);
 	}
+	
 	transmit(outblockL, 0);
 	transmit(outblockR, 1);
-	release(outblockL);
-	release(outblockR);
-	if (block != &zeroblock) release((audio_block_t *)block);
+	AudioSystem::release(outblockL);
+	AudioSystem::release(outblockR);
+	
+	if (block != &zeroblock)
+		AudioSystem::release((audio_block_t *)block);
 
-#elif defined(KINETISL)
-	audio_block_t *block;
-	block = receiveReadOnly(0);
-	if (block) release(block);
-#endif
 }
 
 

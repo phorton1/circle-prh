@@ -38,37 +38,34 @@
 class AudioAnalyzeRMS : public AudioStream
 {
 public:
-	AudioAnalyzeRMS(void) : AudioStream(1, inputQueueArray)
+
+	AudioAnalyzeRMS() :
+		AudioStream(0,1,inputQueueArray)
 	{
-		#ifdef __circle__
-	        SET_AUDIO_INSTANCE()
-		#endif
-		
+		m_instance = s_nextInstance++;
 		accum = 0;
 		count = 0;
 	}
-	bool available(void) {
-		return count > 0;
-	}
-	float read(void);
-	virtual void update(void);
 
-    #ifdef __circle__
-		virtual const char *dbgName()  { return "rms"; }
-		virtual u8 dbgInstance()       { return instance_num; }
-	#endif	
+	virtual const char *getName()	{ return "rms"; }
+	virtual u16   getType()  	  	{ return AUDIO_DEVICE_OTHER; }
+	
+	bool available(void)  	{ return count > 0; }
+	float read(void);
 	
 private:
-	audio_block_t *inputQueueArray[1];
+
+	static u16 s_nextInstance;
+	
 	int64_t accum;
 	uint32_t count;
 
-    #ifdef __circle__
-		static u8 next_instance_num;
-		u8 instance_num;
-	#endif	
+	audio_block_t *inputQueueArray[1];
+	
+	virtual void update(void);
 
 };
+
 
 #endif
 

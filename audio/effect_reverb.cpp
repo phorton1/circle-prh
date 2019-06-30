@@ -20,14 +20,14 @@
  * SOFTWARE.
  */
 
-// https://github.com/joaoRossiFilho/teensy_reverb
 
 #include <Arduino.h>
 #include "effect_reverb.h"
 #include "utility/dspinst.h"
 #include "math_helper.h"
 
-DEFINE_AUDIO_INSTANCE(AudioEffectReverb)
+
+u16 AudioEffectReverb::s_nextInstance = 0;
 
 
 void 
@@ -205,6 +205,6 @@ AudioEffectReverb::update(void)
   arm_q31_to_q15(q31_buf, block->data, AUDIO_BLOCK_SAMPLES);
 
   transmit(block, 0);
-  release(block);
+  AudioSystem::release(block);
 }
-/* EOF */
+

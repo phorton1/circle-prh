@@ -88,21 +88,21 @@ class AudioInputTeensyQuad : public AudioStream
 public:
 
 	AudioInputTeensyQuad(void);
-	virtual void update(void);
-	void begin(void);
 
-	virtual u8 getNumOutputs()	{ return 2; }
-
-protected:	
-
-	static bool update_responsibility;
-	static void isr(void);
-    virtual const char *dbgName()  { return "tquadi"; }        
+    virtual const char *getName()   { return "tquadi"; }        
+	virtual u16   getType()  		{ return AUDIO_DEVICE_INPUT; }
 	
 private:
 
-	static audio_block_t *block_left;
-	static audio_block_t *block_right;
+	static bool s_update_responsibility;
+	static void isr(void);
+
+	static audio_block_t *s_block_left;
+	static audio_block_t *s_block_right;
+	
+	virtual void update(void);
+	void start(void);
+	
 };
 
 #endif

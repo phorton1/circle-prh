@@ -30,47 +30,34 @@
 #include "Arduino.h"
 #include "AudioStream.h"
 
-#ifdef __circle__
-    #include "bcm_pcm.h"
+#include "bcm_pcm.h"
 
-    #ifndef NUM_TDM_CHANNELS
-        #define NUM_TDM_CHANNELS   8
-    #endif
-#else
-    #include "DMAChannel.h"
-
-    #ifndef NUM_TDM_CHANNELS
-        #define NUM_TDM_CHANNELS   16
-    #endif
+#ifndef NUM_TDM_CHANNELS
+	#define NUM_TDM_CHANNELS   8
 #endif
 
 
 class AudioOutputTDM : public AudioStream
 {
 public:
-	AudioOutputTDM(void) : AudioStream (NUM_TDM_CHANNELS, inputQueueArray)
+	
+	AudioOutputTDM(void) : AudioStream (NUM_TDM_CHANNELS, 0, inputQueueArray)
     {
-        #ifdef __circle__
-            bcm_pcm.setOutISR(isr);
-        #else
-            begin();
-        #endif
+		bcm_pcm.setOutISR(isr);
     }
     
-	virtual void update(void);
-	void begin(void);
-	friend class AudioInputTDM;
-protected:
-	static void config_tdm(void);
-	static audio_block_t *block_input[NUM_TDM_CHANNELS];
-	static bool update_responsibility;
-    #ifdef __circle__
-        virtual const char *dbgName()  { return "tdmo"; }        
-    #else
-        static DMAChannel dma;
-    #endif
-	static void isr(void);
+	virtual const char *getName() 	{ return "tdmo"; }
+	virtual u16   getType()  	  	{ return AUDIO_DEVICE_OUTPUT; }
+	
 private:
+
+	static void isr(void);
+	virtual void start(void);
+	virtual void update(void);
+	
+	static audio_block_t *s_block_input[NUM_TDM_CHANNELS];
+	static bool s_update_responsibility;
+	
 	audio_block_t *inputQueueArray[NUM_TDM_CHANNELS];
 };
 
