@@ -48,6 +48,7 @@ CRecordWindow::CRecordWindow(CApplication *app) :
     m_pTitlebar = new CTitlebar(this,m_pApp,2);
     m_pRecorder = (AudioRecorder *) AudioSystem::find(0,"recorder",0);
     assert(m_pRecorder);
+    m_pRecorder->start();
     for (int i=0; i<RECORD_CHANNELS; i++)
     {
         m_pRecordTrack[i] = new CRecordTrack(this,i,
@@ -56,7 +57,8 @@ CRecordWindow::CRecordWindow(CApplication *app) :
             UG_GetXDim() - RIGHT_BORDER_MARGIN - 1,
             APP_TOP_MARGIN + SCALE_MARGIN + TRACK_HEIGHT * (i+1) - INTER_TRACK_MARGIN);
     }
-    
+
+    AudioSystem::sortStreams();    
     #define MY_DARK_SLATE_BLUE  0x0842
     SetBackColor(MY_DARK_SLATE_BLUE);
     

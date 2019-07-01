@@ -35,6 +35,7 @@ public:
     u32 getLength()                 { return m_num_blocks; }
     u32 getLocation()               { return m_cur_block; }
     
+	void start(void);
     bool isRunning()                { return m_running; }
     
     void clearRecording();   // erase existing recording
@@ -55,7 +56,6 @@ private:
 	audio_block_t *inputQueueArray[RECORD_CHANNELS];
     int16_t *m_buffer[RECORD_CHANNELS];
 
-	void start(void);
     void update(void);
     
 };

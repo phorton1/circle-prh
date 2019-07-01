@@ -28,6 +28,9 @@ public:
 	u32 	getCPUCycles()  	        { return m_cpuCycles; }
 	u32 	getCPUCyclesMax()	        { return m_cpuCyclesMax; }
 	void 	resetStats()                { m_cpuCycles=0; m_cpuCyclesMax=0; }
+    
+    AudioStream *getConnectedInput(u8 channel, u8 *src_channel);
+    AudioStream *getFirstConnectedOutput(u8 channel, u8 *dest_channel);
 
 protected:
 friend class AudioSystem;

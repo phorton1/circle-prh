@@ -77,21 +77,14 @@ void AudioRecorder::update(void)
 
     s16 *ip[RECORD_CHANNELS];
 	audio_block_t *in[RECORD_CHANNELS];
-    u16 record_mask = m_record_mask;
     
 	for (u16 j=0; j<RECORD_CHANNELS; j++)
     {
         in[j] = receiveReadOnly(j);
-
-        // turn off record for any channels with no blocks
-
-        if (!in[j] && (m_record_mask & mask(j)))
-            record_mask &= ~mask(j);
         ip[j] = in[j] ? in[j]->data : 0;
     }
 
-    // move the input data into the buffer
-    // check 0th buffer jic we are called before begin() somehow
+    // if running, check 0th buffer jic we are called before begin() somehow
     
     if (m_running && m_buffer[0])   
     {
@@ -105,19 +98,21 @@ void AudioRecorder::update(void)
             {
                 for (u16 j=0; j<RECORD_CHANNELS; j++)
                 {
-                    if (record_mask & mask(j))
+                    if (m_record_mask & mask(j))
                     {
-                        m_buffer[j][offset+i] = *ip[j]++;
+                        m_buffer[j][offset+i] =
+                            ip ? *ip[j]++ : 0;
                     }                
                 }
             }
         }
         
-        // replace in buffers with play buffers
+        // replace any other playing channels with previously recorded data
         
         for (u16 j=0; j<RECORD_CHANNELS; j++)
         {
-            if (!(record_mask & mask(j)))
+            if (m_play_mask & mask(j) &&
+                !(m_record_mask & mask(j)))
             {
                 if (in[j])
                     AudioSystem::release(in[j]);
@@ -135,13 +130,14 @@ void AudioRecorder::update(void)
             m_running = false;
     }
     
-    // transmit and release the blocks
+    // transmit and playing channels and release the blocks
     
 	for (u16 j=0; j<RECORD_CHANNELS; j++)
     {
         if (in[j])
         {
-    		transmit(in[j], j);
+            if (m_play_mask & mask(j))            
+                transmit(in[j], j);
             AudioSystem::release(in[j]);
         }
     }

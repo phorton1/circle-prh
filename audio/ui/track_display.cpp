@@ -304,8 +304,11 @@ CRecordTrack::CRecordTrack(
 			1.00);
 	}
 	
-	AudioStream *first = getFirstAudioStream();
-	AudioStream *last = getLastAudioStream();
+	u8 srcChannel;
+	AudioStream *srcDevice = m_pRecorder->getConnectedInput(channel_num, &srcChannel);
+	u8 destChannel;
+	AudioStream *destDevice = m_pRecorder->getFirstConnectedOutput(channel_num, &destChannel);
+	
 	u16 control_y = ys + CONTROL_MARGIN;
 		
 	m_pInput = new CButtonDeviceSelect(
@@ -316,9 +319,9 @@ CRecordTrack::CRecordTrack(
 		xs + VU_OFFSET - CONTROL_MARGIN*2,
 		control_y + CONTROL_HEIGHT - 1,
 		false,
-		first ? first->getName() : "",
-		first ? first->getInstance() : 0,
-		first ? channel_num % first->getNumOutputs() : 0);
+		srcDevice ? srcDevice->getName() : "",
+		srcDevice ? srcDevice->getInstance() : 0,
+		srcDevice ? srcChannel : 0);
 
 	control_y += CONTROL_HEIGHT + CONTROL_MARGIN;
 	
@@ -330,9 +333,9 @@ CRecordTrack::CRecordTrack(
 		xs + VU_OFFSET - CONTROL_MARGIN*2,
 		control_y + CONTROL_HEIGHT - 1,
 		true,
-		last ? last->getName() : "",
-		last ? last->getInstance() : 0,
-		last ? channel_num % last->getNumInputs() : 0);
+		destDevice ? destDevice->getName() : "",
+		destDevice ? destDevice->getInstance() : 0,
+		destDevice ? destChannel : 0);
 		
 	control_y += CONTROL_HEIGHT + CONTROL_MARGIN;
 	
@@ -375,13 +378,10 @@ CRecordTrack::CRecordTrack(
 	m_pPlayButton->SetForeColor(C_DIM_GRAY);
 	m_pRecordButton->SetForeColor(C_DIM_GRAY);
 
-	if (first)
-	{
-		m_pMeter->setAudioDevice(
-			first->getName(),
-			first->getInstance(),
-			m_channel_num);
-	}
+	m_pMeter->setAudioDevice(
+		m_pRecorder->getName(),
+		m_pRecorder->getInstance(),
+		m_channel_num);
 	
 	updateButtons();
 }

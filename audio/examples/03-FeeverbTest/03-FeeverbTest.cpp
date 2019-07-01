@@ -7,9 +7,9 @@
 #define USE_REVERB      0
 #define USE_FREEVERB    1
 #define USE_MIXER       1
+#define USE_RECORDER    1
 
-
-#define USE_CS42448  1
+#define USE_CS42448  0
     // default is AudioInjector Stereo wm8731 running the clocks
 
 #if USE_CS42448
@@ -20,45 +20,30 @@
     #define I2S_MASTER   1
     AudioInputI2S input;
     AudioOutputI2S output;
-
     #if I2S_MASTER
         AudioControlWM8731 control;
     #else
         AudioControlWM8731Slave control;
     #endif
-
 #endif
+
 
 
 #if USE_FREEVERB
     AudioEffectFreeverbStereo reverb;
-    #define SECOND_CHANNEL  1
-    AudioConnection c0(input, 0, reverb, 0);
-    AudioConnection c1(input, 1, reverb, 1);
 #elif USE_REVERB
     AudioEffectReverb reverb;
-    AudioConnection c0(input, 0, reverb, 0);
-    #define SECOND_CHANNEL  0
-#else
-    #define reverb input
-    #define SECOND_CHANNEL  1
 #endif
 
 
 #if USE_MIXER
+    AudioMixer4 mixer0;
     AudioMixer4 mixer1;
-    AudioMixer4 mixer2;
-    AudioConnection c2(input,  0, mixer1, 0);
-    AudioConnection c3(input,  1, mixer2, 0);
-    AudioConnection c4(reverb, 0, mixer1, 1);
-    AudioConnection c5(reverb, SECOND_CHANNEL, mixer2, 1);
-    AudioConnection c6(mixer1, 0, output, 0);
-    AudioConnection c7(mixer2, 0, output, 1);
-#else
-    AudioConnection c2(reverb, 0, output, 0);
-    AudioConnection c3(reverb, SECOND_CHANNEL, output, 1);
 #endif
 
+#if USE_RECORDER
+    AudioRecorder recorder;
+#endif
 
 
 void setup()
@@ -72,6 +57,50 @@ void setup()
         reverb.reverbTime(0.8);
     #endif
 
+    AudioStream *bus0 = &input;
+    AudioStream *bus1 = &input;
+    u8 channel0 = 0;
+    u8 channel1 = 1;
+
+    #if USE_FREEVERB || USE_REVERB
+        new AudioConnection(input, 0, reverb, 0);
+        bus0 = &reverb;
+        bus1 = &reverb;
+        #if USE_REVERB
+            channel1 = 0;
+        #endif
+    #endif
+    
+    #if USE_MIXER
+        new AudioConnection(input, 0, mixer0, 0);
+        new AudioConnection(input, 1, mixer1, 0);
+        #if USE_FREEVERB || USE_REVERB
+            new AudioConnection(*bus0, channel0, mixer0, 1);
+            new AudioConnection(*bus1, channel1, mixer1, 1);
+        #endif
+        bus0 = &mixer0;
+        bus1 = &mixer1;
+        channel1 = 0;
+    #endif
+    
+    #if USE_RECORDER
+        new AudioConnection(*bus0, channel0, recorder, 0);
+        new AudioConnection(*bus1, channel1, recorder, 1);
+        #if USE_FREEVERB
+            new AudioConnection(reverb, 0, recorder, 2);
+            new AudioConnection(reverb, 1, recorder, 3);
+        #elif USE_REVERB
+            new AudioConnection(reverb, 0, recorder, 2);
+        #endif
+        bus0 = &recorder;
+        bus1 = &recorder;
+        channel1 = 1;
+    #endif
+    
+    new AudioConnection(*bus0, channel0, output, 0);
+    new AudioConnection(*bus1, channel1, output, 1);
+        
+   
     // The audio memory system can now be instantiated
     // with very large buffers ..
     
@@ -86,14 +115,14 @@ void setup()
     #endif
         
     #if USE_MIXER
+        mixer0.gain(0, 0.6);
+        mixer0.gain(1, 0.3);
+        mixer0.gain(2, 0.0);
+        mixer0.gain(3, 0.0);
         mixer1.gain(0, 0.6);
         mixer1.gain(1, 0.3);
         mixer1.gain(2, 0.0);
         mixer1.gain(3, 0.0);
-        mixer2.gain(0, 0.6);
-        mixer2.gain(1, 0.3);
-        mixer2.gain(2, 0.0);
-        mixer2.gain(3, 0.0);
     #endif
     
     // ramp up the master volume over 1 second

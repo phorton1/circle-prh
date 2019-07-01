@@ -86,3 +86,34 @@ audio_block_t *AudioStream::receiveWritable(unsigned int index)
 	return in;    
 }
 
+
+AudioStream *AudioStream::getConnectedInput(u8 channel, u8 *src_channel)
+    // return the AudioStream, if any, that is connected to this
+    // streams nth input
+{
+    for (AudioStream *p=AudioSystem::getFirstStream(); p; p=p->getNextStream())
+    {
+        for (AudioConnection *con=p->m_pFirstConnection; con; con=con->m_pNextConnection)
+        {
+            if (&con->m_dest == this && con->m_destIndex == channel)
+            {
+                *src_channel = con->m_srcIndex;
+                return &con->m_src;
+            }
+        }
+    }
+    return NULL;
+}
+
+
+AudioStream *AudioStream::getFirstConnectedOutput(u8 channel, u8 *dest_channel)
+{
+    if (m_pFirstConnection)
+    {
+        *dest_channel = m_pFirstConnection->m_destIndex;
+        return &m_pFirstConnection->m_dest;
+    }
+    return NULL;
+}
+
+
