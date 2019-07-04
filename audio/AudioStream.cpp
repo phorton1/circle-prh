@@ -26,8 +26,10 @@ AudioStream::AudioStream(
     // as the typical usage is to pass it to us
     // uninitialized in the ctor ...
     
-    if (m_inputQueue)
-        *m_inputQueue = 0;
+    if (m_inputQueue && num_inputs)
+    {
+        memset(m_inputQueue,0,num_inputs * sizeof(audio_block_t *));
+    }
         
     m_pNextStream       = 0;
     if (AudioSystem::s_pLastStream)
