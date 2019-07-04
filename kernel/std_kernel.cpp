@@ -12,10 +12,10 @@
 #include <circle/gpiopin.h>
 #include <audio/AudioStream.h>
 #if USE_UGUI
-	#include <audio/ui/app.h>
+	#include <ui/app.h>
 #endif
 
-#define USE_GPIO_READY_PIN    25
+#define USE_GPIO_READY_PIN    0		// 25
 
 static const char log_name[] = "kernel";
 
@@ -125,6 +125,8 @@ void CCoreTask::Run(unsigned nCore)
 		if (nCore == CORE_FOR_UI_SYSTEM)
 			runUISystem(nCore,true);
 	#endif
+	
+	delay(5000);
 
 	while (1)
 	{
@@ -211,7 +213,14 @@ CKernel::CKernel(void) :
 		,m_DWHCI(&m_Interrupt, &m_Timer)
 	#endif
 	#if USE_UGUI
-		,m_GUI(&m_Screen)
+		#if USE_ALT_TOUCH_SCREEN
+			// ,m_SPI(),
+			,m_ili9846(&m_SPI)
+			,m_xpt2046(&m_SPI)
+			,m_GUI(0,&m_ili9846,&m_xpt2046)
+		#else
+			,m_GUI(&m_Screen)
+		#endif
 	#endif
 	,m_CoreTask(this)
 {
@@ -270,7 +279,12 @@ boolean CKernel::Initialize (void)
 	#if USE_UGUI
 		if (bOK)
 		{
-			m_TouchScreen.Initialize ();
+			#if USE_ALT_TOUCH_SCREEN
+				m_SPI.Initialize();
+				m_ili9846.Initialize ();
+			#else
+				m_TouchScreen.Initialize ();
+			#endif
 			bOK = m_GUI.Initialize ();
 		}
 	#endif

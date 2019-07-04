@@ -51,6 +51,15 @@ void AudioInputI2S::start(void)
 	bcm_pcm.init();
 	s_update_responsibility = AudioSystem::takeUpdateResponsibility();
 	bcm_pcm.start();
+	
+	// allocate the initial blocks to
+	// prevent assertions in update()
+	
+	s_block_left = AudioSystem::allocate();
+	s_block_right = AudioSystem::allocate();
+	assert(s_block_left);
+	assert(s_block_right);
+	
 	I2I_LOG("start() finished",0);
 }
 

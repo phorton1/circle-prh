@@ -2,20 +2,23 @@
 # Makefile
 #
 
-CIRCLEHOME = ../../../../../circle
+CIRCLEHOME = ../../..
 
 OBJS = 03-FeeverbTest.o
 
 MAKE_LIBS = \
-	../std_kernel.mark \
-	../../libaudio.mark \
-	../../ui/libaudio_ui.mark \
+	../../kernel/std_kernel.mark \
+	../../audio/libaudio.mark \
+	../../ui/libui.mark \
+	../../devices/libdevices.mark \
+	$(CIRCLEHOME)/addon/ugui/libugui.mark \
 	
 
 LIBS	= \
-	../std_kernel.a \
-	../../libaudio.a \
-	../../ui/libaudio_ui.a \
+	../../kernel/std_kernel.a \
+	../../audio/libaudio.a \
+	../../ui/libui.a\
+	../../devices/libdevices.a \
 	$(CIRCLEHOME)/lib/libcircle.a \
 	$(CIRCLEHOME)/lib/sched/libsched.a \
 	\

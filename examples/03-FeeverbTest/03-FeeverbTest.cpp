@@ -116,11 +116,11 @@ void setup()
         
     #if USE_MIXER
         mixer0.gain(0, 0.6);
-        mixer0.gain(1, 0.3);
+        mixer0.gain(1, 0.1);
         mixer0.gain(2, 0.0);
         mixer0.gain(3, 0.0);
         mixer1.gain(0, 0.6);
-        mixer1.gain(1, 0.3);
+        mixer1.gain(1, 0.1);
         mixer1.gain(2, 0.0);
         mixer1.gain(3, 0.0);
     #endif

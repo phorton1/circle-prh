@@ -2,7 +2,7 @@
 # Makefile
 #
 
-CIRCLEHOME = ../../..
+CIRCLEHOME = ../..
 
 CPPFLAGS += -Wno-write-strings
 
@@ -15,9 +15,7 @@ OBJS = \
  	vu_meter.o \
 	track_display.o \
 
-
-
-libaudio_ui.a: $(OBJS)
+libui.a: $(OBJS)
 	@echo "  AR    $@"
 	@rm -f $@
 	@$(AR) cr $@ $(OBJS)

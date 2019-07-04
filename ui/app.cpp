@@ -15,7 +15,7 @@ CApplication::CApplication() :
     cur_window = 0;
 
     // LOG("ctor",0);
-    showWindow(WINDOW_MAIN);
+    showWindow(WINDOW_STATUS);
     // LOG("ctor finished",0);
 }
 

@@ -2,16 +2,12 @@
 # Makefile
 #
 
-CIRCLEHOME = ../../../
+CIRCLEHOME = ../../
 
 
 OBJS	= \
     main.o \
 	std_kernel.o \
-	
-	
-#	statusScreen.o \
-
 
 std_kernel.a: $(OBJS)
 	@echo "  AR    $@"
