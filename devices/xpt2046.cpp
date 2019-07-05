@@ -83,12 +83,6 @@ static s16 besttwoavg( s16 x , s16 y , s16 z )
 
 void XPT2046::Update()
 {
-	if (!m_pEventHandler)	// short ending if no event handler
-	{
-		printf("no event handler\n");
-		return;
-	}
-	
 	u8 buf[1];
 	u16 data[6];
 	memset(data,0,12);
@@ -125,7 +119,8 @@ void XPT2046::Update()
 		// report mouse up event to client, with the previous x,y coordinates
 		
 		printf("touch up(%d,%d)\n",m_lastx,m_lasty);
-		m_pEventHandler(TouchScreenEventFingerUp,0,m_lastx,m_lasty);
+		if (m_pEventHandler)
+			m_pEventHandler(TouchScreenEventFingerUp,0,m_lastx,m_lasty);
 		return;
 	}
 	
@@ -203,7 +198,8 @@ void XPT2046::Update()
 	m_lasty = y;
 	
 	printf("touch down(%d,%d)\n",m_lastx,m_lasty);
-	m_pEventHandler(TouchScreenEventFingerDown,0,m_lastx,m_lasty);
+	if (m_pEventHandler)
+		m_pEventHandler(TouchScreenEventFingerDown,0,m_lastx,m_lasty);
 	
 }
 

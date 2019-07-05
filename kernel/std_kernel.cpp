@@ -217,7 +217,7 @@ CKernel::CKernel(void) :
 			// ,m_SPI(),
 			,m_ili9846(&m_SPI)
 			,m_xpt2046(&m_SPI)
-			,m_GUI(0,&m_ili9846,&m_xpt2046)
+			,m_GUI(&m_ili9846,&m_xpt2046)
 		#else
 			,m_GUI(&m_Screen)
 		#endif

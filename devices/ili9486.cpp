@@ -49,16 +49,14 @@
 #define PIN_RESET       25
 
 #define PIN_DEBUG       6
-
-
-#define DLY  255
+#define DLY  			255
 
 
 u8 init_sequence[] =
 {
 //	2, 0xb0, 0x0,	// Interface Mode Control
 //	1, 0x11,		// Sleep OUT
-//	DELAY, 150,
+//	DLY, 150,
 	2, 0x3A, 0x55,	// 16 bits per pixel color
 	2, 0x36, 0x48,	// MX, BGR == rotation 0
 //	2, 0xC2, 0x44,	// Power Control 3
@@ -107,12 +105,11 @@ ILI9846::ILI9846(CSPIMaster *pSPI) :
         
 
 // virtual
-void ILI9846::provideUGOptimizations()
+void ILI9846::InitializeUI(DriverRegisterFxn registerFxn)
 {
-	LOG("provideUGOptimizations()",0);
-	UG_DriverRegister( DRIVER_DRAW_LINE, (void *) drawLine );
-	UG_DriverRegister( DRIVER_FILL_FRAME, (void *) fillFrame );
-	UG_DriverRegister( DRIVER_FILL_AREA, (void *) fillArea );    
+	LOG("InitializeUI()",0);
+	registerFxn( SCREEN_OPT_FILL_FRAME, (void *) fillFrame );
+	registerFxn( SCREEN_OPT_FILL_AREA, (void *) fillArea );
 }
 
 
@@ -182,13 +179,13 @@ boolean ILI9846::Initialize()
 			m_pinDebug.Write(1);
 		#endif
 		
-        fillRect(0,0,getWidth()-1,getHeight()-1,C_BLACK);
-        fillRect(getWidth()/3,getHeight()/3,2*getWidth()/3-1,2*getHeight()/3-1,C_CYAN);
+        fillRect(0,0,GetWidth()-1,GetHeight()-1,C_BLACK);
+        fillRect(GetWidth()/3,GetHeight()/3,2*GetWidth()/3-1,2*GetHeight()/3-1,C_CYAN);
 		
         fillRect(0,0,20,20,C_RED);
-        fillRect(getWidth()-1-30,0,getWidth()-1,30,C_GREEN);
-        fillRect(0,getHeight()-1-40,40,getHeight()-1,C_BLUE);
-        fillRect(getWidth()-1-50,getHeight()-1-50,getWidth()-1,getHeight()-1,C_WHITE);
+        fillRect(GetWidth()-1-30,0,GetWidth()-1,30,C_GREEN);
+        fillRect(0,GetHeight()-1-40,40,GetHeight()-1,C_BLUE);
+        fillRect(GetWidth()-1-50,GetHeight()-1-50,GetWidth()-1,GetHeight()-1,C_WHITE);
     #endif
 	
 	return true;
@@ -196,12 +193,14 @@ boolean ILI9846::Initialize()
 
 
 
-unsigned ILI9846::getWidth() const
+// virtual
+unsigned ILI9846::GetWidth() const
 {
 	return m_rotation & 1 ? HEIGHT : WIDTH;
 }
 
-unsigned ILI9846::getHeight() const
+// virtual
+unsigned ILI9846::GetHeight() const
 {
 	return m_rotation & 1 ? WIDTH : HEIGHT;
 }
@@ -274,10 +273,11 @@ void ILI9846::fillRect(int xs, int ys, int xe, int ye, u16 color)
 }
 
 
-void ILI9846::setPixel(UG_S16 x, UG_S16 y, UG_COLOR color)
+// virtual
+void ILI9846::SetPixel(unsigned x, unsigned y, u16 color)
 {
-	if (x<0 || x>WIDTH) return;
-	if (y<0 || y>HEIGHT) return;
+	if (x>GetWidth()) return;
+	if (y>GetHeight()) return;
 	
     setWindow(x,y,x,y);
     u8 buf[2];
@@ -288,74 +288,24 @@ void ILI9846::setPixel(UG_S16 x, UG_S16 y, UG_COLOR color)
 }
 
 
-//-------------------------------
-// optimized UGUI routines
-//-------------------------------
+//------------------------------------------
+// optimized callback (ugui) routines
+//------------------------------------------
 
 // static
-UG_RESULT ILI9846::fillFrame( UG_S16 x1, UG_S16 y1, UG_S16 x2, UG_S16 y2, UG_COLOR c )
+s8 ILI9846::fillFrame( s16 x1, s16 y1, s16 x2, s16 y2, u16 color )
 {
 	if (s_pThis)
 	{
-		s_pThis->fillRect(x1,y1,x2,y2,c);
+		s_pThis->fillRect(x1,y1,x2,y2,color);
 	}
-	return UG_RESULT_OK;
-}
-
-
-#define swap(i,j)  { UG_S16 tmp; tmp=i; i=j; j=tmp; }
-
-// static
-UG_RESULT ILI9846::drawLine( UG_S16 x0, UG_S16 y0, UG_S16 x1, UG_S16 y1, UG_COLOR c )
-{
-	if (s_pThis)
-	{
-		if ((y0 < 0 && y1 <0) || (y0 > HEIGHT && y1 > HEIGHT))
-			return UG_RESULT_OK;
-		if ((x0 < 0 && x1 <0) || (x0 > WIDTH && x1 > WIDTH))
-			return UG_RESULT_OK;
-		if (x0 < 0) x0 = 0;
-		if (x1 < 0) x1 = 0;
-		if (y0 < 0) y0 = 0;
-		if (y1 < 0) y1 = 0;
-		if (x0 > x1)
-		{
-			swap(x0,x1);
-		}
-		if (y0 > y1)
-		{
-			swap(y0,y1);
-		}
-		bool steep = (y1 - y0) > (x1 - x0);
-		
-		if (steep)
-		{
-			swap(x0, y0);
-			swap(x1, y1);
-		}
-		if (x0 > x1) {
-			swap(x0, x1);
-			swap(y0, y1);
-		}
-
-		float distx = (x1-x0+1);
-		float disty = (y1-y0+1);
-		float dy = disty/distx;
-		
-		for (u16 x=x0; x<=x1; x++)
-		{
-			float ty = (x-x0) * dy;
-			u16 y = ty;
-			s_pThis->setPixel(x,y,c);
-		}
-	}
-	return UG_RESULT_OK;
+	return 0;
 }
 
 
 
 // static
-void *ILI9846::fillArea( UG_S16 x1, UG_S16 y1, UG_S16 x2, UG_S16 y2)
+void *ILI9846::fillArea( s16 x1, s16 y1, s16 x2, s16 y2)
 	// FillArea sets up the window and returns a pointer to pushPixel
 	// which is then called for each pixel to write it.
 {
@@ -368,13 +318,13 @@ void *ILI9846::fillArea( UG_S16 x1, UG_S16 y1, UG_S16 x2, UG_S16 y2)
 
 
 // static
-void ILI9846::pushPixel(UG_COLOR c)
+void ILI9846::pushPixel(u16 color)
 {
 	if (s_pThis)
 	{
 		u8 buf[2];
-		buf[0] = c >> 8;
-		buf[1] = c & 0xff;
+		buf[0] = color >> 8;
+		buf[1] = color & 0xff;
 		s_pThis->m_pSPI->SetClock(SPI_FREQ);
 		s_pThis->m_pSPI->Write(0,buf,2);
 	}

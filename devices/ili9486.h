@@ -3,39 +3,40 @@
 
 #include <circle/gpiopin.h>
 #include <circle/spimaster.h>
-#include <ugui/uguicpp.h>
+#include <circle/screen.h>
 
 
 // #define ILI9846_WITH_DEBUG_PIN  
 
-class ILI9846 : public alternateScreenDevice
+class ILI9846 : public CScreenDeviceBase
 {
 public:
     
     ILI9846(CSPIMaster *pSPI);
     ~ILI9846();
 
-    virtual boolean Initialize (void);
-    virtual unsigned getWidth (void) const;
-    virtual unsigned getHeight (void) const;
+    // CScreenDeviceBase overrides
+    
+    /* virtual */ boolean Initialize(void);
+	/* virtual */ virtual void InitializeUI(DriverRegisterFxn registerFxn);
+    /* virtual */ unsigned GetWidth(void) const;
+    /* virtual */ unsigned GetHeight(void) const;
+    /* virtual */ void SetPixel(unsigned x, unsigned y, u16 color);
+    /* virtual */ u16 GetPixel(unsigned x, unsigned y) { return 0; }    
 
     u8 getRotation() { return m_rotation; }
     void setRotation(u8 rotation);
         // the default rotation is 1
-    
-    void fillRect(int xs, int ys, int xe, int ye, u16 color565);
-    virtual void setPixel(UG_S16 sPosX, UG_S16 sPosY, UG_COLOR Color);
+    void fillRect(int xs, int ys, int xe, int ye, u16 color);
 
-    static UG_RESULT fillFrame( UG_S16 x1, UG_S16 y1, UG_S16 x2, UG_S16 y2, UG_COLOR c );
-    static UG_RESULT drawLine( UG_S16 x1, UG_S16 y1, UG_S16 x2, UG_S16 y2, UG_COLOR c );
-    static void *fillArea( UG_S16 x1, UG_S16 y1, UG_S16 x2, UG_S16 y2);
-        // FillArea sets up the window and returns a pointer to pushPixel
-        // which is then called for each pixel to write it.
-    static void pushPixel(UG_COLOR c);
+    // static methods that can be registered with ugui
+    // FillArea sets up the window and returns a pointer to pushPixel
+    // which is then called for each pixel to write it.
     
-protected:
+    static s8 fillFrame(s16 x1, s16 y1, s16 x2, s16 y2, u16 color);
+    static void *fillArea(s16 x1, s16 y1, s16 x2, s16 y2);
+    static void pushPixel(u16 color);
     
-	virtual void provideUGOptimizations();
     
 private:
     

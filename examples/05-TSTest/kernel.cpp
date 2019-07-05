@@ -54,7 +54,7 @@ boolean CKernel::Initialize (void)
 	if (bOK)
 	{
 		bOK = m_ili9486.Initialize();
-		m_xpt2046.setDimensions(m_ili9486.getWidth(),m_ili9486.getHeight());
+		m_xpt2046.setDimensions(m_ili9486.GetWidth(),m_ili9486.GetHeight());
 		m_xpt2046.setRotation(m_ili9486.getRotation());
 	}
 	
