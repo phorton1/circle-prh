@@ -120,7 +120,7 @@ void XPT2046::Update()
 		
 		printf("touch up(%d,%d)\n",m_lastx,m_lasty);
 		if (m_pEventHandler)
-			m_pEventHandler(TouchScreenEventFingerUp,0,m_lastx,m_lasty);
+			m_pEventHandler(m_pThat,TouchScreenEventFingerUp,0,m_lastx,m_lasty);
 		return;
 	}
 	
@@ -199,7 +199,7 @@ void XPT2046::Update()
 	
 	printf("touch down(%d,%d)\n",m_lastx,m_lasty);
 	if (m_pEventHandler)
-		m_pEventHandler(TouchScreenEventFingerDown,0,m_lastx,m_lasty);
+		m_pEventHandler(m_pThat,TouchScreenEventFingerDown,0,m_lastx,m_lasty);
 	
 }
 

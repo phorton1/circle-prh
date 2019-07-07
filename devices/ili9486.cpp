@@ -80,9 +80,6 @@ u8 init_sequence[] =
 
 
 
-ILI9846 *ILI9846::s_pThis = 0;
-
-
 
 
 ILI9846::~ILI9846()
@@ -99,17 +96,16 @@ ILI9846::ILI9846(CSPIMaster *pSPI) :
 	#endif
 {
 	m_rotation = 0;
-	s_pThis = this;
     LOG("ctor",0,0);
 }
         
 
 // virtual
-void ILI9846::InitializeUI(DriverRegisterFxn registerFxn)
+void ILI9846::InitializeUI(void *pUI, DriverRegisterFxn registerFxn)
 {
 	LOG("InitializeUI()",0);
-	registerFxn( SCREEN_OPT_FILL_FRAME, (void *) fillFrame );
-	registerFxn( SCREEN_OPT_FILL_AREA, (void *) fillArea );
+	registerFxn(pUI, this, SCREEN_OPT_FILL_FRAME, (void *) staticFillFrame );
+	registerFxn(pUI, this, SCREEN_OPT_FILL_AREA, (void *) staticFillArea );
 }
 
 
@@ -293,41 +289,35 @@ void ILI9846::SetPixel(unsigned x, unsigned y, u16 color)
 //------------------------------------------
 
 // static
-s8 ILI9846::fillFrame( s16 x1, s16 y1, s16 x2, s16 y2, u16 color )
+s8 ILI9846::staticFillFrame(void *pThis, s16 x1, s16 y1, s16 x2, s16 y2, u16 color )
 {
-	if (s_pThis)
-	{
-		s_pThis->fillRect(x1,y1,x2,y2,color);
-	}
+	assert(pThis);
+	((ILI9846*)pThis)->fillRect(x1,y1,x2,y2,color);
 	return 0;
 }
 
 
 
 // static
-void *ILI9846::fillArea( s16 x1, s16 y1, s16 x2, s16 y2)
+void *ILI9846::staticFillArea(void *pThis, s16 x1, s16 y1, s16 x2, s16 y2)
 	// FillArea sets up the window and returns a pointer to pushPixel
 	// which is then called for each pixel to write it.
 {
-	if (s_pThis)
-	{
-		s_pThis->setWindow(x1,y1,x2,y2);
-	}
-	return (void *) &pushPixel;
+	assert(pThis);
+	((ILI9846*)pThis)->setWindow(x1,y1,x2,y2);
+	return (void *) &staticPushPixel;
 }
 
 
 // static
-void ILI9846::pushPixel(u16 color)
+void ILI9846::staticPushPixel(void *pThis, u16 color)
 {
-	if (s_pThis)
-	{
-		u8 buf[2];
-		buf[0] = color >> 8;
-		buf[1] = color & 0xff;
-		s_pThis->m_pSPI->SetClock(SPI_FREQ);
-		s_pThis->m_pSPI->Write(0,buf,2);
-	}
+	assert(pThis);
+	u8 buf[2];
+	buf[0] = color >> 8;
+	buf[1] = color & 0xff;
+	((ILI9846*)pThis)->m_pSPI->SetClock(SPI_FREQ);
+	((ILI9846*)pThis)->m_pSPI->Write(0,buf,2);
 }
 
 

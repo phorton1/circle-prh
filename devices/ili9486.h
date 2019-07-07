@@ -18,7 +18,7 @@ public:
     // CScreenDeviceBase overrides
     
     /* virtual */ boolean Initialize(void);
-	/* virtual */ virtual void InitializeUI(DriverRegisterFxn registerFxn);
+	/* virtual */ virtual void InitializeUI(void *pUI, DriverRegisterFxn registerFxn);
     /* virtual */ unsigned GetWidth(void) const;
     /* virtual */ unsigned GetHeight(void) const;
     /* virtual */ void SetPixel(unsigned x, unsigned y, u16 color);
@@ -33,14 +33,12 @@ public:
     // FillArea sets up the window and returns a pointer to pushPixel
     // which is then called for each pixel to write it.
     
-    static s8 fillFrame(s16 x1, s16 y1, s16 x2, s16 y2, u16 color);
-    static void *fillArea(s16 x1, s16 y1, s16 x2, s16 y2);
-    static void pushPixel(u16 color);
+    static s8 staticFillFrame(void *pThis, s16 x1, s16 y1, s16 x2, s16 y2, u16 color);
+    static void *staticFillArea(void *pThis, s16 x1, s16 y1, s16 x2, s16 y2);
+    static void staticPushPixel(void *pThis, u16 color);
     
     
 private:
-    
-    static ILI9846 *s_pThis;
     
     CSPIMaster  *m_pSPI;
         
