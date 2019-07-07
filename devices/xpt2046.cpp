@@ -5,6 +5,8 @@
 #include <circle/logger.h>
 #include <circle/util.h>
 
+#define GENERATE_MOVE_EVENTS
+// #define PRINT_MOUSE_EVENTS
 
 #define log_name "xpt2046"
 
@@ -93,17 +95,22 @@ void XPT2046::Update()
 	m_pSPI->Write(1,buf,1);
 
 	// my screen reliably sets z2 to zero if no presses
-	// we only report mouse up and down events,
-	// so we only check for changes in z state
 	
-	u16 z2 = transfer16(0x91) ? 1 : 0;		// X
-	if (m_lastz == z2)
+	// if !GENERATE_MOVE_EVENTS we only report mouse up
+	// and down events, so we only check for changes in z state
+	
+	u16 z = transfer16(0x91) ? 1 : 0;		// X
+	#ifdef GENERATE_MOVE_EVENTS
+		if (!z && !m_lastz)
+	#else
+		if (m_lastz == z)
+	#endif
 	{
 		m_pinCS_TOUCH.Write(0);
 		return;
 	}
-
-	if (z2)	// (z >= Z_THRESHOLD)
+	
+	if (z)	// (z >= Z_THRESHOLD)
 	{
 		transfer16(0x91);  						 // dummy X measur
 		data[0] = transfer16(0xD1 /* Y */) >> 3;
@@ -114,11 +121,13 @@ void XPT2046::Update()
 	else
 	{
 		m_pinCS_TOUCH.Write(0);
-		m_lastz = z2;
+		m_lastz = z;
 		
 		// report mouse up event to client, with the previous x,y coordinates
+		#ifdef PRINT_MOUSE_EVENTS
+			printf("touch up(%d,%d)\n",m_lastx,m_lasty);
+		#endif
 		
-		printf("touch up(%d,%d)\n",m_lastx,m_lasty);
 		if (m_pEventHandler)
 			m_pEventHandler(m_pThat,TouchScreenEventFingerUp,0,m_lastx,m_lasty);
 		return;
@@ -135,7 +144,7 @@ void XPT2046::Update()
 	s16 y = 0;
 	// s16 rawx = 0;
 	// s16 rawy = 0;
-	if (z2)
+	if (z)
 	{
 		// rawx =
 		x = besttwoavg( data[0], data[2], data[4] );
@@ -183,23 +192,33 @@ void XPT2046::Update()
 		}
 	}
 
-	#if 0
+	#ifdef PRINT_MOUSE_EVENTS
 		static int count = 0;
-		printf("%-10d z2 %-5d  x %-5d  y %-5d     rawx %-5d  rawy %-5d\n",
-			count++,z2,x,y,rawx,rawy);
-		// printf("%-10d z1 %04x  z2 %04x  data %04x %04x %04x %04x %04x %04x  x %04x  y %04x\n",
-		//	count++,z1,z2,data[0],data[1],data[2],data[3],data[4],data[5],x,y);
+		printf("%-10d z(%d,%d) x(%-5d,%-5d)  y(%-5d,%-5d)\n",
+			count++,z,m_lastz,x,m_lastx,y,m_lasty);
 	#endif
 	
 	// report mouse down event with appropriate coordinates
 	
-	m_lastz = z2;
-	m_lastx = x;
-	m_lasty = y;
+#ifdef GENERATE_MOVE_EVENTS
+	if (m_lastz != z || m_lastx != x || m_lasty != y)
+	{
+#endif
 	
-	printf("touch down(%d,%d)\n",m_lastx,m_lasty);
-	if (m_pEventHandler)
-		m_pEventHandler(m_pThat,TouchScreenEventFingerDown,0,m_lastx,m_lasty);
+		m_lastz = z;
+		m_lastx = x;
+		m_lasty = y;
+	
+		#ifdef PRINT_MOUSE_EVENTS
+			printf("touch down(%d,%d)\n",m_lastx,m_lasty);
+		#endif
+		
+		if (m_pEventHandler)
+			m_pEventHandler(m_pThat,TouchScreenEventFingerDown,0,m_lastx,m_lasty);
+
+#ifdef GENERATE_MOVE_EVENTS
+	}
+#endif
 	
 }
 

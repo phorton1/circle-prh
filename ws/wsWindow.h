@@ -87,6 +87,13 @@ public:
 	
 	u16 getWidth() const { return xe-xs+1; }
 	u16 getHeight() const { return ye-ys+1; }
+	void assign(u16 x0, u16 y0, u16 x1, u16 y1)
+	{
+		xs = x0;
+		ys = y0;
+		xe = x1;
+		ye = y1;
+	}
 
 	u16 xs;
 	u16 ys;
@@ -172,6 +179,12 @@ class wsDC
 		void consoleSetArea( u16 xs, u16 ys, u16 xe, u16 ye );
 		void consoleSetForecolor( wsColor color );
 		void consoleSetBackcolor( wsColor color );
+		
+		void driverRegister(void *pUnusedScreen, u8 type, void *driver);
+		static void driverRegisterStub(void *pThis, void *pUnusedScreen, u8 type, void *driver);
+			// we don't need the pointer to the screen device inasmuch
+			// as we already have it.  UGUI requires it because it is "C" code
+			// calling stati methods, divorced from the C++ object rst wrote.
 
 	private:
 
@@ -283,7 +296,7 @@ class wsEventHandler : public wsObject
 
 
 //------------------------------------
-// wsWindow
+// wsWindowBase
 //------------------------------------
 
 #define WIN_STYLE_2D                0x10000000
@@ -298,6 +311,8 @@ class wsEventHandler : public wsObject
 #define WIN_STYLE_DRAG   			0x00100000
 #define WIN_STYLE_ZOOM   			0x00200000
 #define WIN_STYLE_FLING   			0x00400000
+
+#define WIN_STYLE_TRANSPARENT       0x00010000
 
 #define WIN_STATE_VISIBLE           0x00000001
 #define WIN_STATE_ENABLE            0x00000002
@@ -314,14 +329,14 @@ class wsEventHandler : public wsObject
 #define WIN_STATE_IS_FLINGING		0x00000800
 
 
-class wsWindow : public wsEventHandler
+class wsWindowBase : public wsEventHandler
 {
 	public:
 	
-		wsWindow(wsWindow *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0);
-		~wsWindow() {}	
+		wsWindowBase(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0);
+		~wsWindowBase() {}	
 
-		wsWindow *getParent() const { return (wsWindow *) m_pParent; }
+		wsWindowBase *getParent() const { return (wsWindowBase *) m_pParent; }
 		u16 getID() const			{ return m_id; }
 		u32 getStyle() const	   	{ return m_style; };
 		void setStyle(u32 style)	{ m_style = style; };
@@ -393,19 +408,52 @@ class wsWindow : public wsEventHandler
 };
 
 
+//-------------------------------------------
+// top level windows
+//-------------------------------------------
+
+class wsWindow : public wsWindowBase
+{
+	public:
+	
+		wsWindow(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0);
+		~wsWindow() {}
+	
+};
+
+
+class wsApplication;
+
+class wsTopLevelWindow : public wsWindow
+{
+	public:
+	
+		wsTopLevelWindow(wsApplication *pApp, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0);
+		~wsTopLevelWindow() {}
+		
+		wsApplication *getApplication() const { return (wsApplication *) m_pParent; }
+		
+	protected:
+		
+		virtual wsEventResult handleEvent(wsEvent *event);
+		
+		s16 m_zorder;
+		
+};
+
 
 //-------------------------------------------
 // controls
 //-------------------------------------------
 
-class wsControl : public wsWindow
+class wsControl : public wsWindowBase
 {
 	public:
 	
 		~wsControl() {}
 		
-		wsControl(wsWindow *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0) :
-			wsWindow(pParent,id,xs,ys,xe,ye,style) {}
+		wsControl(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0) :
+			wsWindowBase(pParent,id,xs,ys,xe,ye,style) {}
 };
 
 
@@ -416,7 +464,7 @@ class wsStaticText : public wsControl
 	
 		~wsStaticText() {}
 		
-		wsStaticText(wsWindow *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye) :
+		wsStaticText(wsWindowBase *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye) :
 			wsControl(pParent,id,xs,ys,xe,ye)
 		{
 			if (text)
@@ -456,7 +504,7 @@ class wsButton : public wsControl
 	
 		~wsButton() {}
 		
-		wsButton(wsWindow *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye, u16 bstyle=0) :
+		wsButton(wsWindowBase *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye, u16 bstyle=0) :
 			wsControl(pParent,id,xs,ys,xe,ye,
 				(bstyle & BTN_STYLE_2D) ? WIN_STYLE_2D :
 				(bstyle & BTN_STYLE_3D) ? WIN_STYLE_3D : 0)
@@ -509,7 +557,7 @@ class wsCheckbox : public wsControl
 	public:
 	
 		~wsCheckbox() {}
-		wsCheckbox(wsWindow *pParent, u16 id, u8 checked, u16 xs, u16 ys, u16 xe, u16 ye, u16 cstyle=0) :
+		wsCheckbox(wsWindowBase *pParent, u16 id, u8 checked, u16 xs, u16 ys, u16 xe, u16 ye, u16 cstyle=0) :
 			wsControl(pParent,id,xs,ys,xe,ye,
 				(cstyle & CHB_STYLE_2D) ? WIN_STYLE_2D :
 				(cstyle & CHB_STYLE_3D) ? WIN_STYLE_3D : 0)
@@ -557,7 +605,7 @@ class wsImage : public wsControl
 {
 	public:
 	
-		wsImage(wsWindow *pParent, u16 id, u8 value, u16 x, u16 y, u16 xe, u16 ye, u32 style=0);
+		wsImage(wsWindowBase *pParent, u16 id, u8 value, u16 x, u16 y, u16 xe, u16 ye, u32 style=0);
 		~wsImage() {}
 };
 
@@ -568,22 +616,52 @@ class wsImage : public wsControl
 // the application object
 //------------------------------------
 
-class wsApplication : public wsWindow
+class wsApplication : public wsWindowBase
 {
 	public:
 		
 		~wsApplication();
+		wsApplication();
 		
-		wsApplication(
+		void Initialize(
 			CScreenDeviceBase *pScreen,
 			CTouchScreenBase  *pTouch,
 			CMouseDevice      *pMouse);
+		
+		void timeSlice();
+			// to prevent confusion with windows' update() functions
 		
 	private:
 		
 		CScreenDeviceBase *m_pScreen;
 		CTouchScreenBase  *m_pTouch;
 		CMouseDevice      *m_pMouse;
+		
+		void mouseEventHandler(
+			TMouseEvent event,
+			unsigned buttons,
+			unsigned x,
+			unsigned y);
+		static void mouseEventStub(
+			void *pThis,
+			TMouseEvent event,
+			unsigned buttons,
+			unsigned x,
+			unsigned y);
+	
+		void touchEventHandler(
+			TTouchScreenEvent event,
+			unsigned id,
+			unsigned x,
+			unsigned y);
+		static void touchEventStub(
+			void *pThis,
+			TTouchScreenEvent event,
+			unsigned id,
+			unsigned x,
+			unsigned y);
+		
+		u32 m_lastTouchUpdate;
 		
 };
 

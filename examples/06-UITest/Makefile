@@ -8,8 +8,10 @@ OBJS = kernel.o main.o
 
 MAKE_LIBS = \
 	../../ws/libws.mark \
+	../../devices/libdevices.mark \
 	
 LIBS	= \
+	../../devices/libdevices.a \
 	$(CIRCLEHOME)/lib/libcircle.a \
 	$(CIRCLEHOME)/lib/input/libinput.a \
 	$(CIRCLEHOME)/lib/usb/libusb.a \

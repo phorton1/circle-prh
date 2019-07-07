@@ -38,11 +38,11 @@ void wsObject::addChild(wsObject *object, wsObject *pAddBefore /* =0 */)
 
 
 //----------------------------------------------
-// wsWindow
+// wsWindowBase
 //----------------------------------------------
 
-wsWindow::wsWindow(
-		wsWindow *pParent,
+wsWindowBase::wsWindowBase(
+		wsWindowBase *pParent,
 		u16 id,
 		u16 xs,
 		u16 ys,
@@ -58,7 +58,7 @@ wsWindow::wsWindow(
 	m_rect_virt(0,0,xe-xs,ye-ys),
 	m_rect_vis(0,0,xe-xs,ye-ys)
 {
-	LOG("wsWindow(0x%08x,%d, %d,%d,%d,%d, 0x%08x)",(u32) this, id,xs,ys,xe,ye,style);
+	LOG("wsWindowBase(0x%08x,%d, %d,%d,%d,%d, 0x%08x)",(u32) this, id,xs,ys,xe,ye,style);
 	
 	m_pDC = 0;
 	m_state = 0;
@@ -102,7 +102,7 @@ wsWindow::wsWindow(
 }
 
 
-wsDC *wsWindow::getDC() const
+wsDC *wsWindowBase::getDC() const
 {
 	// m_pDC->setFont(m_pFont);
 	// m_pDC->setForeColor(m_fore_color);
@@ -112,7 +112,7 @@ wsDC *wsWindow::getDC() const
 
 
 // virtual
-void wsWindow::draw()
+void wsWindowBase::draw()
 {
 	// draw self
 	
@@ -138,35 +138,73 @@ void wsWindow::draw()
 			windowFrameColors );
 	}
 	
-	m_rect_abs.print("fill client");
-	pDC->fillFrame(
-		m_rect_client.xs,
-		m_rect_client.ys,
-		m_rect_client.xe,
-		m_rect_client.ye,
-		m_back_color);
+	if (!(m_style & WIN_STYLE_TRANSPARENT))
+	{
+		m_rect_abs.print("fill client");
+		pDC->fillFrame(
+			m_rect_client.xs,
+			m_rect_client.ys,
+			m_rect_client.xe,
+			m_rect_client.ye,
+			m_back_color);
+	}
 	
 	// draw children
 	
-	for (wsWindow *p = (wsWindow *) getFirstChild(); p; p = (wsWindow *) p->getNextSibling())
+	for (wsWindowBase *p = (wsWindowBase *) getFirstChild(); p; p = (wsWindowBase *) p->getNextSibling())
 	{
 		p->draw();
 	}
 }
 
 
-void wsWindow::setText(const char *text)
+void wsWindowBase::setText(const char *text)
 {
 	printf("setText(const char *\"%s\")\n",text);
 	m_text = text;	
 	printf("result=\"%s\"\n",(const char *)m_text);
 }
-void wsWindow::setText(const CString &text)
+void wsWindowBase::setText(const CString &text)
 {
 	printf("setText(const CString *\"%s\")\n",(const char *)text);
 	m_text = text;
 	printf("result=\"%s\"\n",(const char *)m_text);
 }
+
+void wsWindowBase::resize(u16 xs, u16 ys, u16 xe, u16 ye )
+	// currently only resizes this window
+	// will need to resize/move children as well
+	// which, in turn, requires more care with
+	// the window rectangles.
+{
+	m_rect.assign(xs,ys,xe,ye);
+	m_rect_abs.assign(xs,ys,xe,ye);
+	m_rect_client.assign(xs,ys,xe,ye);
+	m_rect_virt.assign(0,0,xe-xs,ye-ys);
+	m_rect_vis.assign(0,0,xe-xs,ye-ys);
+}
+
+
+
+wsWindow::wsWindow(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style) :
+	wsWindowBase(pParent,id,xs,ys,xe,ye,style)
+{
+}
+		
+		
+
+wsTopLevelWindow::wsTopLevelWindow(wsApplication *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style) :
+	wsWindow(pParent,id,xs,ys,xe,ye,style)
+{
+	m_zorder = 0;
+}
+
+
+wsEventResult wsTopLevelWindow::handleEvent(wsEvent *event)
+{
+	return 0;
+}
+
 
 
 

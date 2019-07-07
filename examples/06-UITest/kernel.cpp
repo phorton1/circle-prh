@@ -17,8 +17,14 @@ CKernel::CKernel(void) :
 	m_Screen(1440, 768),	// 800, 480),
 	m_Timer(&m_Interrupt),
 	m_Serial(&m_Interrupt, TRUE),
-	m_Logger(LogDebug,&m_Timer),
-	m_DWHCI(&m_Interrupt, &m_Timer)
+	m_Logger(LogDebug,&m_Timer)
+	#if USE_USB
+		,m_DWHCI(&m_Interrupt, &m_Timer)
+	#endif
+	#if USE_ALT_SCREEN
+		,m_ili9486(&m_SPI)
+		,m_xpt2046(&m_SPI)
+	#endif
 {
 	m_ActLED.Toggle();
 }
@@ -27,7 +33,6 @@ CKernel::CKernel(void) :
 CKernel::~CKernel (void)
 {
 }
-
 
 
 boolean CKernel::Initialize (void)
@@ -44,30 +49,53 @@ boolean CKernel::Initialize (void)
 		bOK = m_Serial.Initialize(115200);
 	if (bOK)
 		bOK = m_Logger.Initialize(&m_Serial);
+	#if USE_USB
+		if (bOK)
+			bOK = m_DWHCI.Initialize ();
+	#endif
+
 	if (bOK)
-		bOK = m_DWHCI.Initialize ();
+	{
+		#if USE_ALT_SCREEN
+			m_SPI.Initialize();
+			m_ili9486.Initialize();
+		#else
+			m_TouchScreen.Initialize ();
+		#endif
+	}
 	
 	return bOK;
 }
 
 
-
-TShutdownMode CKernel::Run(void)
-	// calls the CoreTask to do all the work
+void CKernel::setupApp()
 {
-	LOG("06-UITest " __DATE__ " " __TIME__,0);
+	LOG("setupApp()",0);
 	
 	CMouseDevice *pMouse = (CMouseDevice *) CDeviceNameService::Get ()->GetDevice ("mouse1", FALSE);
-	CTouchScreenBase *pTouch = (CTouchScreenBase *) CDeviceNameService::Get ()->GetDevice ("touch1", FALSE);
+	
+	#if USE_ALT_SCREEN
+		CScreenDeviceBase *pUseScreen = &m_ili9486;
+		CTouchScreenBase  *pTouch = &m_xpt2046;
+	#else
+		CScreenDeviceBase *pUseScreen = &m_Screen;
+		CTouchScreenBase  *pTouch = (CTouchScreenBase *) CDeviceNameService::Get ()->GetDevice ("touch1", FALSE);
+	#endif
 	
 	#define TOP_MARGIN  50
 	#define BOTTOM_MARGIN 50
 	
-	wsApplication app(&m_Screen,pTouch,pMouse);
-	wsWindow *pTitle  = new wsWindow(&app, 1, 0, 				0, app.getWidth()-1, 			TOP_MARGIN-1);
-	wsWindow *pLeft   = new wsWindow(&app, 2, 0, 				TOP_MARGIN, 					app.getWidth()/2-1,		app.getHeight()-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
-	wsWindow *pRight  = new wsWindow(&app, 3, app.getWidth()/2, TOP_MARGIN, 					app.getWidth()-1, 		app.getHeight()-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
-	wsWindow *pStatus = new wsWindow(&app, 4, 0, 				app.getHeight()-BOTTOM_MARGIN, 	app.getWidth()-1, 		app.getHeight()-1, 					WIN_STYLE_3D);
+	m_app.Initialize(pUseScreen,pTouch,pMouse);
+	
+	u16 width = m_app.getWidth();
+	u16 height = m_app.getHeight();
+	
+	wsTopLevelWindow *frame = new wsTopLevelWindow(&m_app,1,0,0,width-1,height-1);
+	
+	wsWindowBase *pTitle  = new wsWindowBase(frame, 1, 0, 			0, width-1, 			TOP_MARGIN-1);
+	wsWindowBase *pLeft   = new wsWindowBase(frame, 2, 0, 			TOP_MARGIN, 			width/2-1,		height-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
+	wsWindowBase *pRight  = new wsWindowBase(frame, 3, width/2, 	TOP_MARGIN, 			width-1, 		height-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
+	wsWindowBase *pStatus = new wsWindowBase(frame, 4, 0, 			height-BOTTOM_MARGIN, 	width-1, 		height-1, 					WIN_STYLE_3D);
 	
 	// app.setBackColor(wsBLACK);
 	// app.setForeColor(wsGRAY);
@@ -93,7 +121,7 @@ TShutdownMode CKernel::Run(void)
 	new wsButton		(pStatus, 1, "button4", 	4,   5,   119, 40, BTN_STYLE_3D);
 	new wsStaticText	(pStatus, 2, "text4", 		130, 5,   199, 40);
 
-	wsWindow *pPanel = new wsWindow(pLeft, 5, 10, 40, pLeft->getWidth()-10-1, pLeft->getHeight()-10-1, WIN_STYLE_2D );
+	wsWindowBase *pPanel = new wsWindowBase(pLeft, 5, 10, 40, pLeft->getWidth()-10-1, pLeft->getHeight()-10-1, WIN_STYLE_2D );
 	
 	new wsButton		(pPanel,  1, "button5", 	4,   5,   119, 33, BTN_STYLE_3D);
 	new wsStaticText	(pPanel,  2, "text6", 		130, 5,   199, 33);
@@ -106,15 +134,25 @@ TShutdownMode CKernel::Run(void)
 	cb1->setText("two");
 	cb2->setText("three");
 				 
-	app.draw();
+	m_app.draw();
 	
-	// app.getDC()->setBackColor(wsPURPLE);
-	// app.getDC()->setForeColor(wsWHITE);
-	// app.getDC()->putString(50,50,"this is a test\n1234\nok");
+	// m_app.getDC()->setBackColor(wsPURPLE);
+	// m_app.getDC()->setForeColor(wsWHITE);
+	// m_app.getDC()->putString(50,50,"this is a test\n1234\nok");	
+}
+
+
+
+TShutdownMode CKernel::Run(void)
+	// calls the CoreTask to do all the work
+{
+	LOG("06-UITest " __DATE__ " " __TIME__,0);
+	setupApp();
 	
 	while (1)
 	{
-		CTimer::Get()->MsDelay(100);
+		m_app.timeSlice();
+		CTimer::Get()->MsDelay(1);
 	}
 
 	return ShutdownHalt;

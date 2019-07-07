@@ -215,7 +215,7 @@ CKernel::CKernel(void) :
 	#if USE_UGUI
 		#if USE_ALT_TOUCH_SCREEN
 			// ,m_SPI(),
-			,m_ili9846(&m_SPI)
+			,m_ili9486(&m_SPI)
 			,m_xpt2046(&m_SPI)
 			,m_GUI(&m_ili9846,&m_xpt2046)
 		#else
@@ -281,7 +281,7 @@ boolean CKernel::Initialize (void)
 		{
 			#if USE_ALT_TOUCH_SCREEN
 				m_SPI.Initialize();
-				m_ili9846.Initialize ();
+				m_ili9486.Initialize ();
 			#else
 				m_TouchScreen.Initialize ();
 			#endif

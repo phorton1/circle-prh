@@ -186,7 +186,7 @@ private:
 	#if USE_UGUI
 		#if USE_ALT_TOUCH_SCREEN
 			CSPIMaster	m_SPI;
-			ILI9846 	m_ili9846;
+			ILI9846 	m_ili9486;
 			XPT2046 	m_xpt2046;
 		#else	
 			CTouchScreenDevice	m_TouchScreen;

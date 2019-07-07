@@ -5,7 +5,16 @@
 // Written for the rPi Circle bare metal C++ libraries.
 
 #include "wsWindow.h"
+#include <circle/logger.h>
+#define log_name "wsdc"
 
+
+typedef u8 (*drawLineDriver)(void *pThat, s16 x0, s16 y0, s16 x1, s16 y1, wsColor color);
+typedef u8 (*fillFrameDriver)(void *pThat, s16 x0, s16 y0, s16 x1, s16 y1, wsColor color);
+typedef void (*pushPixelFxn)(void *pThat, wsColor color);
+typedef pushPixelFxn (*fillAreaDriver)(void *pThat, s16 x0, s16 y0, s16 x1, s16 y1);
+
+		 
 
 void wsDC::fillScreen( wsColor color )
 {
@@ -23,9 +32,8 @@ void wsDC::fillFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 	
 	if ( m_opt_driver[OPT_DRIVER_FILL_FRAME])
 	{
-		((void(*)(u16 x0, u16 y0, u16 x1, u16 y1, wsColor color))
-			m_opt_driver[OPT_DRIVER_FILL_FRAME])
-				(x0,y0,x1,y1,color);
+		((fillFrameDriver)m_opt_driver[OPT_DRIVER_FILL_FRAME])
+			(m_pScreen,x0,y0,x1,y1,color);
 		return;
 	}
 	for (u16 y=y0; y<=y1; y++ )
@@ -43,9 +51,8 @@ void wsDC::drawLine( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 {
 	if ( m_opt_driver[OPT_DRIVER_DRAW_LINE])
 	{
-		((void(*)(u16 x0, u16 y0, u16 x1, u16 y1, wsColor color))
-			m_opt_driver[OPT_DRIVER_DRAW_LINE])
-				(x0,y0,x1,y1,color);
+		((drawLineDriver)m_opt_driver[OPT_DRIVER_DRAW_LINE])
+			(m_pScreen, x0,y0,x1,y1,color);
 		return;
 	}
 
@@ -170,9 +177,8 @@ void wsDC::putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc )
 		
 	if ( m_opt_driver[OPT_DRIVER_FILL_AREA])
 	{
-		void (*pushPixel)(wsColor) = (void (*)(wsColor))
-			((void*(*)(u16, u16, u16, u16))m_opt_driver[OPT_DRIVER_FILL_AREA])
-				(x, y, x+actual_char_width-1, y+m_pFont->char_height-1);
+		pushPixelFxn pushPixel = ((fillAreaDriver)m_opt_driver[OPT_DRIVER_FILL_AREA])
+			(m_pScreen, x, y, x+actual_char_width-1, y+m_pFont->char_height-1);
 		
 		for (u16 j=0; j<m_pFont->char_height; j++)
 		{
@@ -184,11 +190,11 @@ void wsDC::putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc )
 				{
 					if( b & 0x01 )
 					{
-						pushPixel(fc);
+						pushPixel(m_pScreen,fc);
 					}
 					else
 					{
-						pushPixel(bc);
+						pushPixel(m_pScreen,bc);
 					}
 					b >>= 1;
 					c--;
@@ -390,3 +396,18 @@ void wsDC::draw3DFrame( u16 xs, u16 ys, u16 xe, u16 ye, const wsColor *pColor )
    drawLine(xe-2, ys+2, xe-2, ye-3, *pColor);
 }
 
+
+void wsDC::driverRegister(void *pUnusedScreen, u8 type, void *driver)
+{
+	LOG("driverRegister(%d)",type);
+	assert(type < NUM_OPT_DRIVERS);
+	if (type < NUM_OPT_DRIVERS)
+		m_opt_driver[type] = driver;
+}
+
+
+void wsDC::driverRegisterStub(void *pThis, void *pUnusedScreen, u8 type, void *driver)
+{
+	assert(pThis);
+	((wsDC *)pThis)->driverRegister(pUnusedScreen,type,driver);
+}

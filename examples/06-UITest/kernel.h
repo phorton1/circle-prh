@@ -7,6 +7,10 @@
 #ifndef _kernel_h
 #define _kernel_h
 
+#define USE_USB         0
+#define USE_ALT_SCREEN	1
+
+
 #include <circle/memory.h>
 #include <circle/actled.h>
 #include <circle/koptions.h>
@@ -17,7 +21,19 @@
 #include <circle/timer.h>
 #include <circle/serial.h>
 #include <circle/logger.h>
-#include <circle/usb/dwhcidevice.h>
+
+#if USE_ALT_SCREEN
+	#include <devices/ili9486.h>
+	#include <devices/xpt2046.h>
+#else
+	#include <circle/input/touchscreen.h>
+#endif
+
+#if USE_USB
+	#include <circle/usb/dwhcidevice.h>
+#endif
+
+#include <ws/wsWindow.h>
 
 
 
@@ -51,7 +67,23 @@ private:
 	CTimer				m_Timer;
 	CSerialDevice		m_Serial;
 	CLogger				m_Logger;
-	CDWHCIDevice		m_DWHCI;
+	
+	#if USE_USB
+		CDWHCIDevice	m_DWHCI;
+	#endif
+	
+	#if USE_ALT_SCREEN
+		CSPIMaster	m_SPI;
+		ILI9846 	m_ili9486;
+		XPT2046 	m_xpt2046;
+	#else	
+		CTouchScreenDevice	m_TouchScreen;
+	#endif
+	
+	wsApplication 	m_app;
+	
+	void setupApp();
+	
 	
 };
 
