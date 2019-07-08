@@ -4,7 +4,7 @@
 
 CIRCLEHOME = ../../..
 
-OBJS = kernel.o main.o
+OBJS = kernel.o main.o app.o
 
 MAKE_LIBS = \
 	../../ws/libws.mark \

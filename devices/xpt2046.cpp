@@ -5,8 +5,8 @@
 #include <circle/logger.h>
 #include <circle/util.h>
 
-#define GENERATE_MOVE_EVENTS
-// #define PRINT_MOUSE_EVENTS
+// #define GENERATE_MOVE_EVENTS
+#define PRINT_MOUSE_EVENTS
 
 #define log_name "xpt2046"
 
@@ -95,11 +95,15 @@ void XPT2046::Update()
 	m_pSPI->Write(1,buf,1);
 
 	// my screen reliably sets z2 to zero if no presses
+	// MUNGED!  ... i's actually receiving different numbers now
 	
 	// if !GENERATE_MOVE_EVENTS we only report mouse up
 	// and down events, so we only check for changes in z state
 	
-	u16 z = transfer16(0x91) ? 1 : 0;		// X
+	u16 z = transfer16(0x91);	//  ? 1 : 0;		// X
+	// printf("starting z=%d,m_lastz=%d\n",z,m_lastz);
+	z = z<52000 ? 1 : 0;
+	
 	#ifdef GENERATE_MOVE_EVENTS
 		if (!z && !m_lastz)
 	#else
@@ -203,19 +207,30 @@ void XPT2046::Update()
 #ifdef GENERATE_MOVE_EVENTS
 	if (m_lastz != z || m_lastx != x || m_lasty != y)
 	{
+		printf("GENERATE_MOVE_EVENTS\n");
 #endif
 	
-		m_lastz = z;
-		m_lastx = x;
-		m_lasty = y;
-	
 		#ifdef PRINT_MOUSE_EVENTS
-			printf("touch down(%d,%d)\n",m_lastx,m_lasty);
+			printf("touch down(%d,%d)\n",x,y);
 		#endif
 		
 		if (m_pEventHandler)
-			m_pEventHandler(m_pThat,TouchScreenEventFingerDown,0,m_lastx,m_lasty);
-
+		{
+			m_pEventHandler(
+				m_pThat,
+#ifdef GENERATE_MOVE_EVENTS
+				z == m_lastz ? TouchScreenEventFingerMove :
+#endif
+				TouchScreenEventFingerDown,
+				0,x,y);
+		}
+		
+		printf("setting m_lastz=%d\n",z);
+		
+		m_lastz = z;
+		m_lastx = x;
+		m_lasty = y;
+				
 #ifdef GENERATE_MOVE_EVENTS
 	}
 #endif

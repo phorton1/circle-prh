@@ -14,6 +14,11 @@
 
 wsApplication::~wsApplication()
 {
+	m_pTopWindow = 0;
+	m_pBottomWindow = 0;
+	m_pScreen = 0;
+	m_pTouch  = 0;
+	m_pMouse  = 0;
 }
 
 wsApplication::wsApplication() :
@@ -23,13 +28,25 @@ wsApplication::wsApplication() :
     m_pMouse(0)
 {
 	LOG("ctor",0);
+	m_pTopWindow = 0;
+	m_pBottomWindow = 0;
 	m_lastTouchUpdate = 0;
+	m_pTouchFocus = 0;
 }
 	
+void wsApplication::addTopLevelWindow(wsTopLevelWindow *pWindow)
+{
+	if (m_pTopWindow)
+		pWindow->m_pNextWindow = m_pTopWindow;
+	else
+		m_pBottomWindow = pWindow;
+	m_pTopWindow = pWindow;
+}
+
 
 void wsApplication::Initialize(
-		 CScreenDeviceBase *pScreen,
-		 CTouchScreenBase  *pTouch,
+		CScreenDeviceBase *pScreen,
+		CTouchScreenBase  *pTouch,
 		CMouseDevice      *pMouse)
 {
 	LOG("Initialize(%08x,%08x,%08x)",(u32)pScreen,(u32)pTouch,(u32)pMouse);
@@ -54,6 +71,10 @@ void wsApplication::Initialize(
 		m_pMouse->ShowCursor(TRUE);		
 		m_pMouse->RegisterEventHandler(mouseEventStub,this);
 	}
+	
+	// Call the client's Create() method
+	
+	Create();
 }
 
 
@@ -75,8 +96,10 @@ void wsApplication::mouseEventHandler(
 	unsigned x,
 	unsigned y)
 {
-	LOG("mouse event(%d,%d,%d,%d)",
-		event,buttons,x,y);
+	// LOG("mouse event(%d,%d,%d,%d)",event,buttons,x,y);
+	if (event == MouseEventMouseDown ||
+		event == MouseEventMouseUp)
+		onTouchEvent(x,y,event == MouseEventMouseDown);
 }
 
 
@@ -97,8 +120,34 @@ void wsApplication::touchEventHandler(
 	unsigned x,
 	unsigned y)
 {
-	LOG("touch event(%d,%d,%d,%d)",
-		event,id,x,y);
+	// LOG("touch event(%d,%d,%d,%d)",event,id,x,y);
+	if (event == TouchScreenEventFingerDown ||
+		event==TouchScreenEventFingerUp)
+		onTouchEvent(x,y,event == TouchScreenEventFingerDown);
+}
+
+
+void wsApplication::onTouchEvent(
+	unsigned x,
+	unsigned y,
+	bool down)
+{
+	LOG("onTouchEvent(%d,%d,%d) m_pTouchFocus=%08x",x,y,down,(u32)m_pTouchFocus);
+	if (down)
+	{
+		if (m_pTopWindow)
+		{
+			m_pTopWindow->hitTest(x,y);
+		}
+	}
+	else if (m_pTouchFocus)
+	{
+		LOG("Clearing touch(%08x)",(u32)m_pTouchFocus);
+		m_pTouchFocus->m_state &= ~WIN_STATE_IS_TOUCHED;
+		m_pTouchFocus->m_state |= WIN_STATE_TOUCH_CHANGED;
+		m_pTouchFocus->update();
+		m_pTouchFocus = 0;
+	}
 }
 
 
@@ -118,5 +167,7 @@ void wsApplication::timeSlice()
 			m_pTouch->Update();
 			m_lastTouchUpdate = nTicks;
 		}
-	}	
+	}
+	
+	update();
 }

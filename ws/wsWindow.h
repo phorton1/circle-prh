@@ -37,7 +37,9 @@
 
 // forwards
 
+class wsRect;
 class wsObject;
+class wsApplication;
 
 // types
 
@@ -46,6 +48,9 @@ typedef u32 wsEventType;
 typedef u8  wsEventResult;
 typedef bool (*doToEachObjectFxn)(wsObject *obj);
 
+// debug extern
+
+extern void print_rect(const char *name, wsRect *rect);
 
 
 
@@ -99,8 +104,6 @@ public:
 	u16 ys;
 	u16 xe;
 	u16 ye;
-	
-	void print(const char *name);
 
 };
 
@@ -241,7 +244,20 @@ class wsObject
 		u16 getNumChildren()			{ return m_numChildren; }
 	
 		void deleteChild(wsObject *pObject);
-		void addChild(wsObject *pObject, wsObject *pAddBefore=0);
+		void addChild(wsObject *pObject, wsObject *pAddBefore=0)
+		{
+			if (m_pLastChild)
+			{
+				m_pLastChild->m_pNextSibling = pObject;
+				pObject->m_pPrevSibling = m_pLastChild;
+			}
+			else
+			{
+				m_pFirstChild = pObject;
+			}
+			m_pLastChild = pObject;
+			m_numChildren++;
+		}
 
 		wsObject *getNthChild(u16 i);
 		void doToEachChild(doToEachObjectFxn fxn);
@@ -299,34 +315,34 @@ class wsEventHandler : public wsObject
 // wsWindowBase
 //------------------------------------
 
-#define WIN_STYLE_2D                0x10000000
-#define WIN_STYLE_3D                0x20000000
-#define WIN_STYLE_POPUP             0x40000000
-#define WIN_STYLE_OWNER_DRAW		0x80000000
+#define WIN_STYLE_TRANSPARENT    	0x10000000
+#define WIN_STYLE_2D                0x20000000
+#define WIN_STYLE_3D                0x40000000
+#define WIN_STYLE_TOUCH   			0x80000000
 
-#define WIN_STYLE_MOUSE_OVER		0x01000000
-#define WIN_STYLE_TOUCH   			0x02000000
-#define WIN_STYLE_LONG_TOUCH   		0x04000000
+// #define WIN_STYLE_POPUP          	0x01000000
+// #define WIN_STYLE_OWNER_DRAW			0x02000000
+// #define WIN_STYLE_MOUSE_OVER			0x04000000
+// #define WIN_STYLE_LONG_TOUCH   		0x08000000
+// #define WIN_STYLE_DRAG   			0x00100000
+// #define WIN_STYLE_ZOOM   			0x00200000
+// #define WIN_STYLE_FLING   			0x00400000
+// #define WIN_STYLE_TRANSPARENT    	0x00600000
 
-#define WIN_STYLE_DRAG   			0x00100000
-#define WIN_STYLE_ZOOM   			0x00200000
-#define WIN_STYLE_FLING   			0x00400000
-
-#define WIN_STYLE_TRANSPARENT       0x00010000
 
 #define WIN_STATE_VISIBLE           0x00000001
-#define WIN_STATE_ENABLE            0x00000002
-#define WIN_STATE_UPDATE            0x00000004
-#define WIN_STATE_REDRAW            0x00000008
+#define WIN_STATE_REDRAW            0x00000002
+#define WIN_STATE_IS_TOUCHED		0x00000004
+#define WIN_STATE_TOUCH_CHANGED		0x00000008
 
-#define WIN_STATE_MOUSE_OVER        0x00000010
-#define WIN_STATE_HAS_FOCUS         0x00000020
-#define WIN_STATE_HAS_TOUCH_FOCUS   0x00000040
-
-#define WIN_STATE_IS_TOUCHED		0x00000100
-#define WIN_STATE_IS_DRAGGING		0x00000200
-#define WIN_STATE_IS_ZOOMING		0x00000400
-#define WIN_STATE_IS_FLINGING		0x00000800
+// #define WIN_STATE_ENABLE            	0x00000002
+// #define WIN_STATE_UPDATE            	0x00000004
+// #define WIN_STATE_MOUSE_OVER        	0x00000010
+// #define WIN_STATE_HAS_FOCUS         	0x00000020
+// #define WIN_STATE_HAS_TOUCH_FOCUS   	0x00000040
+// #define WIN_STATE_IS_DRAGGING		0x00000200
+// #define WIN_STATE_IS_ZOOMING			0x00000400
+// #define WIN_STATE_IS_FLINGING		0x00000800
 
 
 class wsWindowBase : public wsEventHandler
@@ -341,10 +357,10 @@ class wsWindowBase : public wsEventHandler
 		u32 getStyle() const	   	{ return m_style; };
 		void setStyle(u32 style)	{ m_style = style; };
 		
-		wsDC *getDC() const;
+		wsDC *getDC() const		{ return m_pDC; }
 		void setDC(wsDC *pDC)	{ m_pDC = pDC; }
 		
-		virtual void update() {}
+		virtual void update();
 		
 		u32 getState() const			{ return m_state; }
 		wsColor getForeColor() const	{ return m_fore_color; }
@@ -379,14 +395,15 @@ class wsWindowBase : public wsEventHandler
 		void  setText(const char *text);
 		void  setText(const CString &text);
 		
+	protected:
 		
-	public:	 // temporary for testing
+		friend class wsApplication;
+		friend class wsTopLevelWindow;
 		
 		virtual void draw();
 		virtual wsEventResult handleEvent(wsEvent *event) { return 0; };
+		virtual wsWindowBase *hitTest(unsigned x, unsigned y);
 
-	protected:
-		
 		wsDC *m_pDC;
 		
 		u16 m_id;
@@ -422,7 +439,6 @@ class wsWindow : public wsWindowBase
 };
 
 
-class wsApplication;
 
 class wsTopLevelWindow : public wsWindow
 {
@@ -435,9 +451,13 @@ class wsTopLevelWindow : public wsWindow
 		
 	protected:
 		
-		virtual wsEventResult handleEvent(wsEvent *event);
+		friend class wsApplication;
 		
-		s16 m_zorder;
+		virtual wsEventResult handleEvent(wsEvent *event);
+		virtual wsWindowBase *hitTest(unsigned x, unsigned y);
+		
+		wsTopLevelWindow *m_pPrevWindow;
+		wsTopLevelWindow *m_pNextWindow;
 		
 };
 
@@ -484,18 +504,17 @@ class wsStaticText : public wsControl
 // wsButton
 //---------------------------
 
-#define BTN_STATE_RELEASED                            (0<<0)
-#define BTN_STATE_PRESSED                             (1<<0)
+#define BTN_STATE_RELEASED                            0x0000
+#define BTN_STATE_PRESSED                             0x0001
 
 #define BTN_STYLE_2D                                  0x0001
 #define BTN_STYLE_3D                                  0x0002
 #define BTN_STYLE_TOGGLE_COLORS                       0x0004
 #define BTN_STYLE_USE_ALTERNATE_COLORS                0x0008
 #define BTN_STYLE_NO_FILL                             0x0010
-#define BTN_STYLE_ALWAYS_REDRAW                       0x0020
+#define BTN_STYLE_TOGGLE_VALUE                        0x0020
 
-
-#define BTN_EVENT_CLICKED                             OBJ_EVENT_CLICKED
+// #define BTN_STYLE_ALWAYS_REDRAW                    0x1000
 
 
 class wsButton : public wsControl
@@ -506,8 +525,9 @@ class wsButton : public wsControl
 		
 		wsButton(wsWindowBase *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye, u16 bstyle=0) :
 			wsControl(pParent,id,xs,ys,xe,ye,
+				WIN_STYLE_TOUCH | (
 				(bstyle & BTN_STYLE_2D) ? WIN_STYLE_2D :
-				(bstyle & BTN_STYLE_3D) ? WIN_STYLE_3D : 0)
+				(bstyle & BTN_STYLE_3D) ? WIN_STYLE_3D : 0))
 		{
 			m_button_state = 0;
 			m_button_style = bstyle;
@@ -515,10 +535,10 @@ class wsButton : public wsControl
 			m_back_color = defaultButtonReleasedColor;
 			m_alt_back_color = defaultButtonPressedColor;
 			m_alt_fore_color = m_fore_color;
-			
 			if (text)
 				setText(text);
 		}
+ 
 		bool isPressed()  { return m_button_state & BTN_STATE_PRESSED; }
 		void setAltBackColor(wsColor color)  {m_alt_back_color = color;}
 		void setAltForeColor(wsColor color)  {m_alt_fore_color = color;}
@@ -531,6 +551,7 @@ class wsButton : public wsControl
 		wsColor m_alt_fore_color;
 		
 		virtual void draw();
+		virtual void update();
 		
 };	// wsButton
 
@@ -540,16 +561,17 @@ class wsButton : public wsControl
 // wsCheckbox
 //---------------------------
 
-#define CHB_STATE_RELEASED                            (0<<0)
-#define CHB_STATE_PRESSED                             (1<<0)
-#define CHB_STATE_CHECKED                             (1<<1)
+#define CHB_STATE_RELEASED                            0x0000
+#define CHB_STATE_PRESSED                             0x0001
+#define CHB_STATE_CHECKED                             0x0002
 
 #define CHB_STYLE_2D                                  0x0001
 #define CHB_STYLE_3D                                  0x0002
 #define CHB_STYLE_TOGGLE_COLORS                       0x0004
 #define CHB_STYLE_USE_ALTERNATE_COLORS                0x0008
 #define CHB_STYLE_NO_FILL                             0x0010
-#define CHB_STYLE_ALWAYS_REDRAW                       0x0020
+
+// #define CHB_STYLE_ALWAYS_REDRAW                       0x0020
 
 
 class wsCheckbox : public wsControl
@@ -559,8 +581,9 @@ class wsCheckbox : public wsControl
 		~wsCheckbox() {}
 		wsCheckbox(wsWindowBase *pParent, u16 id, u8 checked, u16 xs, u16 ys, u16 xe, u16 ye, u16 cstyle=0) :
 			wsControl(pParent,id,xs,ys,xe,ye,
+  				WIN_STYLE_TOUCH | (
 				(cstyle & CHB_STYLE_2D) ? WIN_STYLE_2D :
-				(cstyle & CHB_STYLE_3D) ? WIN_STYLE_3D : 0)
+				(cstyle & CHB_STYLE_3D) ? WIN_STYLE_3D : 0))
 		{
 			m_checkbox_style = cstyle;
 			m_checkbox_state = checked ? CHB_STATE_CHECKED : 0;
@@ -569,7 +592,6 @@ class wsCheckbox : public wsControl
 			m_back_color = defaultButtonReleasedColor;
 			m_alt_back_color = defaultButtonPressedColor;
 			m_alt_fore_color = m_fore_color;
-			setText("testing");
 		}
 		
 		bool isChecked()  { return m_checkbox_state & CHB_STATE_CHECKED; }
@@ -592,7 +614,8 @@ class wsCheckbox : public wsControl
 		wsColor m_alt_fore_color;
 		
 		virtual void draw();
-		
+		virtual void update();
+
 };	// wsCheckbox
 
 
@@ -622,16 +645,37 @@ class wsApplication : public wsWindowBase
 		
 		~wsApplication();
 		wsApplication();
+
+		// You must call Initialize and provide a Create() method.
+		// The Create() method will be called to allow you to create
+		// the initial set of windows and controls, thereafter you
+		// need only call timeSlice() in a loop.
 		
 		void Initialize(
 			CScreenDeviceBase *pScreen,
 			CTouchScreenBase  *pTouch,
 			CMouseDevice      *pMouse);
 		
+		void Create();
+			// You must provide wsApplication::Create()
+			
 		void timeSlice();
-			// to prevent confusion with windows' update() functions
+			// it's called timeSlice() to prevent confusion
+			// with the wsWindows::update() functions. 
+
+		// public to wsWindows
+		// not intended for client use
+		
+		void setTouchFocus(wsWindowBase *win) {m_pTouchFocus = win;}
+			// the wsWindowBase, if any, currently being pressed
+		void addTopLevelWindow(wsTopLevelWindow *pWindow);
 		
 	private:
+		
+		wsWindowBase     *m_pTouchFocus;
+		
+		wsTopLevelWindow *m_pBottomWindow;
+		wsTopLevelWindow *m_pTopWindow;
 		
 		CScreenDeviceBase *m_pScreen;
 		CTouchScreenBase  *m_pTouch;
@@ -661,10 +705,14 @@ class wsApplication : public wsWindowBase
 			unsigned x,
 			unsigned y);
 		
+		void onTouchEvent(
+			unsigned x,
+			unsigned y,
+			bool down);
+		
 		u32 m_lastTouchUpdate;
 		
 };
-
 
 
 #endif  // !_wsWindow_h

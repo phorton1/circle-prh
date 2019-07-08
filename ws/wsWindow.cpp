@@ -6,35 +6,19 @@
 
 #include "wsWindow.h"
 #include <circle/logger.h>
+#include <circle/timer.h>
 #define log_name  "ws"
 
+#define delay(ms)   CTimer::Get()->MsDelay(ms)
 
 //----------------------------------------------
 // rectangle and object functions
 //----------------------------------------------
 
-void wsRect::print(const char *name)
+void print_rect(const char *name,wsRect *rect)
 {
-	printf("%s(%d,%d,%d,%d)\n",name,xs,ys,xe,ye);
+	LOG("%s(%d,%d,%d,%d)",name,rect->xs,rect->ys,rect->xe,rect->ye);
 }
-
-
-void wsObject::addChild(wsObject *object, wsObject *pAddBefore /* =0 */)
-{
-	if (m_pLastChild)
-	{
-		m_pLastChild->m_pNextSibling = object;
-		object->m_pPrevSibling = m_pLastChild;
-	}
-	else
-	{
-		m_pFirstChild = object;
-	}
-	m_pLastChild = object;
-	m_numChildren++;
-}
-
-
 
 
 //----------------------------------------------
@@ -58,10 +42,10 @@ wsWindowBase::wsWindowBase(
 	m_rect_virt(0,0,xe-xs,ye-ys),
 	m_rect_vis(0,0,xe-xs,ye-ys)
 {
-	LOG("wsWindowBase(0x%08x,%d, %d,%d,%d,%d, 0x%08x)",(u32) this, id,xs,ys,xe,ye,style);
+	// LOG("wsWindowBase(0x%08x,%d, %d,%d,%d,%d, 0x%08x)",(u32) this, id,xs,ys,xe,ye,style);
 	
 	m_pDC = 0;
-	m_state = 0;
+	m_state = WIN_STATE_VISIBLE | WIN_STATE_REDRAW;
 	m_pFont = 0;
 	
 	if (pParent)
@@ -74,7 +58,7 @@ wsWindowBase::wsWindowBase(
 		
 		m_rect_abs.makeRelative(pParent->getClentRect());
 		m_rect_client.makeRelative(pParent->getClentRect());
-		m_rect_abs.print("m_rect_abs");
+		// print_rect("m_rect_abs",&m_rect_abs);
 		
 		if (m_style & WIN_STYLE_2D)
 		{
@@ -90,7 +74,7 @@ wsWindowBase::wsWindowBase(
 			m_rect_client.xe -= 3;
 			m_rect_client.ye -= 3;
 		}
-		m_rect_client.print("m_rect_client");
+		// print_rect("m_rect_client",&m_rect_client);
 		pParent->addChild(this);
 	}
 	else
@@ -102,16 +86,7 @@ wsWindowBase::wsWindowBase(
 }
 
 
-wsDC *wsWindowBase::getDC() const
-{
-	// m_pDC->setFont(m_pFont);
-	// m_pDC->setForeColor(m_fore_color);
-	// m_pDC->setBackColor(m_back_color);
-	return m_pDC;
-}
 
-
-// virtual
 void wsWindowBase::draw()
 {
 	// draw self
@@ -119,7 +94,7 @@ void wsWindowBase::draw()
 	wsDC *pDC = getDC();
 	if (m_style & WIN_STYLE_2D)
 	{
-		m_rect_abs.print("2d frame");
+		// print_rect("2d frame",&m_rect_abs);
 		pDC->drawFrame(
 			m_rect_abs.xs,
 			m_rect_abs.ys,
@@ -129,7 +104,7 @@ void wsWindowBase::draw()
 	}
 	else if (m_style & WIN_STYLE_3D)
 	{
-		m_rect_abs.print("3d frame");
+		// print_rect("3d frame",&m_rect_abs);
 		pDC->draw3DFrame(
 			m_rect_abs.xs,
 			m_rect_abs.ys,
@@ -140,7 +115,7 @@ void wsWindowBase::draw()
 	
 	if (!(m_style & WIN_STYLE_TRANSPARENT))
 	{
-		m_rect_abs.print("fill client");
+		// print_rect("fill client",&m_rect_abs);
 		pDC->fillFrame(
 			m_rect_client.xs,
 			m_rect_client.ys,
@@ -148,28 +123,19 @@ void wsWindowBase::draw()
 			m_rect_client.ye,
 			m_back_color);
 	}
-	
-	// draw children
-	
-	for (wsWindowBase *p = (wsWindowBase *) getFirstChild(); p; p = (wsWindowBase *) p->getNextSibling())
-	{
-		p->draw();
-	}
 }
 
 
 void wsWindowBase::setText(const char *text)
 {
-	printf("setText(const char *\"%s\")\n",text);
 	m_text = text;	
-	printf("result=\"%s\"\n",(const char *)m_text);
 }
+
 void wsWindowBase::setText(const CString &text)
 {
-	printf("setText(const CString *\"%s\")\n",(const char *)text);
 	m_text = text;
-	printf("result=\"%s\"\n",(const char *)m_text);
 }
+
 
 void wsWindowBase::resize(u16 xs, u16 ys, u16 xe, u16 ye )
 	// currently only resizes this window
@@ -185,6 +151,56 @@ void wsWindowBase::resize(u16 xs, u16 ys, u16 xe, u16 ye )
 }
 
 
+void wsWindowBase::update()
+{
+	// update self
+	
+	if ((m_state & WIN_STATE_VISIBLE) &&
+		(m_state & WIN_STATE_REDRAW))
+	{
+		draw();
+		m_state &= ~WIN_STATE_REDRAW;
+	}
+	
+	// update children
+	
+	for (wsWindowBase *p = (wsWindowBase *) getFirstChild(); p; p = (wsWindowBase *) p->getNextSibling())
+	{
+		p->update();
+	}
+}
+
+
+wsWindowBase* wsWindowBase::hitTest(unsigned x, unsigned y)
+{
+	if ((m_style & WIN_STYLE_TOUCH) &&
+		(m_state & WIN_STATE_VISIBLE) &&
+		(x >= m_rect_abs.xs) &&
+		(x <= m_rect_abs.xe) &&
+		(y >= m_rect_abs.ys) &&
+		(y <= m_rect_abs.ye))
+	{
+		m_state |= WIN_STATE_IS_TOUCHED | WIN_STATE_TOUCH_CHANGED;
+		LOG("wsWindowBase::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
+		return this;
+	}
+	for (wsWindowBase *p = (wsWindowBase *) getFirstChild(); p; p = (wsWindowBase *) p->getNextSibling())
+	{
+		wsWindowBase *found = p->hitTest(x,y);
+		if (found)
+		{
+			// LOG("wsWindowBase::hitTest(%d,%d) returning 0x%08x",x,y,(u32)found);
+			return found;
+		}
+	}
+	return 0;
+}
+
+
+
+//-------------------------------------------------------
+// top level windows
+//-------------------------------------------------------
 
 wsWindow::wsWindow(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style) :
 	wsWindowBase(pParent,id,xs,ys,xe,ye,style)
@@ -196,7 +212,9 @@ wsWindow::wsWindow(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye
 wsTopLevelWindow::wsTopLevelWindow(wsApplication *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style) :
 	wsWindow(pParent,id,xs,ys,xe,ye,style)
 {
-	m_zorder = 0;
+	m_pPrevWindow = 0;
+	m_pNextWindow = 0;
+	pParent->addTopLevelWindow(this);
 }
 
 
@@ -205,9 +223,32 @@ wsEventResult wsTopLevelWindow::handleEvent(wsEvent *event)
 	return 0;
 }
 
+wsWindowBase* wsTopLevelWindow::hitTest(unsigned x, unsigned y)
+{
+	wsWindowBase *found = 0;
+	wsWindowBase *p = (wsWindowBase *) getFirstChild();
+	while (p)
+	{
+		found = p->hitTest(x,y);
+		if (found)
+			p = 0;
+		else
+			p = (wsWindowBase *) p->getNextSibling();
+	}
+	// printf("wsTopLevelWindow::hitTest() found=%08x\n",found);
+	if (found)
+	{
+		// printf("wsTopLevelWindow::setTouchFocus(%08x)\n",found);
+		((wsApplication *)m_pParent)->setTouchFocus(found);
+	}
+	return found;
+}
 
 
 
+//-------------------------------------------------------
+// wsStaticText
+//-------------------------------------------------------
 
 void wsStaticText::draw()
 {
@@ -231,13 +272,71 @@ void wsStaticText::draw()
 
 
 
+//-------------------------------------------------------
+// wsButton
+//-------------------------------------------------------
+
+void wsButton::update()
+{
+	if (m_state & WIN_STATE_TOUCH_CHANGED)
+	{
+		// LOG("wsButton(%08x) TOUCH_CHANGED IS_TOUCH=%d",
+		// 	(u32)this,m_state & WIN_STATE_IS_TOUCHED ? 1 : 0);
+		
+		m_state &= ~WIN_STATE_TOUCH_CHANGED;
+		if (m_button_style & BTN_STYLE_TOGGLE_VALUE)
+		{
+			if (m_state & WIN_STATE_IS_TOUCHED)
+			{
+				if (m_button_state & BTN_STATE_PRESSED)
+				{
+					// printf("toggle button up\n");
+					m_button_state &= ~BTN_STATE_PRESSED;
+				}
+				else
+				{
+					// printf("toggle button down\n");
+					m_button_state |= BTN_STATE_PRESSED;
+				}
+			}
+		}
+		else if (m_state & WIN_STATE_IS_TOUCHED)
+		{
+			// printf("button down\n");
+			m_button_state |= BTN_STATE_PRESSED;
+		}
+		else
+		{
+			// printf("button up\n");
+			m_button_state &= ~BTN_STATE_PRESSED;
+		}
+		m_state |= WIN_STATE_REDRAW;
+	}
+	if (m_state & WIN_STATE_REDRAW)
+	{
+		draw();
+		m_state &= ~WIN_STATE_REDRAW;
+	}
+}
+
+
 void wsButton::draw()
 {
 	wsDC *pDC = getDC();
 	wsColor bc = m_back_color;
 	wsColor fc = m_fore_color;
 	
-    if (m_button_state & BTN_STATE_PRESSED)
+	// LOG("wsButton(%08x)::draw() m_button_style(0x%04x) m_state(0x%08x) m_button_state(0x%04x)",
+	// 	   (u32) this,
+	// 	   m_button_style,
+	// 	   m_state,
+	// 	   m_button_state);
+	
+	bool pressed =
+		m_state & WIN_STATE_IS_TOUCHED ||
+		m_button_state & BTN_STATE_PRESSED;
+		
+    if (pressed)
     {
 		if (m_button_style & BTN_STYLE_TOGGLE_COLORS)
 		{
@@ -270,14 +369,16 @@ void wsButton::draw()
 		getText());
 
 	if ( m_button_style & BTN_STYLE_3D )
-	{  
-	   pDC->draw3DFrame(
+	{
+		// LOG("draw3dframe() pressed=%d",m_button_state & BTN_STATE_PRESSED ? 1 : 0);
+	    pDC->draw3DFrame(
 			m_rect_abs.xs,
 			m_rect_abs.ys,
 			m_rect_abs.xe,
 			m_rect_abs.ye,
-			(m_button_state & BTN_STATE_PRESSED) ?
-			buttonPressedFrameColors : buttonReleasedFrameColors);
+			pressed ?
+				buttonPressedFrameColors :
+				buttonReleasedFrameColors);
 	}
 	else if ( m_button_style & BTN_STYLE_2D )
 	{
@@ -286,11 +387,52 @@ void wsButton::draw()
 			m_rect_abs.ys,
 			m_rect_abs.xe,
 			m_rect_abs.ye,
-			(m_button_state & BTN_STATE_PRESSED) ?
-				m_alt_back_color : m_alt_fore_color);
+			pressed ? 
+				m_alt_back_color :
+				m_alt_fore_color);
 	}
 }
 
+
+//-------------------------------------------------------
+// wsCheckbox
+//-------------------------------------------------------
+
+
+void wsCheckbox::update()
+{
+	if (m_state & WIN_STATE_TOUCH_CHANGED)
+	{
+		// LOG("wsCheckbox(%08x) TOUCH_CHANGED IS_TOUCH=%d",
+		// 	(u32)this,m_state & WIN_STATE_IS_TOUCHED ? 1 : 0);
+		
+		m_state &= ~WIN_STATE_TOUCH_CHANGED;
+		if (m_state & WIN_STATE_IS_TOUCHED)
+		{
+			m_checkbox_state |= CHB_STATE_PRESSED;
+			if (m_checkbox_state & CHB_STATE_CHECKED)
+			{
+				// printf("uncheck box\n");
+				m_checkbox_state &= ~CHB_STATE_CHECKED;
+			}
+			else
+			{
+				// printf("check the box\n");
+				m_checkbox_state |= CHB_STATE_CHECKED;
+			}
+		}
+		else
+		{
+			m_checkbox_state &= ~CHB_STATE_PRESSED;
+		}
+		m_state |= WIN_STATE_REDRAW;
+	}
+	if (m_state & WIN_STATE_REDRAW)
+	{
+		draw();
+		m_state &= ~WIN_STATE_REDRAW;
+	}
+}
 
 
 #define CHECKBOX_SIZE   20

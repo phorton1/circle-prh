@@ -82,9 +82,6 @@ private:
 	
 	wsApplication 	m_app;
 	
-	void setupApp();
-	
-	
 };
 
 
