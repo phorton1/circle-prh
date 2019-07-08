@@ -34,23 +34,23 @@
 #define ALIGN_TOP_CENTER                              (ALIGN_V_TOP|ALIGN_H_CENTER)
 #define ALIGN_TOP_LEFT                                (ALIGN_V_TOP|ALIGN_H_LEFT)
 
-
 // forwards
 
 class wsRect;
+class wsEvent;
+class wsWindow;
 class wsApplication;
 
 // types
 
 typedef u8 		wsAlignType;
-typedef u32 	wsEventType;
-typedef u32  	wsEventResult;
 
-// debug extern
+
+//------------------------------------
+// wsRect
+//------------------------------------
 
 extern void print_rect(const char *name, wsRect *rect);
-
-
 
 class wsRect
 {
@@ -209,20 +209,6 @@ class wsDC
 
 
 
-//------------------------------------
-// wsEvent 
-//------------------------------------
-
-class wsEvent
-{
-	public:
-	
-		wsEvent();
-		~wsEvent();
-		
-};	// wsEvent
-
-
 
 //------------------------------------
 // wsEventHandler
@@ -235,7 +221,7 @@ class wsEventHandler
 		wsEventHandler() {}
 		~wsEventHandler() {}
 		
-		virtual wsEventResult handleEvent(wsEvent *event) { return 0; };
+		virtual u32 handleEvent(wsEvent *event) { return 0; };
 	
 	private:
 		
@@ -247,10 +233,14 @@ class wsEventHandler
 // wsWindow
 //------------------------------------
 
-#define WIN_STYLE_TRANSPARENT    	0x10000000
+#define WIN_STYLE_APPLICATION       0x80000000
+#define WIN_STYLE_TOP_LEVEL         0x40000000
+
 #define WIN_STYLE_2D                0x20000000
-#define WIN_STYLE_3D                0x40000000
-#define WIN_STYLE_TOUCH   			0x80000000
+#define WIN_STYLE_3D                0x10000000
+#define WIN_STYLE_TRANSPARENT    	0x08000000
+
+#define WIN_STYLE_TOUCH   			0x04000000
 
 // #define WIN_STYLE_POPUP          	0x01000000
 // #define WIN_STYLE_OWNER_DRAW			0x02000000
@@ -325,10 +315,13 @@ class wsWindow : public wsEventHandler
 		wsWindow *getNextSibling()  { return m_pNextSibling;  }
 		wsWindow *getFirstChild()   { return m_pFirstChild;   }
 		wsWindow *getLastChild()    { return m_pLastChild;    }
-
+		
 		void addChild(wsWindow *pWin);
 		void deleteChild(wsWindow *pWin);
 		u16 getNumChildren()		{ return m_numChildren; }
+
+		wsApplication *getApplication();
+		wsWindow *findChildByID(u16 id);
 		
 	protected:
 		
@@ -391,7 +384,6 @@ class wsTopLevelWindow : public wsWindow
 		
 		friend class wsApplication;
 		
-		virtual wsEventResult handleEvent(wsEvent *event);
 		virtual wsWindow *hitTest(unsigned x, unsigned y);
 		
 		wsTopLevelWindow *m_pPrevWindow;
@@ -477,7 +469,7 @@ class wsButton : public wsControl
 				setText(text);
 		}
  
-		bool isPressed()  { return m_button_state & BTN_STATE_PRESSED; }
+		bool isPressed() const { return m_button_state & BTN_STATE_PRESSED; }
 		void setAltBackColor(wsColor color)  {m_alt_back_color = color;}
 		void setAltForeColor(wsColor color)  {m_alt_fore_color = color;}
 
@@ -539,6 +531,7 @@ class wsCheckbox : public wsControl
 				m_checkbox_state |= CHB_STATE_CHECKED;
 			else
 				m_checkbox_state &= ~CHB_STATE_CHECKED;
+			m_state |= WIN_STATE_REDRAW;
 		}
 		
 		void setAltBackColor(wsColor color)  {m_alt_back_color = color;}
@@ -569,6 +562,50 @@ class wsImage : public wsControl
 		wsImage(wsWindow *pParent, u16 id, u8 value, u16 x, u16 y, u16 xe, u16 ye, u32 style=0);
 		~wsImage() {}
 };
+
+
+
+//------------------------------------
+// wsEvent 
+//------------------------------------
+
+#define EVT_TYPE_BUTTON    0x00000001
+#define EVT_TYPE_CHECKBOX  0x00000002
+
+#define BTN_EVENT_PRESSED    	 0x00000001
+#define CHB_EVENT_VALUE_CHANGED  0x00000001
+
+class wsEvent
+{
+	public:
+	
+		wsEvent(u32 type, u32 id, wsWindow *obj) :
+			m_type(type),
+			m_id(id),
+			m_obj(obj)
+		{
+			m_pNext = 0;
+			m_pPrev = 0;
+		}
+
+		~wsEvent() {}
+		
+		u32 getEventType() const		{ return m_type; }
+		u32 getEventID() const			{ return m_id; }
+		u16 getID() const 			    { return m_obj->getID(); }
+		wsWindow *getObject() const		{ return m_obj; }
+
+	private:
+		friend class wsApplication;
+		
+		u32 m_type;
+		u32 m_id;
+		wsWindow *m_obj;
+		
+		wsEvent *m_pNext;
+		wsEvent *m_pPrev;
+		
+};	// wsEvent
 
 
 
@@ -608,7 +645,12 @@ class wsApplication : public wsWindow
 			// the wsWindow, if any, currently being pressed
 		void addTopLevelWindow(wsTopLevelWindow *pWindow);
 		
+		void addEvent(wsEvent *event);
+		
 	private:
+		
+		wsEvent *m_pFirstEvent;
+		wsEvent *m_pLastEvent;
 		
 		wsWindow *m_pTouchFocus;
 		

@@ -22,7 +22,9 @@ wsApplication::~wsApplication()
 }
 
 wsApplication::wsApplication() :
-	wsWindow(0,0, 0,0,10,10,WIN_STYLE_TRANSPARENT),
+	wsWindow(0,0, 0,0,10,10,
+		WIN_STYLE_APPLICATION |
+		WIN_STYLE_TRANSPARENT),
 	m_pScreen(0),
     m_pTouch(0),
     m_pMouse(0)
@@ -32,7 +34,20 @@ wsApplication::wsApplication() :
 	m_pBottomWindow = 0;
 	m_lastTouchUpdate = 0;
 	m_pTouchFocus = 0;
+	m_pFirstEvent = 0;
+	m_pLastEvent = 0;
 }
+
+
+void wsApplication::addEvent(wsEvent *event)
+{
+	if (m_pLastEvent)
+		event->m_pNext = m_pLastEvent;
+	else
+		m_pFirstEvent = event;
+	m_pLastEvent = event;
+}
+
 	
 void wsApplication::addTopLevelWindow(wsTopLevelWindow *pWindow)
 {
@@ -168,5 +183,28 @@ void wsApplication::timeSlice()
 		}
 	}
 	
+	// call the entire tree of window oject update methods
+	
 	update();
+	
+	// dispatch any pending events to the top level window
+	
+	if (m_pFirstEvent && m_pTopWindow)
+	{
+		wsEvent *event = m_pFirstEvent;
+		if (event->m_pNext)
+		{
+			m_pFirstEvent = event->m_pNext;
+			m_pFirstEvent->m_pPrev = 0;
+		}
+		else
+		{
+			m_pFirstEvent = 0;
+			m_pLastEvent = 0;
+		}
+		
+		m_pTopWindow->handleEvent(event);
+		delete event;
+	}
+	
 }

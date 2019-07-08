@@ -91,6 +91,18 @@ wsWindow::wsWindow(
 	}
 }
 
+wsApplication *wsWindow::getApplication()
+{
+	wsWindow *p = this;
+	while (p && !(p->m_style & WIN_STYLE_APPLICATION))
+		p = p->m_pParent;
+	if (!p)
+	{
+		LOG_ERROR("win(%08x) could not find application!",(u32)this);
+	}
+	return (wsApplication *) p;
+}
+
 
 void wsWindow::addChild(wsWindow *pWin)
 {
@@ -108,6 +120,18 @@ void wsWindow::addChild(wsWindow *pWin)
 }
 
 
+wsWindow *wsWindow::findChildByID(u16 id)
+{
+	if (id == m_id)
+		return this;
+	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
+	{
+		wsWindow *found = p->findChildByID(id);
+		if (found)
+			return found;
+	}
+	return 0;
+}
 
 
 void wsWindow::draw()
@@ -151,12 +175,14 @@ void wsWindow::draw()
 
 void wsWindow::setText(const char *text)
 {
-	m_text = text;	
+	m_text = text;
+	m_state |= WIN_STATE_REDRAW;
 }
+
 
 void wsWindow::setText(const CString &text)
 {
-	m_text = text;
+	setText((const char *)text);
 }
 
 
@@ -227,18 +253,13 @@ wsWindow* wsWindow::hitTest(unsigned x, unsigned y)
 
 
 wsTopLevelWindow::wsTopLevelWindow(wsApplication *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style) :
-	wsWindow(pParent,id,xs,ys,xe,ye,style)
+	wsWindow(pParent,id,xs,ys,xe,ye,style | WIN_STYLE_TOP_LEVEL)
 {
 	m_pPrevWindow = 0;
 	m_pNextWindow = 0;
 	pParent->addTopLevelWindow(this);
 }
 
-
-wsEventResult wsTopLevelWindow::handleEvent(wsEvent *event)
-{
-	return 0;
-}
 
 wsWindow* wsTopLevelWindow::hitTest(unsigned x, unsigned y)
 {
@@ -327,6 +348,17 @@ void wsButton::update()
 			// printf("button up\n");
 			m_button_state &= ~BTN_STATE_PRESSED;
 		}
+		
+		// generate the event on the touch up
+		
+		if (!(m_state & WIN_STATE_IS_TOUCHED))
+		{
+			getApplication()->addEvent(new wsEvent(
+				EVT_TYPE_BUTTON,
+				BTN_EVENT_PRESSED,
+				this ));
+		}
+		
 		m_state |= WIN_STATE_REDRAW;
 	}
 	if (m_state & WIN_STATE_REDRAW)
@@ -441,7 +473,15 @@ void wsCheckbox::update()
 		else
 		{
 			m_checkbox_state &= ~CHB_STATE_PRESSED;
+		
+			// generate the event on the touch up
+			
+			getApplication()->addEvent(new wsEvent(
+				EVT_TYPE_CHECKBOX,
+				CHB_EVENT_VALUE_CHANGED,
+				this ));
 		}
+		
 		m_state |= WIN_STATE_REDRAW;
 	}
 	if (m_state & WIN_STATE_REDRAW)
@@ -458,9 +498,21 @@ void wsCheckbox::update()
 
 
 void wsCheckbox::draw()
-	// justification needs some work
-	// - horzontal and vertical centering
-	// - switch box and text for right justified
+	// I don't really like having text associated with checkboxes
+	//
+	// It is not clear how to lay it out, and the hit test area
+	// is not obvious to the user.  It seems that for right
+	// justification the text should come befor the box.
+	// What about vertical justifications.
+	// Thus munging justification with layout direction.
+	//
+	// A better encapsulation would be to have a wsCheckBoxWithText
+	// object that has a separate static text object with well
+	// defined layout semantics.
+	//
+	// As it stands right now, if you call setText() on the object
+	// on each CHB_EVENT_VALUE_CHANGED event, the text toggles on
+	// and off with the checkbox, so you can only see the "on" text.
 {
 	wsDC *pDC = getDC();
 	wsColor bc = m_back_color;
