@@ -14,7 +14,7 @@ static const char log_name[] = "kernel";
 
 
 CKernel::CKernel(void) :
-	m_Screen(800,480),		// 1440, 768),	// 800, 480),
+	m_Screen(1440, 768),		// 1440, 768),	// 800, 480),
 	m_Timer(&m_Interrupt),
 	m_Serial(&m_Interrupt, TRUE),
 	m_Logger(LogDebug,&m_Timer)
@@ -89,7 +89,7 @@ TShutdownMode CKernel::Run(void)
 	while (1)
 	{
 		m_app.timeSlice();
-		CTimer::Get()->MsDelay(1);
+		// CTimer::Get()->MsDelay(1);
 	}
 
 	return ShutdownHalt;

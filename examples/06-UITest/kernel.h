@@ -7,8 +7,8 @@
 #ifndef _kernel_h
 #define _kernel_h
 
-#define USE_USB         0
-#define USE_ALT_SCREEN	1
+#define USE_USB         1
+#define USE_ALT_SCREEN	0
 
 
 #include <circle/memory.h>

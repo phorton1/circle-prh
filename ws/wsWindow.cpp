@@ -181,7 +181,7 @@ wsWindowBase* wsWindowBase::hitTest(unsigned x, unsigned y)
 		(y <= m_rect_abs.ye))
 	{
 		m_state |= WIN_STATE_IS_TOUCHED | WIN_STATE_TOUCH_CHANGED;
-		LOG("wsWindowBase::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
+		// LOG("wsWindowBase::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
 		return this;
 	}
 	for (wsWindowBase *p = (wsWindowBase *) getFirstChild(); p; p = (wsWindowBase *) p->getNextSibling())

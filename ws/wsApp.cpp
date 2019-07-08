@@ -132,7 +132,7 @@ void wsApplication::onTouchEvent(
 	unsigned y,
 	bool down)
 {
-	LOG("onTouchEvent(%d,%d,%d) m_pTouchFocus=%08x",x,y,down,(u32)m_pTouchFocus);
+	// LOG("onTouchEvent(%d,%d,%d) m_pTouchFocus=%08x",x,y,down,(u32)m_pTouchFocus);
 	if (down)
 	{
 		if (m_pTopWindow)
@@ -142,7 +142,7 @@ void wsApplication::onTouchEvent(
 	}
 	else if (m_pTouchFocus)
 	{
-		LOG("Clearing touch(%08x)",(u32)m_pTouchFocus);
+		// LOG("Clearing touch(%08x)",(u32)m_pTouchFocus);
 		m_pTouchFocus->m_state &= ~WIN_STATE_IS_TOUCHED;
 		m_pTouchFocus->m_state |= WIN_STATE_TOUCH_CHANGED;
 		m_pTouchFocus->update();
@@ -161,11 +161,10 @@ void wsApplication::timeSlice()
 	
 	if (m_pTouch)
 	{
-		unsigned nTicks = CTimer::Get()->GetClockTicks();
-		if (nTicks - m_lastTouchUpdate >= CLOCKHZ / 60)
+		if (CTimer::Get()->GetClockTicks() > m_lastTouchUpdate + CLOCKHZ/10)		// 60
 		{
 			m_pTouch->Update();
-			m_lastTouchUpdate = nTicks;
+			m_lastTouchUpdate = CTimer::Get()->GetClockTicks();
 		}
 	}
 	

@@ -6,7 +6,7 @@
 #include <circle/util.h>
 
 // #define GENERATE_MOVE_EVENTS
-#define PRINT_MOUSE_EVENTS
+// #define PRINT_MOUSE_EVENTS
 
 #define log_name "xpt2046"
 
@@ -94,15 +94,12 @@ void XPT2046::Update()
 	m_pSPI->SetClock(SPI_FREQ);		
 	m_pSPI->Write(1,buf,1);
 
-	// my screen reliably sets z2 to zero if no presses
-	// MUNGED!  ... i's actually receiving different numbers now
-	
 	// if !GENERATE_MOVE_EVENTS we only report mouse up
-	// and down events, so we only check for changes in z state
+	// and down events, so we only report changes in z state
 	
-	u16 z = transfer16(0x91);	//  ? 1 : 0;		// X
-	// printf("starting z=%d,m_lastz=%d\n",z,m_lastz);
-	z = z<52000 ? 1 : 0;
+	s16 rawz = transfer16(0x91);	//  ? 1 : 0;	// X
+	// printf("starting rawz=%d,m_lastz=%d\n",rawz,m_lastz);
+	s16 z = rawz>0 ? 1 : 0;
 	
 	#ifdef GENERATE_MOVE_EVENTS
 		if (!z && !m_lastz)
@@ -116,7 +113,7 @@ void XPT2046::Update()
 	
 	if (z)	// (z >= Z_THRESHOLD)
 	{
-		transfer16(0x91);  						 // dummy X measur
+		transfer16(0x91);  						 // dummy X measure
 		data[0] = transfer16(0xD1 /* Y */) >> 3;
 		data[1] = transfer16(0x91 /* X */) >> 3; // make 3 x-y measurements
 		data[2] = transfer16(0xD1 /* Y */) >> 3;
@@ -128,9 +125,7 @@ void XPT2046::Update()
 		m_lastz = z;
 		
 		// report mouse up event to client, with the previous x,y coordinates
-		#ifdef PRINT_MOUSE_EVENTS
-			printf("touch up(%d,%d)\n",m_lastx,m_lasty);
-		#endif
+		// printf("touch up(%d,%d)\n",m_lastx,m_lasty);
 		
 		if (m_pEventHandler)
 			m_pEventHandler(m_pThat,TouchScreenEventFingerUp,0,m_lastx,m_lasty);
@@ -152,7 +147,7 @@ void XPT2046::Update()
 	{
 		// rawx =
 		x = besttwoavg( data[0], data[2], data[4] );
-		// rawy =
+		//  rawy =
 		y = besttwoavg( data[1], data[3], data[5] );
 		
 		// self adjusting scaling factors
@@ -196,23 +191,18 @@ void XPT2046::Update()
 		}
 	}
 
-	#ifdef PRINT_MOUSE_EVENTS
-		static int count = 0;
-		printf("%-10d z(%d,%d) x(%-5d,%-5d)  y(%-5d,%-5d)\n",
-			count++,z,m_lastz,x,m_lastx,y,m_lasty);
-	#endif
+	// static int count = 0;
+	// printf("%-10d raw(%d,%d,%d) cur(%d,%d,%d) last(%d,%d,%d)\n",
+	// 	count++,rawx,rawy,rawz,x,y,z,m_lastx,m_lasty,m_lastz);
 	
 	// report mouse down event with appropriate coordinates
 	
 #ifdef GENERATE_MOVE_EVENTS
 	if (m_lastz != z || m_lastx != x || m_lasty != y)
 	{
-		printf("GENERATE_MOVE_EVENTS\n");
 #endif
 	
-		#ifdef PRINT_MOUSE_EVENTS
-			printf("touch down(%d,%d)\n",x,y);
-		#endif
+		// printf("touch down(%d,%d)\n",x,y);
 		
 		if (m_pEventHandler)
 		{
@@ -224,8 +214,6 @@ void XPT2046::Update()
 				TouchScreenEventFingerDown,
 				0,x,y);
 		}
-		
-		printf("setting m_lastz=%d\n",z);
 		
 		m_lastz = z;
 		m_lastx = x;
