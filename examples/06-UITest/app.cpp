@@ -30,10 +30,10 @@ void wsApplication::Create()
 	
 	u16 id=1;
 	
-	wsWindowBase *pTitle  = new wsWindowBase(frame, id++, 0, 		0, width-1, 			TOP_MARGIN-1);
-	wsWindowBase *pLeft   = new wsWindowBase(frame, id++, 0, 		TOP_MARGIN, 			width/2-1,		height-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
-	wsWindowBase *pRight  = new wsWindowBase(frame, id++, width/2, 	TOP_MARGIN, 			width-1, 		height-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
-	wsWindowBase *pStatus = new wsWindowBase(frame, id++, 0, 		height-BOTTOM_MARGIN, 	width-1, 		height-1, 					WIN_STYLE_3D);
+	wsWindow *pTitle  = new wsWindow(frame, id++, 0, 		0, width-1, 			TOP_MARGIN-1);
+	wsWindow *pLeft   = new wsWindow(frame, id++, 0, 		TOP_MARGIN, 			width/2-1,		height-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
+	wsWindow *pRight  = new wsWindow(frame, id++, width/2, 	TOP_MARGIN, 			width-1, 		height-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
+	wsWindow *pStatus = new wsWindow(frame, id++, 0, 		height-BOTTOM_MARGIN, 	width-1, 		height-1, 					WIN_STYLE_3D);
 	
 	// app.setBackColor(wsBLACK);
 	// app.setForeColor(wsGRAY);
@@ -62,7 +62,7 @@ void wsApplication::Create()
 	new wsButton		(pStatus, id++, "button4", 	4,   5,   119, 40, BTN_STYLE_3D);
 	new wsStaticText	(pStatus, id++, "text4", 		130, 5,   199, 40);
 
-	wsWindowBase *pPanel = new wsWindowBase(pLeft, 5, 10, 40, pLeft->getWidth()-10-1, pLeft->getHeight()-10-1, WIN_STYLE_2D );
+	wsWindow *pPanel = new wsWindow(pLeft, 5, 10, 40, pLeft->getWidth()-10-1, pLeft->getHeight()-10-1, WIN_STYLE_2D );
 	
 	new wsButton		(pPanel,  id++, "button5", 	4,   5,   119, 33, BTN_STYLE_3D | BTN_STYLE_TOGGLE_COLORS | BTN_STYLE_TOGGLE_VALUE);
 	new wsStaticText	(pPanel,  id++, "text6", 		130, 5,   199, 33);

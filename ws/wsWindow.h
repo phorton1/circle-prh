@@ -38,15 +38,13 @@
 // forwards
 
 class wsRect;
-class wsObject;
 class wsApplication;
 
 // types
 
-typedef u8 wsAlignType;
-typedef u32 wsEventType;
-typedef u8  wsEventResult;
-typedef bool (*doToEachObjectFxn)(wsObject *obj);
+typedef u8 		wsAlignType;
+typedef u32 	wsEventType;
+typedef u32  	wsEventResult;
 
 // debug extern
 
@@ -187,7 +185,7 @@ class wsDC
 		static void driverRegisterStub(void *pThis, void *pUnusedScreen, u8 type, void *driver);
 			// we don't need the pointer to the screen device inasmuch
 			// as we already have it.  UGUI requires it because it is "C" code
-			// calling stati methods, divorced from the C++ object rst wrote.
+			// calling static methods, divorced from the C++ object rst wrote.
 
 	private:
 
@@ -210,71 +208,6 @@ class wsDC
 };	// wsDeviceContext
 
 
-//------------------------------------
-// wsObject
-//------------------------------------
-
-class wsObject
-{
-	public:
-		
-		wsObject(wsObject *pParent) :
-			m_pParent(pParent)
-		{
-			m_pPrevSibling = 0;
-			m_pNextSibling = 0;
-			m_pFirstChild  = 0;
-			m_pLastChild   = 0;
-		}
-		~wsObject()
-		{
-			m_pParent = 0;
-			m_pPrevSibling = 0;
-			m_pNextSibling = 0;
-			m_pFirstChild  = 0;
-			m_pLastChild   = 0;
-		}
-		
-		virtual wsObject *getParent()   { return m_pParent;       }
-		wsObject *getPrevSibling()      { return m_pPrevSibling;  }
-		wsObject *getNextSibling()      { return m_pNextSibling;  }
-		wsObject *getFirstChild()       { return m_pFirstChild;   }
-		wsObject *getLastChild()        { return m_pLastChild;    }
-		
-		u16 getNumChildren()			{ return m_numChildren; }
-	
-		void deleteChild(wsObject *pObject);
-		void addChild(wsObject *pObject, wsObject *pAddBefore=0)
-		{
-			if (m_pLastChild)
-			{
-				m_pLastChild->m_pNextSibling = pObject;
-				pObject->m_pPrevSibling = m_pLastChild;
-			}
-			else
-			{
-				m_pFirstChild = pObject;
-			}
-			m_pLastChild = pObject;
-			m_numChildren++;
-		}
-
-		wsObject *getNthChild(u16 i);
-		void doToEachChild(doToEachObjectFxn fxn);
-			
-	protected:
-		
-		wsObject *m_pParent;
-		wsObject *m_pPrevSibling;
-		wsObject *m_pNextSibling;
-		wsObject *m_pFirstChild;
-		wsObject *m_pLastChild;
-		
-		u16 m_numChildren;
-		
-};	// wsObject
-
-
 
 //------------------------------------
 // wsEvent 
@@ -295,12 +228,11 @@ class wsEvent
 // wsEventHandler
 //------------------------------------
 
-class wsEventHandler : public wsObject
+class wsEventHandler 
 {
 	public:
 		
-		wsEventHandler(wsEventHandler *pParent) :
-			wsObject(pParent)	{}
+		wsEventHandler() {}
 		~wsEventHandler() {}
 		
 		virtual wsEventResult handleEvent(wsEvent *event) { return 0; };
@@ -312,7 +244,7 @@ class wsEventHandler : public wsObject
 
 
 //------------------------------------
-// wsWindowBase
+// wsWindow
 //------------------------------------
 
 #define WIN_STYLE_TRANSPARENT    	0x10000000
@@ -345,24 +277,17 @@ class wsEventHandler : public wsObject
 // #define WIN_STATE_IS_FLINGING		0x00000800
 
 
-class wsWindowBase : public wsEventHandler
+class wsWindow : public wsEventHandler
 {
 	public:
 	
-		wsWindowBase(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0);
-		~wsWindowBase() {}	
+		wsWindow(wsWindow *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0);
+		~wsWindow() {}	
 
-		wsWindowBase *getParent() const { return (wsWindowBase *) m_pParent; }
 		u16 getID() const			{ return m_id; }
 		u32 getStyle() const	   	{ return m_style; };
-		void setStyle(u32 style)	{ m_style = style; };
+		u32 getState() const		{ return m_state; }
 		
-		wsDC *getDC() const		{ return m_pDC; }
-		void setDC(wsDC *pDC)	{ m_pDC = pDC; }
-		
-		virtual void update();
-		
-		u32 getState() const			{ return m_state; }
 		wsColor getForeColor() const	{ return m_fore_color; }
 		wsColor getBackColor() const	{ return m_back_color; }
 		wsAlignType getAlign() const 	{ return m_align; }
@@ -395,32 +320,54 @@ class wsWindowBase : public wsEventHandler
 		void  setText(const char *text);
 		void  setText(const CString &text);
 		
+		wsWindow *getParent()   	{ return m_pParent;       }
+		wsWindow *getPrevSibling()  { return m_pPrevSibling;  }
+		wsWindow *getNextSibling()  { return m_pNextSibling;  }
+		wsWindow *getFirstChild()   { return m_pFirstChild;   }
+		wsWindow *getLastChild()    { return m_pLastChild;    }
+
+		void addChild(wsWindow *pWin);
+		void deleteChild(wsWindow *pWin);
+		u16 getNumChildren()		{ return m_numChildren; }
+		
 	protected:
 		
 		friend class wsApplication;
 		friend class wsTopLevelWindow;
 		
-		virtual void draw();
-		virtual wsEventResult handleEvent(wsEvent *event) { return 0; };
-		virtual wsWindowBase *hitTest(unsigned x, unsigned y);
-
-		wsDC *m_pDC;
+		// void setStyle(u32 style)	{ m_style = style; };
 		
+		wsDC *getDC() const		{ return m_pDC; }
+		void setDC(wsDC *pDC)	{ m_pDC = pDC; }
+
+		virtual void update();
+		virtual void draw();
+		
+		virtual wsWindow *hitTest(unsigned x, unsigned y);
+
 		u16 m_id;
 		u32 m_style;
 		u32 m_state;
 
-		const wsFont *m_pFont;
-		wsColor m_fore_color;
-		wsColor m_back_color;
-		wsAlignType m_align;
-		
 		wsRect m_rect;			// relative to parent (constrution coordinates, limited to screen size)
 		wsRect m_rect_abs;		// absolute outer screen coordinates
 		wsRect m_rect_client;   // absolute inner (client) screen coordinates
 		wsRect m_rect_virt;		// visible virtual screen size (0..any number) (not limited to screen size)
 		wsRect m_rect_vis;		// visible virtual screen rectangle (clipped to window size)
 		
+		u16 m_numChildren;
+		wsWindow *m_pParent;
+		wsWindow *m_pPrevSibling;
+		wsWindow *m_pNextSibling;
+		wsWindow *m_pFirstChild;
+		wsWindow *m_pLastChild;
+		
+		wsDC *m_pDC;
+		const wsFont *m_pFont;
+		wsColor m_fore_color;
+		wsColor m_back_color;
+		wsAlignType m_align;
+
 		CString m_text;
 };
 
@@ -428,15 +375,6 @@ class wsWindowBase : public wsEventHandler
 //-------------------------------------------
 // top level windows
 //-------------------------------------------
-
-class wsWindow : public wsWindowBase
-{
-	public:
-	
-		wsWindow(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0);
-		~wsWindow() {}
-	
-};
 
 
 
@@ -454,7 +392,7 @@ class wsTopLevelWindow : public wsWindow
 		friend class wsApplication;
 		
 		virtual wsEventResult handleEvent(wsEvent *event);
-		virtual wsWindowBase *hitTest(unsigned x, unsigned y);
+		virtual wsWindow *hitTest(unsigned x, unsigned y);
 		
 		wsTopLevelWindow *m_pPrevWindow;
 		wsTopLevelWindow *m_pNextWindow;
@@ -466,14 +404,14 @@ class wsTopLevelWindow : public wsWindow
 // controls
 //-------------------------------------------
 
-class wsControl : public wsWindowBase
+class wsControl : public wsWindow
 {
 	public:
 	
 		~wsControl() {}
 		
-		wsControl(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0) :
-			wsWindowBase(pParent,id,xs,ys,xe,ye,style) {}
+		wsControl(wsWindow *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0) :
+			wsWindow(pParent,id,xs,ys,xe,ye,style) {}
 };
 
 
@@ -484,7 +422,7 @@ class wsStaticText : public wsControl
 	
 		~wsStaticText() {}
 		
-		wsStaticText(wsWindowBase *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye) :
+		wsStaticText(wsWindow *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye) :
 			wsControl(pParent,id,xs,ys,xe,ye)
 		{
 			if (text)
@@ -523,7 +461,7 @@ class wsButton : public wsControl
 	
 		~wsButton() {}
 		
-		wsButton(wsWindowBase *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye, u16 bstyle=0) :
+		wsButton(wsWindow *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye, u16 bstyle=0) :
 			wsControl(pParent,id,xs,ys,xe,ye,
 				WIN_STYLE_TOUCH | (
 				(bstyle & BTN_STYLE_2D) ? WIN_STYLE_2D :
@@ -579,7 +517,7 @@ class wsCheckbox : public wsControl
 	public:
 	
 		~wsCheckbox() {}
-		wsCheckbox(wsWindowBase *pParent, u16 id, u8 checked, u16 xs, u16 ys, u16 xe, u16 ye, u16 cstyle=0) :
+		wsCheckbox(wsWindow *pParent, u16 id, u8 checked, u16 xs, u16 ys, u16 xe, u16 ye, u16 cstyle=0) :
 			wsControl(pParent,id,xs,ys,xe,ye,
   				WIN_STYLE_TOUCH | (
 				(cstyle & CHB_STYLE_2D) ? WIN_STYLE_2D :
@@ -628,7 +566,7 @@ class wsImage : public wsControl
 {
 	public:
 	
-		wsImage(wsWindowBase *pParent, u16 id, u8 value, u16 x, u16 y, u16 xe, u16 ye, u32 style=0);
+		wsImage(wsWindow *pParent, u16 id, u8 value, u16 x, u16 y, u16 xe, u16 ye, u32 style=0);
 		~wsImage() {}
 };
 
@@ -639,7 +577,7 @@ class wsImage : public wsControl
 // the application object
 //------------------------------------
 
-class wsApplication : public wsWindowBase
+class wsApplication : public wsWindow
 {
 	public:
 		
@@ -666,13 +604,13 @@ class wsApplication : public wsWindowBase
 		// public to wsWindows
 		// not intended for client use
 		
-		void setTouchFocus(wsWindowBase *win) {m_pTouchFocus = win;}
-			// the wsWindowBase, if any, currently being pressed
+		void setTouchFocus(wsWindow *win) {m_pTouchFocus = win;}
+			// the wsWindow, if any, currently being pressed
 		void addTopLevelWindow(wsTopLevelWindow *pWindow);
 		
 	private:
 		
-		wsWindowBase     *m_pTouchFocus;
+		wsWindow *m_pTouchFocus;
 		
 		wsTopLevelWindow *m_pBottomWindow;
 		wsTopLevelWindow *m_pTopWindow;

@@ -22,18 +22,17 @@ void print_rect(const char *name,wsRect *rect)
 
 
 //----------------------------------------------
-// wsWindowBase
+// wsWindow
 //----------------------------------------------
 
-wsWindowBase::wsWindowBase(
-		wsWindowBase *pParent,
+wsWindow::wsWindow(
+		wsWindow *pParent,
 		u16 id,
 		u16 xs,
 		u16 ys,
 		u16 xe,
 		u16 ye,
 		u32 style) :
-	wsEventHandler(pParent),
 	m_id(id),
 	m_style(style),
 	m_rect(xs,ys,xe,ye),
@@ -42,12 +41,18 @@ wsWindowBase::wsWindowBase(
 	m_rect_virt(0,0,xe-xs,ye-ys),
 	m_rect_vis(0,0,xe-xs,ye-ys)
 {
-	// LOG("wsWindowBase(0x%08x,%d, %d,%d,%d,%d, 0x%08x)",(u32) this, id,xs,ys,xe,ye,style);
+	// LOG("wsWindow(0x%08x,%d, %d,%d,%d,%d, 0x%08x)",(u32) this, id,xs,ys,xe,ye,style);
 	
 	m_pDC = 0;
 	m_state = WIN_STATE_VISIBLE | WIN_STATE_REDRAW;
 	m_pFont = 0;
 	
+	m_pParent = pParent;
+	m_pPrevSibling = 0;
+	m_pNextSibling = 0;
+	m_pFirstChild  = 0;
+	m_pLastChild   = 0;
+
 	if (pParent)
 	{
 		m_pDC = pParent->getDC();
@@ -75,6 +80,7 @@ wsWindowBase::wsWindowBase(
 			m_rect_client.ye -= 3;
 		}
 		// print_rect("m_rect_client",&m_rect_client);
+		
 		pParent->addChild(this);
 	}
 	else
@@ -86,8 +92,25 @@ wsWindowBase::wsWindowBase(
 }
 
 
+void wsWindow::addChild(wsWindow *pWin)
+{
+	if (m_pLastChild)
+	{
+		m_pLastChild->m_pNextSibling = pWin;
+		pWin->m_pPrevSibling = m_pLastChild;
+	}
+	else
+	{
+		m_pFirstChild = pWin;
+	}
+	m_pLastChild = pWin;
+	m_numChildren++;
+}
 
-void wsWindowBase::draw()
+
+
+
+void wsWindow::draw()
 {
 	// draw self
 	
@@ -126,18 +149,18 @@ void wsWindowBase::draw()
 }
 
 
-void wsWindowBase::setText(const char *text)
+void wsWindow::setText(const char *text)
 {
 	m_text = text;	
 }
 
-void wsWindowBase::setText(const CString &text)
+void wsWindow::setText(const CString &text)
 {
 	m_text = text;
 }
 
 
-void wsWindowBase::resize(u16 xs, u16 ys, u16 xe, u16 ye )
+void wsWindow::resize(u16 xs, u16 ys, u16 xe, u16 ye )
 	// currently only resizes this window
 	// will need to resize/move children as well
 	// which, in turn, requires more care with
@@ -151,7 +174,7 @@ void wsWindowBase::resize(u16 xs, u16 ys, u16 xe, u16 ye )
 }
 
 
-void wsWindowBase::update()
+void wsWindow::update()
 {
 	// update self
 	
@@ -164,14 +187,14 @@ void wsWindowBase::update()
 	
 	// update children
 	
-	for (wsWindowBase *p = (wsWindowBase *) getFirstChild(); p; p = (wsWindowBase *) p->getNextSibling())
+	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
 	{
 		p->update();
 	}
 }
 
 
-wsWindowBase* wsWindowBase::hitTest(unsigned x, unsigned y)
+wsWindow* wsWindow::hitTest(unsigned x, unsigned y)
 {
 	if ((m_style & WIN_STYLE_TOUCH) &&
 		(m_state & WIN_STATE_VISIBLE) &&
@@ -181,15 +204,15 @@ wsWindowBase* wsWindowBase::hitTest(unsigned x, unsigned y)
 		(y <= m_rect_abs.ye))
 	{
 		m_state |= WIN_STATE_IS_TOUCHED | WIN_STATE_TOUCH_CHANGED;
-		// LOG("wsWindowBase::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
+		// LOG("wsWindow::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
 		return this;
 	}
-	for (wsWindowBase *p = (wsWindowBase *) getFirstChild(); p; p = (wsWindowBase *) p->getNextSibling())
+	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
 	{
-		wsWindowBase *found = p->hitTest(x,y);
+		wsWindow *found = p->hitTest(x,y);
 		if (found)
 		{
-			// LOG("wsWindowBase::hitTest(%d,%d) returning 0x%08x",x,y,(u32)found);
+			// LOG("wsWindow::hitTest(%d,%d) returning 0x%08x",x,y,(u32)found);
 			return found;
 		}
 	}
@@ -202,12 +225,6 @@ wsWindowBase* wsWindowBase::hitTest(unsigned x, unsigned y)
 // top level windows
 //-------------------------------------------------------
 
-wsWindow::wsWindow(wsWindowBase *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style) :
-	wsWindowBase(pParent,id,xs,ys,xe,ye,style)
-{
-}
-		
-		
 
 wsTopLevelWindow::wsTopLevelWindow(wsApplication *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style) :
 	wsWindow(pParent,id,xs,ys,xe,ye,style)
@@ -223,17 +240,17 @@ wsEventResult wsTopLevelWindow::handleEvent(wsEvent *event)
 	return 0;
 }
 
-wsWindowBase* wsTopLevelWindow::hitTest(unsigned x, unsigned y)
+wsWindow* wsTopLevelWindow::hitTest(unsigned x, unsigned y)
 {
-	wsWindowBase *found = 0;
-	wsWindowBase *p = (wsWindowBase *) getFirstChild();
+	wsWindow *found = 0;
+	wsWindow *p = m_pFirstChild;
 	while (p)
 	{
 		found = p->hitTest(x,y);
 		if (found)
 			p = 0;
 		else
-			p = (wsWindowBase *) p->getNextSibling();
+			p = p->m_pNextSibling;
 	}
 	// printf("wsTopLevelWindow::hitTest() found=%08x\n",found);
 	if (found)

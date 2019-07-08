@@ -22,7 +22,7 @@ wsApplication::~wsApplication()
 }
 
 wsApplication::wsApplication() :
-	wsWindowBase(0,0, 0,0,10,10,WIN_STYLE_TRANSPARENT),
+	wsWindow(0,0, 0,0,10,10,WIN_STYLE_TRANSPARENT),
 	m_pScreen(0),
     m_pTouch(0),
     m_pMouse(0)
