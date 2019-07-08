@@ -333,7 +333,7 @@ class wsWindow : public wsEventHandler
 		wsDC *getDC() const		{ return m_pDC; }
 		void setDC(wsDC *pDC)	{ m_pDC = pDC; }
 
-		virtual void update();
+		virtual void update(bool visible);
 		virtual void draw();
 		
 		virtual wsWindow *hitTest(unsigned x, unsigned y);
@@ -379,6 +379,9 @@ class wsTopLevelWindow : public wsWindow
 		~wsTopLevelWindow() {}
 		
 		wsApplication *getApplication() const { return (wsApplication *) m_pParent; }
+
+		void show();
+		void hide();
 		
 	protected:
 		
@@ -481,7 +484,7 @@ class wsButton : public wsControl
 		wsColor m_alt_fore_color;
 		
 		virtual void draw();
-		virtual void update();
+		virtual void update(bool visible);
 		
 };	// wsButton
 
@@ -545,7 +548,7 @@ class wsCheckbox : public wsControl
 		wsColor m_alt_fore_color;
 		
 		virtual void draw();
-		virtual void update();
+		virtual void update(bool visible);
 
 };	// wsCheckbox
 
@@ -638,12 +641,15 @@ class wsApplication : public wsWindow
 			// it's called timeSlice() to prevent confusion
 			// with the wsWindows::update() functions. 
 
+		wsTopLevelWindow *getTopWindow() const { return m_pTopWindow; }
+		
 		// public to wsWindows
 		// not intended for client use
 		
 		void setTouchFocus(wsWindow *win) {m_pTouchFocus = win;}
 			// the wsWindow, if any, currently being pressed
 		void addTopLevelWindow(wsTopLevelWindow *pWindow);
+		void removeTopLevelWindow(wsTopLevelWindow *pWindow);
 		
 		void addEvent(wsEvent *event);
 		

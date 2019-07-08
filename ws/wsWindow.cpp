@@ -134,6 +134,8 @@ wsWindow *wsWindow::findChildByID(u16 id)
 }
 
 
+
+
 void wsWindow::draw()
 {
 	// draw self
@@ -200,14 +202,36 @@ void wsWindow::resize(u16 xs, u16 ys, u16 xe, u16 ye )
 }
 
 
-void wsWindow::update()
+void wsWindow::show()
+{
+	if (!(m_state & WIN_STATE_VISIBLE))
+	{
+		m_state |= WIN_STATE_VISIBLE | WIN_STATE_REDRAW;
+	}
+}
+
+void wsWindow::hide()
+{
+	if (m_state & WIN_STATE_VISIBLE)
+	{
+		m_state &= ~WIN_STATE_VISIBLE;
+	}		
+}
+
+
+void wsWindow::update(bool visible)
 {
 	// update self
+	// and if drawing self, draw all children too
 	
-	if ((m_state & WIN_STATE_VISIBLE) &&
+	bool redraw = false;
+	
+	if (visible &&
+		(m_state & WIN_STATE_VISIBLE) &&
 		(m_state & WIN_STATE_REDRAW))
 	{
 		draw();
+		redraw = true;
 		m_state &= ~WIN_STATE_REDRAW;
 	}
 	
@@ -215,7 +239,9 @@ void wsWindow::update()
 	
 	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
 	{
-		p->update();
+		if (redraw)
+			p->m_state |= WIN_STATE_REDRAW;
+		p->update(m_state & WIN_STATE_VISIBLE);
 	}
 }
 
@@ -283,6 +309,28 @@ wsWindow* wsTopLevelWindow::hitTest(unsigned x, unsigned y)
 }
 
 
+void wsTopLevelWindow::show()
+{
+	if (!(m_state & WIN_STATE_VISIBLE))
+	{
+		wsWindow::show();
+		((wsApplication *)m_pParent)->addTopLevelWindow(this);
+	}
+}
+
+void wsTopLevelWindow::hide()
+{
+	if (m_state & WIN_STATE_VISIBLE)
+	{
+		wsApplication *pApp = ((wsApplication *)m_pParent);
+		wsWindow::hide();
+		pApp->removeTopLevelWindow(this);
+		wsTopLevelWindow *pTop = pApp->getTopWindow();
+		if (pTop)
+			pTop->m_state |= WIN_STATE_REDRAW;
+	}
+}
+
 
 //-------------------------------------------------------
 // wsStaticText
@@ -314,7 +362,7 @@ void wsStaticText::draw()
 // wsButton
 //-------------------------------------------------------
 
-void wsButton::update()
+void wsButton::update(bool visible)
 {
 	if (m_state & WIN_STATE_TOUCH_CHANGED)
 	{
@@ -448,7 +496,7 @@ void wsButton::draw()
 //-------------------------------------------------------
 
 
-void wsCheckbox::update()
+void wsCheckbox::update(bool visible)
 {
 	if (m_state & WIN_STATE_TOUCH_CHANGED)
 	{

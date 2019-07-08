@@ -15,6 +15,70 @@ static const char log_name[] = "kapp";
 #define TOP_MARGIN  50
 #define BOTTOM_MARGIN 50
 
+
+#define ID_DLG  1000
+#define ID_BUTTON_CLOSE  1
+
+class dialogWindow : public wsTopLevelWindow
+{
+	public:
+		
+		dialogWindow(wsApplication *pApp, u16 id, u16 x, u16 y, u16 width, u16 height) :
+			wsTopLevelWindow(pApp,id,x,y,x + width-1,y + height-1,WIN_STYLE_3D)
+		{
+			setBackColor(wsDARK_BLUE);
+			setForeColor(wsWHITE);
+			
+			const char *msg =
+				"This is a test dialog window\n\n"
+				"It presents a \"close\" button\n"
+				"to allow you to close it.\n\n"
+				"Clicking anywhere outside of it\n"
+				"should close it too. It does not clip text very well.";
+				
+			// wsStaticText *t =
+			new wsStaticText(this,
+				0, msg,
+				10, 10, getWidth()-10-1, getHeight()-60-1);
+			// t->setAlign(ALIGN_TOP_CENTER);
+			new wsButton(this,
+				ID_BUTTON_CLOSE,
+				"close",
+				getWidth()-95,
+				getHeight()-50,
+				getWidth()-15-1,
+				getHeight()-15-1,
+				BTN_STYLE_3D);
+		}
+			
+	private:
+		
+		virtual u32 handleEvent(wsEvent *event)
+		{
+			u32 type = event->getEventType();
+			u32 event_id = event->getEventID();
+			u32 id = event->getID();
+			// wsWindow *obj = event->getObject();
+			
+			LOG("dlg::handleEvent(%08x,%d,%d)",type,event_id,id);
+			
+			if (type == EVT_TYPE_BUTTON &&
+				event_id == BTN_EVENT_PRESSED)
+			{
+				if (id == ID_BUTTON_CLOSE)
+				{
+					printf("hiding dialog\n");
+					hide();
+				}
+			}
+			return 0;
+		}
+};
+
+
+
+
+#define ID_BUTTON1    101
 #define ID_BUTTON5    105
 #define ID_CHECKBOX2  205
 #define ID_TEXT6      306
@@ -24,30 +88,55 @@ class topWindow : public wsTopLevelWindow
 	public:
 		
 		topWindow(wsApplication *pApp, u16 id, u16 xs, u16 ys, u16 xe, u16 ye) :
-			wsTopLevelWindow(pApp,id,xs,ys,xe,ye) {}
+			wsTopLevelWindow(pApp,id,xs,ys,xe,ye,WIN_STYLE_TRANSPARENT),
+			m_pDlg(0) {}
 			
 	private:
 		
+		dialogWindow *m_pDlg;
+		
 		virtual u32 handleEvent(wsEvent *event)
 		{
-			LOG("handleEvent(%08x,%d,%d)",
-				event->getEventType(),
-				event->getEventID(),
-				event->getID());
+			u32 type = event->getEventType();
+			u32 event_id = event->getEventID();
+			u32 id = event->getID();
+			wsWindow *obj = event->getObject();
 			
-			if (event->getEventType() == EVT_TYPE_BUTTON &&
-				event->getEventID() == BTN_EVENT_PRESSED &&
-				event->getID() == ID_BUTTON5)
+			LOG("handleEvent(%08x,%d,%d)",type,event_id,id);
+			
+			if (type == EVT_TYPE_BUTTON &&
+				event_id == BTN_EVENT_PRESSED)
 			{
-				wsButton *button = (wsButton *) event->getObject();
-				findChildByID(ID_TEXT6)->setText(
-					button->isPressed() ? "DOWN" : "UP");
+				if (id == ID_BUTTON5)
+				{
+					wsButton *button = (wsButton *) event->getObject();
+					findChildByID(ID_TEXT6)->setText(
+						button->isPressed() ? "DOWN" : "UP");
+				}
+				else if (id == ID_BUTTON1)
+				{
+					if (!m_pDlg)
+					{
+						wsApplication *pApp = getApplication();
+						printf("creating dialog\n");
+						m_pDlg = new dialogWindow(pApp,ID_DLG,
+							(pApp->getWidth()-400)/2 - 140,
+							20,
+							400,
+							200);
+					}
+					else
+					{
+						printf("showing dialog\n");
+						m_pDlg->show();
+					}
+				}
 			}
-			else if (event->getEventType() == EVT_TYPE_CHECKBOX &&
-					 event->getEventID() == CHB_EVENT_VALUE_CHANGED &&
-					 event->getID() == ID_CHECKBOX2)
+			else if (type == EVT_TYPE_CHECKBOX &&
+					 event_id == CHB_EVENT_VALUE_CHANGED &&
+					 id == ID_CHECKBOX2)
 			{
-				wsCheckbox *box = (wsCheckbox *) event->getObject();
+				wsCheckbox *box = (wsCheckbox *) obj;
 				box->setText(box->isChecked() ? "two checked" : "two not checked");
 			}
 			return 0;
@@ -57,7 +146,7 @@ class topWindow : public wsTopLevelWindow
 
 void wsApplication::Create()
 {
-	LOG("wsApplication::Create()",0);
+	LOG("wsApplication::Create(%08x)",this);
 	
 	u16 width = getWidth();
 	u16 height = getHeight();
@@ -87,8 +176,8 @@ void wsApplication::Create()
 	pRight->setForeColor(wsYELLOW);
 	
 	wsButton *pMainButton =
-	new wsButton		(pTitle,  id++, "button1", 	4,   5,   119, 44, BTN_STYLE_USE_ALTERNATE_COLORS);
-	new wsStaticText	(pTitle,  id++, "text1", 		130, 5,   199, 44);
+	new wsButton		(pTitle,  ID_BUTTON1, "button1", 	4,   5,   119, 44, BTN_STYLE_USE_ALTERNATE_COLORS);
+	new wsStaticText	(pTitle,  id++, 	  "text1", 		130, 5,   199, 44);
 	pMainButton->setAltBackColor(wsBLUE);
 	pMainButton->setAltForeColor(wsWHITE);
 	

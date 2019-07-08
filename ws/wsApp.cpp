@@ -51,11 +51,29 @@ void wsApplication::addEvent(wsEvent *event)
 	
 void wsApplication::addTopLevelWindow(wsTopLevelWindow *pWindow)
 {
+	// remove it from the list if it already exists
+	// so it will become the new top window
+	
+	removeTopLevelWindow(pWindow);
+	
 	if (m_pTopWindow)
-		pWindow->m_pNextWindow = m_pTopWindow;
+		pWindow->m_pPrevWindow = m_pTopWindow;
 	else
 		m_pBottomWindow = pWindow;
 	m_pTopWindow = pWindow;
+}
+
+
+void wsApplication::removeTopLevelWindow(wsTopLevelWindow *pWindow)
+{
+	if (pWindow->m_pNextWindow)
+		pWindow->m_pNextWindow->m_pPrevWindow = pWindow->m_pPrevWindow;
+	if (pWindow->m_pPrevWindow)
+		pWindow->m_pPrevWindow->m_pNextWindow = pWindow->m_pNextWindow;
+	if (pWindow == m_pTopWindow)
+		m_pTopWindow = pWindow->m_pPrevWindow;
+	if (pWindow == m_pBottomWindow)
+		m_pBottomWindow = pWindow->m_pNextWindow;
 }
 
 
@@ -160,7 +178,7 @@ void wsApplication::onTouchEvent(
 		// LOG("Clearing touch(%08x)",(u32)m_pTouchFocus);
 		m_pTouchFocus->m_state &= ~WIN_STATE_IS_TOUCHED;
 		m_pTouchFocus->m_state |= WIN_STATE_TOUCH_CHANGED;
-		m_pTouchFocus->update();
+		m_pTouchFocus->update(true);
 		m_pTouchFocus = 0;
 	}
 }
@@ -185,7 +203,7 @@ void wsApplication::timeSlice()
 	
 	// call the entire tree of window oject update methods
 	
-	update();
+	update(true);
 	
 	// dispatch any pending events to the top level window
 	
