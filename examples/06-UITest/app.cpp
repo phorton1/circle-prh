@@ -36,11 +36,13 @@ class dialogWindow : public wsTopLevelWindow
 				"Clicking anywhere outside of it\n"
 				"should close it too. It does not clip text very well.";
 				
-			// wsStaticText *t =
+			wsStaticText *t =
 			new wsStaticText(this,
 				0, msg,
 				10, 10, getWidth()-10-1, getHeight()-60-1);
-			// t->setAlign(ALIGN_TOP_CENTER);
+			t->setAlign(ALIGN_TOP_LEFT);
+			t->setBackColor(wsPURPLE);
+			
 			new wsButton(this,
 				ID_BUTTON_CLOSE,
 				"close",
@@ -68,6 +70,13 @@ class dialogWindow : public wsTopLevelWindow
 				if (id == ID_BUTTON_CLOSE)
 				{
 					printf("hiding dialog\n");
+					wsRect full(0,0,getApplication()->getWidth()-1,getApplication()->getHeight()-1);
+					
+					// set the background to gray to prove it only redraws the invalidated area
+					//
+					//    m_pDC->setClip(full);
+					//    m_pDC->fillFrame(0,0,full.xe,full.ye,wsDARK_GRAY);
+					
 					hide();
 				}
 			}
@@ -117,13 +126,15 @@ class topWindow : public wsTopLevelWindow
 				{
 					if (!m_pDlg)
 					{
+						#define DLG_WIDTH  300
 						wsApplication *pApp = getApplication();
 						printf("creating dialog\n");
 						m_pDlg = new dialogWindow(pApp,ID_DLG,
-							(pApp->getWidth()-400)/2 - 140,
+							(pApp->getWidth()-DLG_WIDTH)/2,
 							20,
-							400,
+							DLG_WIDTH,
 							200);
+						// printf("dlg=%08x\n",(u32)m_pDlg);
 					}
 					else
 					{
@@ -152,6 +163,7 @@ void wsApplication::Create()
 	u16 height = getHeight();
 	
 	topWindow *frame = new topWindow(this,1,0,0,width-1,height-1);
+	// printf("frame=%08x\n",(u32)frame);
 	
 	// since all the controls in the top level window will trigger an event on it,
 	// they must have unique ids in that context
@@ -190,7 +202,7 @@ void wsApplication::Create()
 	new wsButton		(pStatus, id++, "button4", 	4,   5,   119, 40, BTN_STYLE_3D);
 	new wsStaticText	(pStatus, id++, "text4", 		130, 5,   199, 40);
 
-	wsWindow *pPanel = new wsWindow(pLeft, 5, 10, 40, pLeft->getWidth()-10-1, pLeft->getHeight()-10-1, WIN_STYLE_2D );
+	wsWindow *pPanel = new wsWindow(pLeft, 5, 10, 40, pLeft->getWidth()-10-1, pLeft->getHeight()-10-1, WIN_STYLE_2D | WIN_STYLE_TRANSPARENT);
 	
 	new wsButton		(pPanel,  ID_BUTTON5, "button5", 	4,   5,   119, 33, BTN_STYLE_3D | BTN_STYLE_TOGGLE_COLORS | BTN_STYLE_TOGGLE_VALUE);
 	new wsStaticText	(pPanel,  ID_TEXT6,   "text6", 		130, 5,   199, 33);

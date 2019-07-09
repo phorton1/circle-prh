@@ -8,6 +8,10 @@
 #include <circle/logger.h>
 #define log_name  "wsapp"
 
+
+//----------------------------------------------
+// wsApplication
+//----------------------------------------------
 // all direct children of the application should be top level windows.
 // events are dispatched to top level windows, which then manage their
 // children.
@@ -57,7 +61,10 @@ void wsApplication::addTopLevelWindow(wsTopLevelWindow *pWindow)
 	removeTopLevelWindow(pWindow);
 	
 	if (m_pTopWindow)
+	{
 		pWindow->m_pPrevWindow = m_pTopWindow;
+		m_pTopWindow->m_pNextWindow = pWindow;
+	}
 	else
 		m_pBottomWindow = pWindow;
 	m_pTopWindow = pWindow;
@@ -201,9 +208,21 @@ void wsApplication::timeSlice()
 		}
 	}
 	
-	// call the entire tree of window oject update methods
+	// we do not call the base class update() method here ...
+	// instead, we call update directly on each top level window
+	// so that they are drawn in the right order (the stack order
+	// as opposed to their instantiation order)
+
+	for (wsTopLevelWindow *p=m_pBottomWindow; p; p=p->m_pNextWindow)
+	{
+		p->update(p->m_state & WIN_STATE_VISIBLE);
+	}
 	
-	update(true);
+	// we empty the clipping region here, it will be expanded
+	// as any objects are hidden or need to be redrawn in
+	// response to the below events
+	
+	m_pDC->validate();
 	
 	// dispatch any pending events to the top level window
 	
@@ -224,5 +243,4 @@ void wsApplication::timeSlice()
 		m_pTopWindow->handleEvent(event);
 		delete event;
 	}
-	
 }

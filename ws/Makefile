@@ -10,7 +10,10 @@ OBJS = \
 	wsDC.o \
 	wsApp.o \
 	wsFont.o \
+	wsRect.o \
 	wsWindow.o \
+	wsControl.o \
+	wsTopWindow.o \
 	wsThemeStandard.o \
 	
 

@@ -29,16 +29,22 @@ void wsDC::fillFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 {
 	if ( x1 < x0 ) swapU16(x0,x1);
 	if ( y1 < y0 ) swapU16(y0,y1);
+
+	wsRect rect(x0,y0,x1,y1);
+	rect.intersect(m_clip);
+	if (rect.isEmpty())
+		return;
 	
 	if ( m_opt_driver[OPT_DRIVER_FILL_FRAME])
 	{
 		((fillFrameDriver)m_opt_driver[OPT_DRIVER_FILL_FRAME])
-			(m_pScreen,x0,y0,x1,y1,color);
+			(m_pScreen,rect.xs,rect.ys,rect.xe,rect.ye,color);
 		return;
 	}
-	for (u16 y=y0; y<=y1; y++ )
+	
+	for (u16 y=rect.ys; y<=rect.ye; y++ )
 	{
-	   for (u16 x=x0; x<=x1; x++ )
+	   for (u16 x=rect.xs; x<=rect.xe; x++ )
 	   {
 		  setPixel(x,y,color);
 	   }
@@ -49,8 +55,16 @@ void wsDC::fillFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 
 void wsDC::drawLine( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 {
+	wsRect rect(x0,y0,x1,y1);
+	rect.intersect(m_clip);
+	if (rect.isEmpty())
+		return;
+
 	if ( m_opt_driver[OPT_DRIVER_DRAW_LINE])
 	{
+		// clipping not applied to optimized draw line.
+		// which needs to be passed the clipping rectangle ..
+		
 		((drawLineDriver)m_opt_driver[OPT_DRIVER_DRAW_LINE])
 			(m_pScreen, x0,y0,x1,y1,color);
 		return;
@@ -80,7 +94,8 @@ void wsDC::drawLine( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 				drawy += sgndy;
 			}
 			drawx += sgndx;
-			setPixel(drawx, drawy, color);
+			if (rect.intersects(drawx,drawy))
+				setPixel(drawx, drawy, color);
 		}
 	}
 	else
@@ -94,10 +109,12 @@ void wsDC::drawLine( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 				drawx += sgndx;
 			}
 			drawy += sgndy;
-			setPixel(drawx, drawy, color);
+			if (rect.intersects(drawx,drawy))
+				setPixel(drawx, drawy, color);
 		}
 	}
 }
+
 
 
 void wsDC::drawFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
@@ -144,10 +161,18 @@ void wsDC::drawArc( u16 x, u16 y, u16 r, u8 s, wsColor color )
 }
 
 
-void wsDC::putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc )
+void wsDC::_putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc, const wsRect &clip )
 {
+	// set the background and foreground to distinctive colors
+	// to prove it's only drawing the invalidated region
+	//
+	//	if (!m_invalid.isEmpty())
+	//	{
+	//		fc = wsMAGENTA;
+	//		bc = wsBLACK;
+	//	}
+
 	u8 bt = (u8) chr;
-	
 	switch ( bt )
 	{
 		case 0xF6: bt = 0x94; break; // ö
@@ -163,26 +188,33 @@ void wsDC::putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc )
 	assert(m_pFont);
 	if (bt < m_pFont->start_char || bt > m_pFont->end_char)
 		return;
-		
-	u16 yo = y;
-	u16 bn = m_pFont->char_width;
-	if (!bn)
+
+	u16	char_width = m_pFont->char_width;
+	if (!char_width)
 		return;
-	
-	bn >>= 3;
-	if (m_pFont->char_width % 8)
+	u16 char_height = m_pFont->char_height;
+
+	wsRect rect(x,y, x+char_width-1, y+char_height-1);
+	rect.intersect(clip);
+	if (rect.isEmpty())
+		return;
+
+	u16 bn = char_width >> 3;
+	if (char_width % 8)
 		bn++;
-	u16	actual_char_width = m_pFont->char_width;	// (font->widths ? font->widths[bt - font->start_char] : font->char_width);
-	u32 index = (bt - m_pFont->start_char)* m_pFont->char_height * bn;
+	u32 index = (bt - m_pFont->start_char)* char_height * bn;
+	
+	u16 yo = y;
 		
 	if ( m_opt_driver[OPT_DRIVER_FILL_AREA])
 	{
 		pushPixelFxn pushPixel = ((fillAreaDriver)m_opt_driver[OPT_DRIVER_FILL_AREA])
-			(m_pScreen, x, y, x+actual_char_width-1, y+m_pFont->char_height-1);
+			(m_pScreen, rect.xs, rect.ys, rect.xe, rect.ye);
 		
-		for (u16 j=0; j<m_pFont->char_height; j++)
+		for (u16 j=0; j<char_height; j++)
 		{
-			u16 c = actual_char_width;
+			u16 xo = x;
+			u16 c = char_width;
 			for (u16 i=0; i<bn; i++)
 			{
 				u8 b = m_pFont->p[index++];
@@ -190,24 +222,28 @@ void wsDC::putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc )
 				{
 					if( b & 0x01 )
 					{
-						pushPixel(m_pScreen,fc);
+						if (rect.intersects(xo,yo))
+							pushPixel(m_pScreen,fc);
 					}
 					else
 					{
-						pushPixel(m_pScreen,bc);
+						if (rect.intersects(xo,yo))
+							pushPixel(m_pScreen,bc);
 					}
 					b >>= 1;
+					xo++;
 					c--;
 				}
 			}
+			yo++;
 		}
 	}
 	else	// not accelerated
 	{
-		for	(u16 j=0; j<m_pFont->char_height; j++)
+		for	(u16 j=0; j<char_height; j++)
 		{
 			u16 xo = x;
-			u16 c = actual_char_width;
+			u16 c = char_width;
 			for (u16 i=0; i<bn; i++)
 			{
 				u8 b = m_pFont->p[index++];
@@ -215,11 +251,13 @@ void wsDC::putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc )
 				{
 					if (b & 0x01)
 					{
-						setPixel(xo,yo,fc);
+						if (rect.intersects(xo,yo))
+							setPixel(xo,yo,fc);
 					}
 					else
 					{
-						setPixel(xo,yo,bc);
+						if (rect.intersects(xo,yo))
+							setPixel(xo,yo,bc);
 					}
 					b >>= 1;
 					xo++;
@@ -236,8 +274,10 @@ void wsDC::putString( u16 x, u16 y, const char* str )
 {
 	u16 xp = x;
 	u16 yp = y;
-	assert(m_pFont);
+	if (m_clip.isEmpty())
+		return;
 	
+	assert(m_pFont);
 	while ( *str != 0 )
 	{
 		char chr = *str++;
@@ -249,7 +289,9 @@ void wsDC::putString( u16 x, u16 y, const char* str )
 			xp = m_xdim;
 			continue;
 		}
-		u16 cw = m_pFont->char_width;	// gui->font.widths ? gui->font.widths[chr - gui->font.start_char] : gui->font.char_width;
+		u16 cw = m_pFont->char_width;
+			// no proportional font support yt
+			// gui->font.widths ? gui->font.widths[chr - gui->font.start_char] : gui->font.char_width;
 		
 		if ( xp + cw > m_xdim )
 		{
@@ -257,7 +299,7 @@ void wsDC::putString( u16 x, u16 y, const char* str )
 			yp += m_pFont->char_height + m_vspace;
 		}
 		
-		putChar(chr, xp, yp, m_fore_color, m_back_color);
+		_putChar(chr, xp, yp, m_fore_color, m_back_color, m_clip);
 		
 		xp += cw + m_hspace;
 	}	
@@ -267,7 +309,7 @@ void wsDC::putString( u16 x, u16 y, const char* str )
 void wsDC::putText(
 	wsColor bc,
 	wsColor fc,
-	const wsRect *area,
+	const wsRect &area,
 	wsAlignType align,
 	s16     hspace,
 	s16     vspace,
@@ -277,13 +319,16 @@ void wsDC::putText(
 		return;
 	if (!text || !*text)
 		return;
-	if (area->getHeight() < m_pFont->char_height )
+	
+	wsRect rect(area);
+	rect.intersect(m_clip);
+	if (rect.isEmpty())
 		return;
-
-	u16 xs=area->xs;
-	u16 ys=area->ys;
-	u16 xe=area->xe;
-	u16 ye=area->ye;
+		
+	u16 xs=area.xs;
+	u16 ys=area.ys;
+	u16 xe=area.xe;
+	u16 ye=area.ye;
 	
 	s16 char_width = m_pFont->char_width;
 	s16 char_height = m_pFont->char_height;
@@ -303,12 +348,14 @@ void wsDC::putText(
 		yp = ye - ys + 1;
 		yp -= char_height * rc;
 		yp -= vspace * (rc-1);
-		if (yp < 0)
-			return;
+		// if (yp < 0)
+		//	return;
 	}
 	if (align & ALIGN_V_CENTER)
 		yp >>= 1;
 	yp += ys;
+	if (yp < 0)
+		yp = 0;
 		
 	const char *str = text;
 	while (1)
@@ -332,21 +379,26 @@ void wsDC::putText(
 		
 		s16 xp = xe - xs + 1;
 		xp -= wl;
-		if (xp < 0)
-			return;
+		// if (xp < 0)
+			// return;
 		
 		if (align & ALIGN_H_LEFT)
 			xp = 0;
 		else if (align & ALIGN_H_CENTER)
 			xp >>= 1;
 		xp += xs;
-		
+		if (xp < 0)
+			xp = 0;
+			
 		while((*str != '\n'))
 		{
 			char chr = *str++;
 			if (chr == 0)
 				return;
-			putChar(chr,xp,yp,fc,bc);
+			
+			wsRect chr_rect(xp,yp,xp+char_width-1,yp+char_height-1);
+			if (chr_rect.intersects(rect))
+				_putChar(chr,xp,yp,fc,bc,rect);
 			xp += char_width + hspace;
 		}
 		str++;

@@ -9,14 +9,16 @@
 
 #include <circle/string.h>
 #include <circle/screen.h>
+#include <circle/timer.h>
 #include <circle/input/mouse.h>
 #include <circle/input/touchscreen.h>
 #include "wsColor.h"
 #include "wsFont.h"
 #include "wsTheme.h"
 
+#define delay(ms)   CTimer::Get()->MsDelay(ms)
 
-// defines
+// alignment
 
 #define ALIGN_H_LEFT                                  (1<<0)
 #define ALIGN_H_CENTER                                (1<<1)
@@ -50,59 +52,39 @@ typedef u8 		wsAlignType;
 // wsRect
 //------------------------------------
 
-extern void print_rect(const char *name, wsRect *rect);
+extern void print_rect(const char *name, const wsRect *rect);
 
 class wsRect
 {
 public:
-	
-	wsRect()
-	{
-		xs = 0;
-		ys = 0;
-		xe = 0;
-		ye = 0;
-	}
 
-	wsRect(u16 x0, u16 y0, u16 x1, u16 y1)
-	{
-		xs = x0;
-		ys = y0;
-		xe = x1;
-		ye = y1;
-	}
+	// expects normalized rectangles
+	// empty is indicated by end < start
+	// cannonical(1,1,0,0)
 	
-	wsRect(const wsRect *pRect)
-	{
-		xs = pRect->xs;
-		ys = pRect->ys;
-		xe = pRect->xe;
-		ye = pRect->ye;
-	}
+	wsRect();
+	wsRect(const wsRect &rect);
+	wsRect(u16 x0, u16 y0, u16 x1, u16 y1);
 	
-	void makeRelative(const wsRect *pRect)
-	{
-		xs += pRect->xs;
-		ys += pRect->ys;
-		xe += pRect->xs;
-		ye += pRect->ys;
-	}
+	wsRect &assign(const wsRect &rect);
+	wsRect &assign(u16 x0, u16 y0, u16 x1, u16 y1);
+
+	bool isEmpty() const;
+	u16 getWidth() const;
+	u16 getHeight() const;
 	
-	u16 getWidth() const { return xe-xs+1; }
-	u16 getHeight() const { return ye-ys+1; }
-	void assign(u16 x0, u16 y0, u16 x1, u16 y1)
-	{
-		xs = x0;
-		ys = y0;
-		xe = x1;
-		ye = y1;
-	}
+	wsRect &empty();	
+	wsRect &expand(const wsRect &rect);
+	wsRect &intersect(const wsRect &rect);
+	wsRect &makeRelative(const wsRect &rect);
+	
+	bool intersects(u16 x, u16 y) const;
+	bool intersects(const wsRect &rect) const;
 
 	u16 xs;
 	u16 ys;
 	u16 xe;
 	u16 ye;
-
 };
 
 
@@ -127,7 +109,8 @@ class wsDC
 			CScreenDeviceBase *pScreen) :
 			m_pScreen(pScreen),
 			m_xdim(m_pScreen->GetWidth()),
-			m_ydim(m_pScreen->GetHeight())
+			m_ydim(m_pScreen->GetHeight()),
+			m_clip(0,0,m_xdim-1,m_ydim-1)
 			{
 				m_pFont = 0;
 				m_fore_color = 0;
@@ -137,6 +120,7 @@ class wsDC
 				m_vspace = 0;
 				for (int i=0; i<NUM_OPT_DRIVERS; i++)
 					m_opt_driver[i] = 0;
+				m_invalid.empty();
 			}
 
 		CScreenDeviceBase *getScreen() 	{ return m_pScreen; }
@@ -159,13 +143,31 @@ class wsDC
 		void drawArc( u16 x, u16 y, u16 r, u8 s, wsColor color );
 
 		void setFont( const wsFont *pFont )  { m_pFont = pFont; }
-		void putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc );
 		void putString( u16 x, u16 y, const char* str );
+
+		const wsRect &getClip()  { return m_clip; }
+		void setClip(const wsRect &rect)
+			// temporarily set to the window clipping region
+			// for the next call(s)
+		{
+			m_clip.assign(rect);
+			if (!m_invalid.isEmpty())
+				m_clip.intersect(m_invalid);
+		}
+		const wsRect &getInvalid()			{ return m_invalid; }			
+		void validate()						{ m_invalid.empty(); }
+		void invalidate(const wsRect &rect)	{ m_invalid.expand(rect); }
+			// sets an area of the screen as invalid (needs repainting)
+			// so drawing methods only draw to the intersection of the
+			// clipping region and the invalid region.  The invalid region
+			// is cleared at the end of timeSlice() before sending events,
+			// and then windows that intersect it are set to REDRAW at
+			// the start of the loop.
 		
 		void putText(
 			wsColor bc,
 			wsColor fc,
-			const wsRect *area,
+			const wsRect &area,
 			wsAlignType align,
 			s16     hspace,
 			s16     vspace,
@@ -188,6 +190,9 @@ class wsDC
 			// calling static methods, divorced from the C++ object rst wrote.
 
 	private:
+		
+		void _putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc, const wsRect &clip);
+
 
 		wsDC() {}
 		
@@ -195,6 +200,9 @@ class wsDC
 		
 		u16 m_xdim;
 		u16 m_ydim;
+		
+		wsRect m_clip;
+		wsRect m_invalid;
 
 		const wsFont *m_pFont;
 		wsColor m_fore_color;
@@ -290,19 +298,21 @@ class wsWindow : public wsEventHandler
 		
 		void show();
 		void hide();
+		void redraw()
+		{
+			m_state |= WIN_STATE_REDRAW;
+			// m_pDC->invalidate(m_rect_abs);
+		}
+		
 		
 		void resize(u16 xs, u16 ys, u16 xe, u16 ye );
 		void move( u16 x, u16 y );
-		void setVirtualSize(u16 width, u16 height);
-		void setVirtualOffset(u16 xoff, u16 yoff);
 		
-		const wsRect *getRect() const				{ return &m_rect; }			
-		const wsRect *getOuterRect() const 			{ return &m_rect_abs; }		
-		const wsRect *getClentRect() const 			{ return &m_rect_client; }	
-		const wsRect *getVirtualRect() const  		{ return &m_rect_virt;  }  
-		const wsRect *getVirtualVisibleRect() const { return &m_rect_vis;  }
+		const wsRect &getRect() const				{ return m_rect; }			
+		const wsRect &getOuterRect() const 			{ return m_rect_abs; }		
+		const wsRect &getClientRect() const 		{ return m_rect_client; }
 		
-		const u16 getWidth() const { return m_rect.getWidth(); }
+		const u16 getWidth() const  { return m_rect.getWidth(); }
 		const u16 getHeight() const { return m_rect.getHeight(); }
 		
 		const char *getText()				{ return (const char *) m_text; }
@@ -322,6 +332,13 @@ class wsWindow : public wsEventHandler
 
 		wsApplication *getApplication();
 		wsWindow *findChildByID(u16 id);
+
+		// void setVirtualSize(u16 width, u16 height);
+		// void setVirtualOffset(u16 xoff, u16 yoff);
+		// const wsRect &getVirtualRect() const  		{ return m_rect_virt;  }  
+		// const wsRect &getVirtualVisibleRect() const { return m_rect_vis;  }
+		// wsRect m_rect_virt;		// visible virtual screen size (0..any number) (not limited to screen size)
+		// wsRect m_rect_vis;		// visible virtual screen rectangle (clipped to window size)
 		
 	protected:
 		
@@ -336,6 +353,8 @@ class wsWindow : public wsEventHandler
 		virtual void update(bool visible);
 		virtual void draw();
 		
+		void sizeWindow();
+		void sizeSelfAndChildren();
 		virtual wsWindow *hitTest(unsigned x, unsigned y);
 
 		u16 m_id;
@@ -345,8 +364,8 @@ class wsWindow : public wsEventHandler
 		wsRect m_rect;			// relative to parent (constrution coordinates, limited to screen size)
 		wsRect m_rect_abs;		// absolute outer screen coordinates
 		wsRect m_rect_client;   // absolute inner (client) screen coordinates
-		wsRect m_rect_virt;		// visible virtual screen size (0..any number) (not limited to screen size)
-		wsRect m_rect_vis;		// visible virtual screen rectangle (clipped to window size)
+		wsRect m_clip_abs;   	// the client rect clipped by the parent client area
+		wsRect m_clip_client;   // the abs rect clipped by the parent client area
 		
 		u16 m_numChildren;
 		wsWindow *m_pParent;
@@ -365,11 +384,10 @@ class wsWindow : public wsEventHandler
 };
 
 
+
 //-------------------------------------------
 // top level windows
 //-------------------------------------------
-
-
 
 class wsTopLevelWindow : public wsWindow
 {
@@ -393,6 +411,7 @@ class wsTopLevelWindow : public wsWindow
 		wsTopLevelWindow *m_pNextWindow;
 		
 };
+
 
 
 //-------------------------------------------
@@ -534,7 +553,7 @@ class wsCheckbox : public wsControl
 				m_checkbox_state |= CHB_STATE_CHECKED;
 			else
 				m_checkbox_state &= ~CHB_STATE_CHECKED;
-			m_state |= WIN_STATE_REDRAW;
+			redraw();
 		}
 		
 		void setAltBackColor(wsColor color)  {m_alt_back_color = color;}
