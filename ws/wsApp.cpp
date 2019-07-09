@@ -6,6 +6,7 @@
 
 #include "wsWindow.h"
 #include <circle/logger.h>
+#include <circle/util.h>
 #define log_name  "wsapp"
 
 
@@ -36,8 +37,11 @@ wsApplication::wsApplication() :
 	LOG("ctor",0);
 	m_pTopWindow = 0;
 	m_pBottomWindow = 0;
-	m_lastTouchUpdate = 0;
+
 	m_pTouchFocus = 0;
+	memset(&m_touch_state,0,sizeof(touchState_t));
+	m_lastTouchUpdate = 0;
+
 	m_pFirstEvent = 0;
 	m_pLastEvent = 0;
 }
@@ -118,6 +122,9 @@ void wsApplication::Initialize(
 }
 
 
+//--------------------------------------------------
+// generic touch event handlers
+//--------------------------------------------------
 
 void wsApplication::mouseEventStub(
 	void *pThis,
@@ -136,11 +143,27 @@ void wsApplication::mouseEventHandler(
 	unsigned x,
 	unsigned y)
 {
-	// LOG("mouse event(%d,%d,%d,%d)",event,buttons,x,y);
-	if (event == MouseEventMouseDown ||
-		event == MouseEventMouseUp)
-		onTouchEvent(x,y,event == MouseEventMouseDown);
+	#if 0
+		LOG("mouseEventHandler(%d,%d,%s,%02x)",
+			x,y,
+			(event == MouseEventMouseDown) ? "down" :
+			(event == MouseEventMouseMove) ? "move" :
+			(event == MouseEventMouseUp)   ? "up" : "unknown",
+			buttons);
+	#endif		
+
+	u8 touch_event =
+		(event == MouseEventMouseMove) ?
+			buttons ? TOUCH_MOVE : 0 :
+		(event == MouseEventMouseDown) ?
+			TOUCH_DOWN :
+		(event == MouseEventMouseUp) ?
+			TOUCH_UP : 0;
+	
+	if (touch_event)
+		onTouchEvent(x,y,touch_event);
 }
+
 
 
 void wsApplication::touchEventStub(
@@ -160,36 +183,85 @@ void wsApplication::touchEventHandler(
 	unsigned x,
 	unsigned y)
 {
+	#if 1
+		LOG("touchEventHandler(%d,%d,%s)",
+			x,y,
+			(event == TouchScreenEventFingerDown) ? "down" :
+			(event == TouchScreenEventFingerMove) ? "move" :
+			(event == TouchScreenEventFingerUp)   ? "up" : "unknown");
+	#endif		
+
 	// LOG("touch event(%d,%d,%d,%d)",event,id,x,y);
-	if (event == TouchScreenEventFingerDown ||
-		event==TouchScreenEventFingerUp)
-		onTouchEvent(x,y,event == TouchScreenEventFingerDown);
+	u8 touch_event =
+		(event == TouchScreenEventFingerDown) ? TOUCH_DOWN :
+		(event == TouchScreenEventFingerMove) ? TOUCH_MOVE :
+		(event == TouchScreenEventFingerUp)   ? TOUCH_UP : 0;
+	if (touch_event)
+		onTouchEvent(x,y,touch_event);
 }
 
+	
+touchState_t *wsApplication::setTouchFocus(wsWindow *win)
+	// called from hitTest on the the wsWindow object,
+	// if any, that matched the starting x,y coordinates
+{
+	m_pTouchFocus = win;
+	#if 1
+		LOG("setTouchFocus(%08x)",(u32)win);
+	#endif		
+	
+	if (win)
+	{
+		m_touch_state.start_state = m_touch_state.cur_state;
+		m_touch_state.start_x = m_touch_state.cur_x;
+		m_touch_state.start_y = m_touch_state.cur_y;
+		m_touch_state.start_time = m_touch_state.cur_time;
+	}
+	else
+	{
+		memset(&m_touch_state,0,sizeof(touchState_t));
+	}
+	return &m_touch_state;
+}
+
+
+//--------------------------------------------------
+// system touch event handler
+//--------------------------------------------------
 
 void wsApplication::onTouchEvent(
 	unsigned x,
 	unsigned y,
-	bool down)
+	u8 touch)
 {
-	// LOG("onTouchEvent(%d,%d,%d) m_pTouchFocus=%08x",x,y,down,(u32)m_pTouchFocus);
-	if (down)
+	m_touch_state.cur_state = touch;
+	m_touch_state.cur_x = x;
+	m_touch_state.cur_y = y;
+	m_touch_state.cur_time = CTimer::GetClockTicks() / 1000;
+	
+	#if 1
+		LOG("onTouchEvent(%d,%d,%02x) time=%d",x,y,touch,m_touch_state.cur_time);
+	#endif		
+
+ 	if (m_pTouchFocus)
 	{
-		if (m_pTopWindow)
-		{
-			m_pTopWindow->hitTest(x,y);
-		}
+		m_pTouchFocus->updateTouch(&m_touch_state);
 	}
-	else if (m_pTouchFocus)
+	else if (m_pTopWindow &&
+			(touch & TOUCH_DOWN))
 	{
-		// LOG("Clearing touch(%08x)",(u32)m_pTouchFocus);
-		m_pTouchFocus->m_state &= ~WIN_STATE_IS_TOUCHED;
-		m_pTouchFocus->m_state |= WIN_STATE_TOUCH_CHANGED;
-		m_pTouchFocus->update(true);
-		m_pTouchFocus = 0;
+		m_touch_state.start_state = 0;
+		m_touch_state.start_x = 0;
+		m_touch_state.start_y = 0;
+		m_touch_state.start_time = 0;
+		m_pTopWindow->hitTest(x,y);
 	}
 }
 
+
+//--------------------------------------------------
+// timeSlice()
+//--------------------------------------------------
 
 void wsApplication::timeSlice()
 {

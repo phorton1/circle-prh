@@ -40,59 +40,29 @@ void wsStaticText::draw()
 // wsButton
 //-------------------------------------------------------
 
-void wsButton::update(bool visible)
+void wsButton::onTouch(bool touched)
 {
-	if (m_state & WIN_STATE_TOUCH_CHANGED)
-	{
-		// LOG("wsButton(%08x) TOUCH_CHANGED IS_TOUCH=%d",
-		// 	(u32)this,m_state & WIN_STATE_IS_TOUCHED ? 1 : 0);
-		
-		m_state &= ~WIN_STATE_TOUCH_CHANGED;
-		if (m_button_style & BTN_STYLE_TOGGLE_VALUE)
-		{
-			if (m_state & WIN_STATE_IS_TOUCHED)
-			{
-				if (m_button_state & BTN_STATE_PRESSED)
-				{
-					// printf("toggle button up\n");
-					m_button_state &= ~BTN_STATE_PRESSED;
-				}
-				else
-				{
-					// printf("toggle button down\n");
-					m_button_state |= BTN_STATE_PRESSED;
-				}
-			}
-		}
-		else if (m_state & WIN_STATE_IS_TOUCHED)
-		{
-			// printf("button down\n");
-			m_button_state |= BTN_STATE_PRESSED;
-		}
-		else
-		{
-			// printf("button up\n");
-			m_button_state &= ~BTN_STATE_PRESSED;
-		}
-		
-		// generate the event on the touch up
-		
-		if (!(m_state & WIN_STATE_IS_TOUCHED))
-		{
-			getApplication()->addEvent(new wsEvent(
-				EVT_TYPE_BUTTON,
-				BTN_EVENT_PRESSED,
-				this ));
-		}
-		
-		redraw();	// sets WIN_STATE_REDRAW and invalidates the rect
-	}
-	if (m_state & WIN_STATE_REDRAW)
-	{
-		draw();
-		m_state &= ~WIN_STATE_REDRAW;
-	}
+	#if 0
+		printf("wsButton::onTouch(%d)\n",touched);
+	#endif
+	m_state |= WIN_STATE_REDRAW;
 }
+
+void wsButton::onClick()
+{
+	#if 0
+		printf("wsButton::onClick()\n",0);
+	#endif
+	if (m_button_style & BTN_STYLE_TOGGLE_VALUE)
+	{
+		toggleBit(m_button_state, BTN_STATE_PRESSED);
+	}
+	getApplication()->addEvent(new wsEvent(
+		EVT_TYPE_BUTTON,
+		BTN_EVENT_PRESSED,
+		this ));
+}
+
 
 
 void wsButton::draw()
@@ -100,11 +70,13 @@ void wsButton::draw()
 	wsColor bc = m_back_color;
 	wsColor fc = m_fore_color;
 	
-	// LOG("wsButton(%08x)::draw() m_button_style(0x%04x) m_state(0x%08x) m_button_state(0x%04x)",
-	// 	   (u32) this,
-	// 	   m_button_style,
-	// 	   m_state,
-	// 	   m_button_state);
+	#if 0
+		LOG("wsButton(%08x)::draw() m_button_style(0x%04x) m_state(0x%08x) m_button_state(0x%04x)",
+			(u32) this,
+			m_button_style,
+			m_state,
+			m_button_state);
+	#endif
 	
 	bool pressed =
 		m_state & WIN_STATE_IS_TOUCHED ||
@@ -145,7 +117,6 @@ void wsButton::draw()
 
 	if ( m_button_style & BTN_STYLE_3D )
 	{
-		// LOG("draw3dframe() pressed=%d",m_button_state & BTN_STATE_PRESSED ? 1 : 0);
 		m_pDC->setClip(m_clip_abs);
 	    m_pDC->draw3DFrame(
 			m_rect_abs.xs,
@@ -176,54 +147,37 @@ void wsButton::draw()
 // wsCheckbox
 //-------------------------------------------------------
 
-void wsCheckbox::update(bool visible)
+void wsCheckbox::onTouch(bool touched)
 {
-	if (m_state & WIN_STATE_TOUCH_CHANGED)
-	{
-		// LOG("wsCheckbox(%08x) TOUCH_CHANGED IS_TOUCH=%d",
-		// 	(u32)this,m_state & WIN_STATE_IS_TOUCHED ? 1 : 0);
-		
-		m_state &= ~WIN_STATE_TOUCH_CHANGED;
-		if (m_state & WIN_STATE_IS_TOUCHED)
-		{
-			m_checkbox_state |= CHB_STATE_PRESSED;
-			if (m_checkbox_state & CHB_STATE_CHECKED)
-			{
-				// printf("uncheck box\n");
-				m_checkbox_state &= ~CHB_STATE_CHECKED;
-			}
-			else
-			{
-				// printf("check the box\n");
-				m_checkbox_state |= CHB_STATE_CHECKED;
-			}
-		}
-		else
-		{
-			m_checkbox_state &= ~CHB_STATE_PRESSED;
-		
-			// generate the event on the touch up
-			
-			getApplication()->addEvent(new wsEvent(
-				EVT_TYPE_CHECKBOX,
-				CHB_EVENT_VALUE_CHANGED,
-				this ));
-		}
-		
-		redraw();	// sets WIN_STATE_REDRAW and invalidates the rect
-	}
-	if (m_state & WIN_STATE_REDRAW)
-	{
-		draw();
-		m_state &= ~WIN_STATE_REDRAW;
-	}
+	#if 0
+		printf("wsCheckbox::onTouch(%d)\n",touched);
+	#endif
+	if (touched)
+		setBit(m_checkbox_state,CHB_STATE_PRESSED);
+	else
+		clearBit(m_checkbox_state,CHB_STATE_PRESSED);
+	m_state |= WIN_STATE_REDRAW;
 }
+
+
+void wsCheckbox::onClick()
+{
+	#if 0
+		printf("wsCheckbox::onClick()\n",0);
+	#endif
+	
+	toggleBit(m_checkbox_state, CHB_STATE_CHECKED);
+	getApplication()->addEvent(new wsEvent(
+		EVT_TYPE_CHECKBOX,
+		CHB_EVENT_VALUE_CHANGED,
+		this ));
+}
+
 
 
 #define CHECKBOX_SIZE   20
 #define CHECKBOX_TEXT_X_OFFSET  30
 #define CHECKBOX_TEXT_Y_OFFSET  3
-
 
 void wsCheckbox::draw()
 	// I don't really like having text associated with checkboxes

@@ -259,6 +259,7 @@ void wsWindow::hide()
 }
 
 
+
 void wsWindow::update(bool visible)
 {
 	// update self
@@ -304,8 +305,11 @@ wsWindow* wsWindow::hitTest(unsigned x, unsigned y)
 		(m_state & WIN_STATE_VISIBLE) &&
 		m_clip_abs.intersects(x,y))
 	{
-		m_state |= WIN_STATE_IS_TOUCHED | WIN_STATE_TOUCH_CHANGED;
-		// LOG("wsWindow::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
+		setBit(m_state,WIN_STATE_IS_TOUCHED);	// | WIN_STATE_TOUCH_CHANGED;
+		onTouch(1);
+		#if 0
+			LOG("wsWindow::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
+		#endif
 		return this;
 	}
 	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
@@ -313,10 +317,62 @@ wsWindow* wsWindow::hitTest(unsigned x, unsigned y)
 		wsWindow *found = p->hitTest(x,y);
 		if (found)
 		{
-			// LOG("wsWindow::hitTest(%d,%d) returning 0x%08x",x,y,(u32)found);
+			#if 0
+				LOG("wsWindow::hitTest(%d,%d) returning 0x%08x",x,y,(u32)found);
+			#endif
 			return found;
 		}
 	}
 	return 0;
 }
 
+
+
+void wsWindow::updateTouch(touchState_t *touch_state)
+	// called by the application on each subsequent
+	// touch event after an initial succesfull hitTest(),
+	// handles time and position based behaviors, generating
+	// calls to onClick, onDblClick, etc.
+
+{
+	#if 0
+		LOG("updateTouch(%d,%d,%02x)",touch_state->cur_x,touch_state->cur_y,touch_state->cur_state);
+	#endif
+	
+	u8 state = touch_state->cur_state;
+		
+	// if the mouse has strayed out of the object,
+	// lose focus, 
+	
+	if (state & TOUCH_MOVE)
+	{
+		if (!m_rect_abs.intersects(touch_state->cur_x,touch_state->cur_y))
+		{
+			#if 0
+				printf("updateTouch: touch strayed\n");
+			#endif
+			clearBit(m_state,WIN_STATE_IS_TOUCHED);
+			onTouch(0);
+			getApplication()->setTouchFocus(0);
+		}
+	}
+	
+	// otherwise, if the mouse has been release, generate
+	// an onClick() event and lose focus
+	
+	else if (!(state & TOUCH_DOWN))
+	{
+		#if 0
+			printf("updateTouch: touch up\n");
+		#endif
+		
+		clearBit(m_state,WIN_STATE_IS_TOUCHED);
+		onTouch(0);
+		if (m_style & WIN_STYLE_CLICK)
+			onClick();
+		getApplication()->setTouchFocus(0);
+	}
+}
+
+	
+	
