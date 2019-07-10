@@ -156,26 +156,26 @@ class wsDC
 			}
 
 		CScreenDeviceBase *getScreen() 	{ return m_pScreen; }
-		u16 getXDim( void ) const { return m_xdim; }
-		u16 getYDim( void ) const { return m_ydim; }
-		void setPixel(u16 x, u16 y, wsColor color)
+		s32 getXDim( void ) const { return m_xdim; }
+		s32 getYDim( void ) const { return m_ydim; }
+		void setPixel(s32 x, s32 y, wsColor color)
 			{ m_pScreen->SetPixel(x,y,color); }
 
 		void fillScreen( wsColor color );
-		void fillFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color );
-		void drawLine( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color );
-		void drawFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color );
-		void draw3DFrame( u16 xs, u16 ys, u16 xe, u16 ye, const wsColor *pColor );
+		void fillFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
+		void drawLine( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
+		void drawFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
+		void draw3DFrame( s32 xs, s32 ys, s32 xe, s32 ye, const wsColor *pColor );
 
-		void fillRoundFrame( u16 x0, u16 y0, u16 x1, u16 y1, u16 r, wsColor color );
-		void drawMesh( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color );
-		void drawRoundFrame( u16 x0, u16 y0, u16 x1, u16 y1, u16 r, wsColor color );
-		void drawCircle( u16 x, u16 y, u16 r, wsColor color );
-		void fillCircle( u16 x, u16 y, u16 r, wsColor color );
-		void drawArc( u16 x, u16 y, u16 r, u8 s, wsColor color );
+		void fillRoundFrame( s32 x0, s32 y0, s32 x1, s32 y1, u16 r, wsColor color );
+		void drawMesh( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
+		void drawRoundFrame( s32 x0, s32 y0, s32 x1, s32 y1, u16 r, wsColor color );
+		void drawCircle( s32 x, s32 y, u16 r, wsColor color );
+		void fillCircle( s32 x, s32 y, u16 r, wsColor color );
+		void drawArc( s32 x, s32 y, u16 r, u8 s, wsColor color );
 
 		void setFont( const wsFont *pFont )  { m_pFont = pFont; }
-		void putString( u16 x, u16 y, const char* str );
+		void putString( s32 x, s32 y, const char* str );
 
 		const wsRect &getClip()  { return m_clip; }
 		void setClip(const wsRect &rect)
@@ -211,7 +211,7 @@ class wsDC
 		void setFontVSpace( s16 space ) 		{ m_vspace = space; }
 		
 		void consolePutString( char* str );
-		void consoleSetArea( u16 xs, u16 ys, u16 xe, u16 ye );
+		void consoleSetArea( s32 xs, s32 ys, s32 xe, s32 ye );
 		void consoleSetForecolor( wsColor color );
 		void consoleSetBackcolor( wsColor color );
 		
@@ -225,12 +225,12 @@ class wsDC
 		
 		wsDC() {}
 
-		void _putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc, const wsRect &clip);
+		void _putChar( char chr, s32 x, s32 y, wsColor fc, wsColor bc, const wsRect &clip);
 		
 		CScreenDeviceBase *m_pScreen;
 		
-		u16 m_xdim;
-		u16 m_ydim;
+		s32 m_xdim;
+		s32 m_ydim;
 		
 		wsRect m_clip;
 		wsRect m_invalid;
@@ -327,6 +327,13 @@ class wsEventHandler
 // #define WIN_STATE_IS_FLINGING		0x00000800
 
 
+#define DRAG_CONSTRAINT_X			0x01
+#define DRAG_CONSTRAINT_Y			0x02
+#define DRAG_CONSTRAINT_FIT			0x04
+#define DRAG_CONSTRAINT_SHOW		0x08
+#define DRAG_CONSTRAINT_OBJECT		0x10
+
+
 class wsWindow : public wsEventHandler
 {
 	public:
@@ -394,6 +401,9 @@ class wsWindow : public wsEventHandler
 		// wsRect m_rect_virt;		// visible virtual screen size (0..any number) (not limited to screen size)
 		// wsRect m_rect_vis;		// visible virtual screen rectangle (clipped to window size)
 		
+		void setDragConstraint(u8 constraint)  		{ m_drag_constraint = constraint; }
+		u8  getDragConstraint() const 				{ return m_drag_constraint; }
+		
 	protected:
 		
 		friend class wsApplication;
@@ -443,6 +453,7 @@ class wsWindow : public wsEventHandler
 		wsAlignType m_align;
 
 		CString m_text;
+		u8 m_drag_constraint;
 };
 
 

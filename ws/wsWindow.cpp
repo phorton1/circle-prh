@@ -57,6 +57,10 @@ wsWindow::wsWindow(
 		m_align = ALIGN_CENTER_LEFT;
 	}
 
+	m_drag_constraint =
+		DRAG_CONSTRAINT_OBJECT |
+		DRAG_CONSTRAINT_SHOW;
+	
 	sizeWindow();
 }
 
@@ -565,10 +569,14 @@ void wsWindow::onDragBegin()
 
 	s32 x = touch_state->x;
 	s32 y = touch_state->y;
-	if (x < m_rect_abs.xs) x = m_rect_abs.xs;
-	if (y < m_rect_abs.ys) y = m_rect_abs.ys;
-	if (x > m_rect_abs.xe) x = m_rect_abs.xe;
-	if (y > m_rect_abs.ye) y = m_rect_abs.ye;
+	
+	if (m_drag_constraint & DRAG_CONSTRAINT_OBJECT)
+	{
+		if (x < m_rect_abs.xs) x = m_rect_abs.xs;
+		if (y < m_rect_abs.ys) y = m_rect_abs.ys;
+		if (x > m_rect_abs.xe) x = m_rect_abs.xe;
+		if (y > m_rect_abs.ye) y = m_rect_abs.ye;
+	}
 	
 	// make it relative to the object
 	// and remember it
@@ -577,7 +585,7 @@ void wsWindow::onDragBegin()
 	touch_state->drag_y  = y - m_rect_abs.ys;
 
 	#if DEBUG_DRAG
-		LOG("onDragBegin(%d,%d) rect(%d,%d,%d,%d) drag_x=%d drag_y=%d",
+		LOG("onDragBegin(%i,%i) rect(%d,%d,%d,%d) drag_x=%d drag_y=%d",
 			touch_state->x,
 			touch_state->y,
 			m_rect_abs.xs,
@@ -585,7 +593,8 @@ void wsWindow::onDragBegin()
 			m_rect_abs.xe,
 			m_rect_abs.ye,
 			touch_state->drag_x,
-			touch_state->drag_y);	
+			touch_state->drag_y);
+		LOG("constraint=%02x",m_drag_constraint);
 	#endif
 }
 
@@ -594,49 +603,67 @@ void wsWindow::onDragMove()
 {
 	wsApplication *app = getApplication();
 	touchState_t *touch_state = app->getTouchState();
-	wsRect rect(m_pParent->getClientRect());
+	wsRect client_rect(m_pParent->getClientRect());
 
 	#if DEBUG_DRAG
-		print_rect("client_rect",&rect);
+		print_rect("client_rect",&client_rect);
 	#endif
-	
-	// offset the abs coordinates to the
-	// upper left corner of the object
-	// constrained by absolute 0,0
-	
+
 	s32 x = touch_state->x;
 	s32 y = touch_state->y;
 	s32 drag_x = touch_state->drag_x;
 	s32 drag_y = touch_state->drag_y;
-	if (x < drag_x) x = drag_x;
-	if (y < drag_y) y = drag_y;
+	s32 width = m_rect.getWidth();
+	s32 height = m_rect.getHeight();
+	
+	// offset the abs coordinates to the
+	// upper left corner of the object
+	// constrained by absolute 0,0
+
 	x -= drag_x;
 	y -= drag_y;
-	
 	#if DEBUG_DRAG
-		LOG("onDragMove(%d,%d) upper_left=%d,%d",
-			touch_state->x,
-			touch_state->y,
-			x,y);
+		LOG("  upper left=%d,%d",x,y);
 	#endif
+
+	// make sure it fits in the client area if requested
 	
-	// corral the touch to the client area
-	// and make it relative
+	if (m_drag_constraint & DRAG_CONSTRAINT_FIT)
+	{
+		if (x + width-1 > client_rect.xe) x = client_rect.xe - width + 1;
+		if (y + height-1 > client_rect.ye) y = client_rect.ye - height + 1;
+		if (x < client_rect.xs) x = client_rect.xs;
+		if (y < client_rect.ys) y = client_rect.ys;
+	}
+	else if (m_drag_constraint & DRAG_CONSTRAINT_SHOW)
+	{
+		if (x > client_rect.xe - DRAG_OUT_MARGIN) x = client_rect.xe - DRAG_OUT_MARGIN;
+		if (y > client_rect.ye - DRAG_OUT_MARGIN) y = client_rect.ye - DRAG_OUT_MARGIN;
+		if (x + width - 1 < client_rect.xs + DRAG_OUT_MARGIN) x = client_rect.xs + DRAG_OUT_MARGIN - width + 1;
+		if (y + height - 1 < client_rect.ys + DRAG_OUT_MARGIN) y = client_rect.ys + DRAG_OUT_MARGIN - height + 1;
+	}
 	
-	if (x < rect.xs) x = rect.xs;
-	if (y < rect.ys) y = rect.ys;
-	if (x > rect.xe - (DRAG_OUT_MARGIN-1)) x = rect.xe - (DRAG_OUT_MARGIN-1);
-	if (y > rect.ye - (DRAG_OUT_MARGIN-1)) y = rect.ye - (DRAG_OUT_MARGIN-1);
+	if (m_drag_constraint & DRAG_CONSTRAINT_X)
+	{
+		y = m_rect_abs.ys;
+	}
+	if (m_drag_constraint & DRAG_CONSTRAINT_Y)
+	{
+		x = m_rect_abs.xs;
+	}
 
 	#if DEBUG_DRAG
-		LOG("    constrained=%d,%d",x,y);
+		LOG("  constrained=%d,%d",x,y);
 	#endif
 	
-	x -= rect.xs;
-	y -= rect.ys;
+	// make it relative to the parent client area
+	// and move it
+	
+	x -= client_rect.xs;
+	y -= client_rect.ys;
 	
 	#if DEBUG_DRAG
-		LOG("    relative=%d,%d",x,y);
+		LOG("     relative=%d,%d",x,y);
 	#endif
 	
 	move(x,y);

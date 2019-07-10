@@ -183,7 +183,7 @@ void wsApplication::touchEventHandler(
 	unsigned x,
 	unsigned y)
 {
-	#if 1
+	#if 0
 		LOG("touchEventHandler(%d,%d,%s)",
 			x,y,
 			(event == TouchScreenEventFingerDown) ? "down" :

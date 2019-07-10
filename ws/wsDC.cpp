@@ -22,10 +22,10 @@ void wsDC::fillScreen( wsColor color )
 }
 
 
-#define swapU16(i,j)  { u16 t = i; i=j; j=t; }
+#define swapU16(i,j)  { s32 t = i; i=j; j=t; }
 
 
-void wsDC::fillFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
+void wsDC::fillFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color )
 {
 	if ( x1 < x0 ) swapU16(x0,x1);
 	if ( y1 < y0 ) swapU16(y0,y1);
@@ -42,9 +42,9 @@ void wsDC::fillFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 		return;
 	}
 	
-	for (u16 y=rect.ys; y<=rect.ye; y++ )
+	for (s32 y=rect.ys; y<=rect.ye; y++ )
 	{
-	   for (u16 x=rect.xs; x<=rect.xe; x++ )
+	   for (s32 x=rect.xs; x<=rect.xe; x++ )
 	   {
 		  setPixel(x,y,color);
 	   }
@@ -53,7 +53,7 @@ void wsDC::fillFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 
 
 
-void wsDC::drawLine( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
+void wsDC::drawLine( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color )
 {
 	wsRect rect(x0,y0,x1,y1);
 	rect.intersect(m_clip);
@@ -117,7 +117,7 @@ void wsDC::drawLine( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 
 
 
-void wsDC::drawFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
+void wsDC::drawFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color )
 {
    drawLine(x0,y0,x1,y0,color);
    drawLine(x0,y1,x1,y1,color);
@@ -128,40 +128,40 @@ void wsDC::drawFrame( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
 
 
 
-void wsDC::fillRoundFrame( u16 x0, u16 y0, u16 x1, u16 y1, u16 r, wsColor color )
+void wsDC::fillRoundFrame( s32 x0, s32 y0, s32 x1, s32 y1, u16 r, wsColor color )
 {
 	
 }
 
-void wsDC::wsDC::drawMesh( u16 x0, u16 y0, u16 x1, u16 y1, wsColor color )
-{
-	
-}
-
-
-
-void wsDC::drawRoundFrame( u16 x0, u16 y0, u16 x1, u16 y1, u16 r, wsColor color )
-{
-	
-}
-
-void wsDC::drawCircle( u16 x, u16 y, u16 r, wsColor color )
-{
-	
-}
-
-void wsDC::fillCircle( u16 x, u16 y, u16 r, wsColor color )
-{
-	
-}
-
-void wsDC::drawArc( u16 x, u16 y, u16 r, u8 s, wsColor color )
+void wsDC::wsDC::drawMesh( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color )
 {
 	
 }
 
 
-void wsDC::_putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc, const wsRect &clip )
+
+void wsDC::drawRoundFrame( s32 x0, s32 y0, s32 x1, s32 y1, u16 r, wsColor color )
+{
+	
+}
+
+void wsDC::drawCircle( s32 x, s32 y, u16 r, wsColor color )
+{
+	
+}
+
+void wsDC::fillCircle( s32 x, s32 y, u16 r, wsColor color )
+{
+	
+}
+
+void wsDC::drawArc( s32 x, s32 y, u16 r, u8 s, wsColor color )
+{
+	
+}
+
+
+void wsDC::_putChar( char chr, s32 x, s32 y, wsColor fc, wsColor bc, const wsRect &clip )
 {
 	// set the background and foreground to distinctive colors
 	// to prove it's only drawing the invalidated region
@@ -189,36 +189,36 @@ void wsDC::_putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc, const wsRec
 	if (bt < m_pFont->start_char || bt > m_pFont->end_char)
 		return;
 
-	u16	char_width = m_pFont->char_width;
+	s32	char_width = m_pFont->char_width;
 	if (!char_width)
 		return;
-	u16 char_height = m_pFont->char_height;
+	s32 char_height = m_pFont->char_height;
 
 	wsRect rect(x,y, x+char_width-1, y+char_height-1);
 	rect.intersect(clip);
 	if (rect.isEmpty())
 		return;
 
-	u16 bn = char_width >> 3;
+	s32 bn = char_width >> 3;
 	if (char_width % 8)
 		bn++;
 	u32 index = (bt - m_pFont->start_char)* char_height * bn;
 	
-	u16 yo = y;
+	s32 yo = y;
 		
 	if ( m_opt_driver[OPT_DRIVER_FILL_AREA])
 	{
 		pushPixelFxn pushPixel = ((fillAreaDriver)m_opt_driver[OPT_DRIVER_FILL_AREA])
 			(m_pScreen, rect.xs, rect.ys, rect.xe, rect.ye);
 		
-		for (u16 j=0; j<char_height; j++)
+		for (s32 j=0; j<char_height; j++)
 		{
-			u16 xo = x;
-			u16 c = char_width;
-			for (u16 i=0; i<bn; i++)
+			s32 xo = x;
+			s32 c = char_width;
+			for (s32 i=0; i<bn; i++)
 			{
 				u8 b = m_pFont->p[index++];
-				for(u16 k=0; (k<8) && c; k++)
+				for(s32 k=0; (k<8) && c; k++)
 				{
 					if( b & 0x01 )
 					{
@@ -240,14 +240,14 @@ void wsDC::_putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc, const wsRec
 	}
 	else	// not accelerated
 	{
-		for	(u16 j=0; j<char_height; j++)
+		for	(s32 j=0; j<char_height; j++)
 		{
-			u16 xo = x;
-			u16 c = char_width;
-			for (u16 i=0; i<bn; i++)
+			s32 xo = x;
+			s32 c = char_width;
+			for (s32 i=0; i<bn; i++)
 			{
 				u8 b = m_pFont->p[index++];
-				for (u16 k=0;(k<8) && c; k++)
+				for (s32 k=0;(k<8) && c; k++)
 				{
 					if (b & 0x01)
 					{
@@ -270,10 +270,10 @@ void wsDC::_putChar( char chr, u16 x, u16 y, wsColor fc, wsColor bc, const wsRec
 }
 
 
-void wsDC::putString( u16 x, u16 y, const char* str )
+void wsDC::putString( s32 x, s32 y, const char* str )
 {
-	u16 xp = x;
-	u16 yp = y;
+	s32 xp = x;
+	s32 yp = y;
 	if (m_clip.isEmpty())
 		return;
 	
@@ -289,7 +289,7 @@ void wsDC::putString( u16 x, u16 y, const char* str )
 			xp = m_xdim;
 			continue;
 		}
-		u16 cw = m_pFont->char_width;
+		s32 cw = m_pFont->char_width;
 			// no proportional font support yt
 			// gui->font.widths ? gui->font.widths[chr - gui->font.start_char] : gui->font.char_width;
 		
@@ -325,15 +325,15 @@ void wsDC::putText(
 	if (rect.isEmpty())
 		return;
 		
-	u16 xs=area.xs;
-	u16 ys=area.ys;
-	u16 xe=area.xe;
-	u16 ye=area.ye;
+	s32 xs=area.xs;
+	s32 ys=area.ys;
+	s32 xe=area.xe;
+	s32 ye=area.ye;
 	
 	s16 char_width = m_pFont->char_width;
 	s16 char_height = m_pFont->char_height;
 	
-	u16 rc = 1;
+	s32 rc = 1;
 	const char *c = text;
 	while (*c)
 	{
@@ -414,7 +414,7 @@ void wsDC::consolePutString( char* str )
 	
 }
 
-void wsDC::consoleSetArea( u16 xs, u16 ys, u16 xe, u16 ye )
+void wsDC::consoleSetArea( s32 xs, s32 ys, s32 xe, s32 ye )
 {
 	
 }
@@ -430,7 +430,7 @@ void wsDC::consoleSetBackcolor( wsColor color )
 }
 
 
-void wsDC::draw3DFrame( u16 xs, u16 ys, u16 xe, u16 ye, const wsColor *pColor )
+void wsDC::draw3DFrame( s32 xs, s32 ys, s32 xe, s32 ye, const wsColor *pColor )
 {
    drawLine(xs, ys  , xe-1, ys  , *pColor++);
    drawLine(xs, ys+1, xs  , ye-1, *pColor++);

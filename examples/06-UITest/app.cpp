@@ -191,9 +191,12 @@ class topWindow : public wsTopLevelWindow
 				else if (id == ID_BUTTON4)
 				{
 					m_button4_count++;
+					if (m_button4_count > 31) m_button4_count = 0;
+					
 					CString string;
-					string.Format("text4 - clicked %d",m_button4_count);
+					string.Format("text4 - clicked 0x%02x",m_button4_count);
 					stext(ID_TEXT4)->setText(string);
+					button(ID_BUTTON5)->setDragConstraint(m_button4_count);
 				}
 				else if (id == ID_BUTTON5)
 				{
@@ -218,8 +221,11 @@ class topWindow : public wsTopLevelWindow
 				if (id == ID_BUTTON4)
 				{
 					CString string;
-					string.Format("text4 - long clicked %d",m_button4_count);
+					m_button5_count++;
+					if (m_button4_count > 31) m_button4_count = 0;
+					string.Format("text4 - long clicked 0x%02x",m_button4_count);
 					stext(ID_TEXT4)->setText(string);
+					button(ID_BUTTON5)->setDragConstraint(m_button4_count);
 				}
 			}
 			return 0;
