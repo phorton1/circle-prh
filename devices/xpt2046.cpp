@@ -5,7 +5,7 @@
 #include <circle/logger.h>
 #include <circle/util.h>
 
-// #define GENERATE_MOVE_EVENTS
+#define GENERATE_MOVE_EVENTS
 // #define PRINT_MOUSE_EVENTS
 
 #define log_name "xpt2046"

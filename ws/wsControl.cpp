@@ -18,13 +18,16 @@ void wsStaticText::draw()
 	wsColor bc = m_back_color;
 	wsColor fc = m_fore_color;
 
-	m_pDC->setClip(m_clip_abs);
-	m_pDC->fillFrame(
-		m_rect_client.xs,
-		m_rect_client.ys,
-		m_rect_client.xe,
-		m_rect_client.ye,
-		bc);
+	wsWindow::draw();
+	
+	//	m_pDC->setClip(m_clip_abs);
+	//	m_pDC->fillFrame(
+	//		m_rect_client.xs,
+	//		m_rect_client.ys,
+	//		m_rect_client.xe,
+	//		m_rect_client.ye,
+	//		bc);
+	
 	m_pDC->setFont(m_pFont);
 	m_pDC->putText(
 		bc,fc,
@@ -41,22 +44,27 @@ void wsStaticText::draw()
 //-------------------------------------------------------
 
 void wsButton::onTouch(bool touched)
+	// onTouch primarily exists to set the WIN_STATE_REDRAW bit
+	// which is done via calls to redraw()
 {
-	#if 0
+	#if DEBUG_TOUCH
 		printf("wsButton::onTouch(%d)\n",touched);
 	#endif
-	m_state |= WIN_STATE_REDRAW;
+	redraw();
 }
 
 void wsButton::onClick()
+	// onClick() handlers must change their state
+	// and also set WIN_STATE_REDRAW, as well as
+	// generate any needed events.
 {
-	#if 0
+	#if DEBUG_TOUCH
 		printf("wsButton::onClick()\n",0);
 	#endif
+
 	if (m_button_style & BTN_STYLE_TOGGLE_VALUE)
-	{
 		toggleBit(m_button_state, BTN_STATE_PRESSED);
-	}
+	redraw();
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_BUTTON,
 		BTN_EVENT_PRESSED,
@@ -97,7 +105,7 @@ void wsButton::draw()
     }
 	
 	m_pDC->setClip(m_clip_client);
-    if ( !(m_button_style & BTN_STYLE_NO_FILL))
+    if ( !(m_style & WIN_STYLE_TRANSPARENT))
 	{
         m_pDC->fillFrame(
 			m_rect_client.xs,
@@ -115,7 +123,7 @@ void wsButton::draw()
 		1,2,
 		getText());
 
-	if ( m_button_style & BTN_STYLE_3D )
+	if (m_button_style & BTN_STYLE_3D)
 	{
 		m_pDC->setClip(m_clip_abs);
 	    m_pDC->draw3DFrame(
@@ -127,7 +135,7 @@ void wsButton::draw()
 				buttonPressedFrameColors :
 				buttonReleasedFrameColors);
 	}
-	else if ( m_button_style & BTN_STYLE_2D )
+	else if (m_button_style & BTN_STYLE_2D )
 	{
 		m_pDC->setClip(m_clip_abs);
 		m_pDC->drawFrame(
@@ -149,24 +157,26 @@ void wsButton::draw()
 
 void wsCheckbox::onTouch(bool touched)
 {
-	#if 0
+	#if DEBUG_TOUCH
 		printf("wsCheckbox::onTouch(%d)\n",touched);
 	#endif
 	if (touched)
 		setBit(m_checkbox_state,CHB_STATE_PRESSED);
 	else
 		clearBit(m_checkbox_state,CHB_STATE_PRESSED);
-	m_state |= WIN_STATE_REDRAW;
+	redraw();
 }
 
 
 void wsCheckbox::onClick()
 {
-	#if 0
+	#if DEBUG_TOUCH
 		printf("wsCheckbox::onClick()\n",0);
 	#endif
 	
 	toggleBit(m_checkbox_state, CHB_STATE_CHECKED);
+	redraw();
+	
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_CHECKBOX,
 		CHB_EVENT_VALUE_CHANGED,
@@ -175,26 +185,7 @@ void wsCheckbox::onClick()
 
 
 
-#define CHECKBOX_SIZE   20
-#define CHECKBOX_TEXT_X_OFFSET  30
-#define CHECKBOX_TEXT_Y_OFFSET  3
-
 void wsCheckbox::draw()
-	// I don't really like having text associated with checkboxes
-	//
-	// It is not clear how to lay it out, and the hit test area
-	// is not obvious to the user.  It seems that for right
-	// justification the text should come befor the box.
-	// What about vertical justifications.
-	// Thus munging justification with layout direction.
-	//
-	// A better encapsulation would be to have a wsCheckBoxWithText
-	// object that has a separate static text object with well
-	// defined layout semantics.
-	//
-	// As it stands right now, if you call setText() on the object
-	// on each CHB_EVENT_VALUE_CHANGED event, the text toggles on
-	// and off with the checkbox, so you can only see the "on" text.
 {
 	wsColor bc = m_back_color;
 	wsColor fc = m_fore_color;
@@ -214,35 +205,14 @@ void wsCheckbox::draw()
     }
 	
 	m_pDC->setClip(m_clip_client);
-	
-    if ( !(m_checkbox_style & CHB_STYLE_NO_FILL))
+    if (!(m_style & WIN_STYLE_TRANSPARENT))
 	{
-        m_pDC->fillFrame(
+        m_pDC->fillFrame(					// fill the checkbox background
 			m_rect_client.xs,
 			m_rect_client.ys,
-			m_rect_client.xe,
-			m_rect_client.ye,
-			getParent()->getBackColor());
-        m_pDC->fillFrame(
-			m_rect_abs.xs,
-			m_rect_abs.ys,
-			m_rect_abs.xs + CHECKBOX_SIZE - 1,
-			m_rect_abs.ys + CHECKBOX_SIZE - 1,
+			m_rect_client.xs + CHECKBOX_SIZE - 1,
+			m_rect_client.ys + CHECKBOX_SIZE - 1,
 			bc);
-	}
-	
-	if (m_text.GetLength())
-	{
-		wsRect rtext(m_rect_abs);
-		rtext.xs += CHECKBOX_TEXT_X_OFFSET;
-		rtext.ys += CHECKBOX_TEXT_Y_OFFSET;
-		m_pDC->putText(
-			getParent()->getBackColor(),
-			getParent()->getForeColor(),
-			rtext,
-			m_align,
-			1,2,
-			getText());
 	}
 	
 	wsColor color = m_checkbox_state & CHB_STATE_CHECKED ?
@@ -258,7 +228,7 @@ void wsCheckbox::draw()
 			m_pDC->setPixel(x,y,color);
 	}
 
-	if ( m_checkbox_style & CHB_STYLE_3D )
+	if (m_checkbox_style & CHB_STYLE_3D )
 	{
 		m_pDC->setClip(m_clip_abs);
 	    m_pDC->draw3DFrame(
@@ -269,7 +239,7 @@ void wsCheckbox::draw()
 			(m_checkbox_state & CHB_STATE_PRESSED) ?
 			buttonPressedFrameColors : buttonReleasedFrameColors);
 	}
-	else if ( m_checkbox_style & BTN_STYLE_2D )
+	else if (m_checkbox_style & CHB_STYLE_2D )
 	{
 		m_pDC->setClip(m_clip_abs);
 		m_pDC->drawFrame(

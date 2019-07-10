@@ -53,21 +53,27 @@ typedef u8 		wsAlignType;
 #define clearBit(val, mask)	    val &= ~mask
 #define toggleBit(val, mask)    val ^= mask
 
+// touch stuff
+
+#define DEBUG_TOUCH   0
+
 #define TOUCH_DOWN   0x01
 #define TOUCH_UP     0x02
 #define TOUCH_MOVE   0x04
 
 typedef struct {
-	
-	u8  start_state;
-	u16 start_x;
-	u16 start_y;
-	u32 start_time;
-	
-	u8  cur_state;
-	u16 cur_x;
-	u16 cur_y;
-	u32 cur_time;
+	u8  state;
+	u16 x;
+	u16 y;
+	u32 time;
+
+	u16 last_x;
+	u16 last_y;
+	u16 drag_x;
+	u16 drag_y;
+
+	bool event_sent;
+	u32 last_time;
 	
 }  touchState_t;
 
@@ -262,6 +268,13 @@ class wsEventHandler
 //------------------------------------
 // wsWindow
 //------------------------------------
+// some states are mutually exclusive.
+// - there should be only one WIN_STYLE_APPLICATION
+// - only top level windows should set WIN_STYLE_TOP_LEVEL
+// - WIN_STYLE_3D has precedence over WIN_STYLE_2D
+// - CLICK_REPEAT has precedence over CLICK_LONG and CLICK_DRAG
+// - CLICK_DRAG has precedence over CLICK_LONG
+
 
 #define WIN_STYLE_APPLICATION       0x00000001
 #define WIN_STYLE_TOP_LEVEL         0x00000002
@@ -275,8 +288,15 @@ class wsEventHandler
 #define WIN_STYLE_CLICK   			0x00000200
 #define WIN_STYLE_CLICK_DBL			0x00001000
 #define WIN_STYLE_CLICK_LONG		0x00002000
-#define WIN_STYLE_CLICK_DRAG		0x00004000
-#define WIN_STYLE_CLICK_REPEAT		0x00008000
+#define WIN_STYLE_CLICK_REPEAT		0x00004000
+#define WIN_STYLE_DRAG				0x00008000
+
+#define WIN_STYLE_TOUCH_TIMING_EVENTS	( \
+	WIN_STYLE_DRAG				| \
+    WIN_STYLE_CLICK_DBL			| \
+    WIN_STYLE_CLICK_LONG		| \
+    WIN_STYLE_CLICK_REPEAT      )
+
 
 // #define WIN_STYLE_OWNER_DRAW			0x02000000
 // #define WIN_STYLE_MOUSE_OVER			0x04000000
@@ -292,6 +312,7 @@ class wsEventHandler
 
 #define WIN_STATE_IS_TOUCHED		0x00000010
 #define WIN_STATE_TOUCH_CHANGED		0x00000020
+#define WIN_STATE_DRAGGING			0x00000040
 
 // #define WIN_STATE_ENABLE            	0x00000002
 // #define WIN_STATE_UPDATE            	0x00000004
@@ -313,6 +334,7 @@ class wsWindow : public wsEventHandler
 		u16 getID() const			{ return m_id; }
 		u32 getStyle() const	   	{ return m_style; };
 		u32 getState() const		{ return m_state; }
+		void setStyle(u32 style)	{ m_style = style; };
 		
 		wsColor getForeColor() const	{ return m_fore_color; }
 		wsColor getBackColor() const	{ return m_back_color; }
@@ -341,6 +363,8 @@ class wsWindow : public wsEventHandler
 		
 		const u16 getWidth() const  { return m_rect.getWidth(); }
 		const u16 getHeight() const { return m_rect.getHeight(); }
+		const u16 getClientWidth() const  { return m_rect_client.getWidth(); }
+		const u16 getClientHeight() const { return m_rect_client.getHeight(); }
 		
 		const char *getText()				{ return (const char *) m_text; }
 		const CString &getString()			{ return (const CString &) m_text; }
@@ -372,8 +396,6 @@ class wsWindow : public wsEventHandler
 		friend class wsApplication;
 		friend class wsTopLevelWindow;
 		
-		// void setStyle(u32 style)	{ m_style = style; };
-		
 		wsDC *getDC() const		{ return m_pDC; }
 		void setDC(wsDC *pDC)	{ m_pDC = pDC; }
 
@@ -386,13 +408,13 @@ class wsWindow : public wsEventHandler
 		
 		void updateTouch(touchState_t *touch_state);
 
-		virtual void onTouch(bool touched)			{}
-		virtual void onClick()						{}
-		virtual void onDblClick()					{}
-		virtual void onLongClick()					{}
-		virtual void onDragStart(u16 x, u16 y)		{}
-		virtual void onDragMove(u16 x, u16 y)		{}
-		virtual void onDragEnd(u16 x, u16 y)		{}
+		virtual void onTouch(bool touched);
+		virtual void onClick();
+		virtual void onDblClick();
+		virtual void onLongClick();
+		virtual void onDragBegin();
+		virtual void onDragMove();
+		virtual void onDragEnd();
 
 		u16 m_id;
 		u32 m_style;
@@ -500,10 +522,7 @@ class wsStaticText : public wsControl
 #define BTN_STYLE_3D                                  0x0002
 #define BTN_STYLE_TOGGLE_COLORS                       0x0004
 #define BTN_STYLE_USE_ALTERNATE_COLORS                0x0008
-#define BTN_STYLE_NO_FILL                             0x0010
-#define BTN_STYLE_TOGGLE_VALUE                        0x0020
-
-// #define BTN_STYLE_ALWAYS_REDRAW                    0x1000
+#define BTN_STYLE_TOGGLE_VALUE                        0x0010
 
 
 class wsButton : public wsControl
@@ -512,14 +531,26 @@ class wsButton : public wsControl
 	
 		~wsButton() {}
 		
-		wsButton(wsWindow *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye, u16 bstyle=0) :
+		wsButton(
+				wsWindow *pParent,
+				u16 id,
+				const char *text,
+				u16 xs,
+				u16 ys,
+				u16 xe,
+				u16 ye,
+				u16 bstyle=0,
+				u32 addl_wstyle=0) :
 			wsControl(pParent,id,xs,ys,xe,ye,
-				WIN_STYLE_TOUCH | WIN_STYLE_CLICK | (
-				(bstyle & BTN_STYLE_2D) ? WIN_STYLE_2D :
-				(bstyle & BTN_STYLE_3D) ? WIN_STYLE_3D : 0))
+				addl_wstyle |
+				WIN_STYLE_TOUCH |
+				WIN_STYLE_CLICK | (
+				(bstyle & BTN_STYLE_3D) ? WIN_STYLE_3D :
+				(bstyle & BTN_STYLE_2D) ? WIN_STYLE_2D : 0)),
+			m_button_style(bstyle)
 		{
 			m_button_state = 0;
-			m_button_style = bstyle;
+			m_align = ALIGN_CENTER;
 			m_fore_color = defaultButtonForeColor;
 			m_back_color = defaultButtonReleasedColor;
 			m_alt_back_color = defaultButtonPressedColor;
@@ -550,6 +581,9 @@ class wsButton : public wsControl
 //---------------------------
 // wsCheckbox
 //---------------------------
+// checkboxes have a fixed size
+
+#define CHECKBOX_SIZE   20
 
 #define CHB_STATE_RELEASED                            0x0000
 #define CHB_STATE_PRESSED                             0x0001
@@ -559,9 +593,6 @@ class wsButton : public wsControl
 #define CHB_STYLE_3D                                  0x0002
 #define CHB_STYLE_TOGGLE_COLORS                       0x0004
 #define CHB_STYLE_USE_ALTERNATE_COLORS                0x0008
-#define CHB_STYLE_NO_FILL                             0x0010
-
-// #define CHB_STYLE_ALWAYS_REDRAW                       0x0020
 
 
 class wsCheckbox : public wsControl
@@ -569,13 +600,22 @@ class wsCheckbox : public wsControl
 	public:
 	
 		~wsCheckbox() {}
-		wsCheckbox(wsWindow *pParent, u16 id, u8 checked, u16 xs, u16 ys, u16 xe, u16 ye, u16 cstyle=0) :
-			wsControl(pParent,id,xs,ys,xe,ye,
-  				WIN_STYLE_TOUCH | WIN_STYLE_CLICK | (
+		wsCheckbox(
+				wsWindow *pParent,
+				u16 id,
+				u8 checked,
+				u16 xs,
+				u16 ys,
+				u16 cstyle=0,
+				u32 addl_wstyle=0) :
+			wsControl(pParent,id,xs,ys,xs+CHECKBOX_SIZE-1,ys+CHECKBOX_SIZE-1,
+				addl_wstyle |
+  				WIN_STYLE_TOUCH |
+				WIN_STYLE_CLICK | (
 				(cstyle & CHB_STYLE_2D) ? WIN_STYLE_2D :
-				(cstyle & CHB_STYLE_3D) ? WIN_STYLE_3D : 0))
+				(cstyle & CHB_STYLE_3D) ? WIN_STYLE_3D : 0)),
+			m_checkbox_style(cstyle)
 		{
-			m_checkbox_style = cstyle;
 			m_checkbox_state = checked ? CHB_STATE_CHECKED : 0;
 			m_align = ALIGN_TOP_LEFT;
 			m_fore_color = defaultButtonForeColor;
@@ -631,11 +671,17 @@ class wsImage : public wsControl
 // wsEvent 
 //------------------------------------
 
-#define EVT_TYPE_BUTTON    0x00000001
-#define EVT_TYPE_CHECKBOX  0x00000002
+
+#define EVT_TYPE_WINDOW    0x00000001
+#define EVT_TYPE_BUTTON    0x00000002
+#define EVT_TYPE_CHECKBOX  0x00000004
+
+#define WIN_EVENT_CLICK     	0x00000001
+#define WIN_EVENT_LONG_CLICK    0x00000002
 
 #define BTN_EVENT_PRESSED    	 0x00000001
 #define CHB_EVENT_VALUE_CHANGED  0x00000001
+
 
 class wsEvent
 {
@@ -701,11 +747,12 @@ class wsApplication : public wsWindow
 			// with the wsWindows::update() functions. 
 
 		wsTopLevelWindow *getTopWindow() const { return m_pTopWindow; }
+		touchState_t *getTouchState()	  	   { return &m_touch_state; }
 		
 		// public to wsWindows
 		// not intended for client use
 		
-		touchState_t *setTouchFocus(wsWindow *win);
+		void setTouchFocus(wsWindow *win);
 			// called from hitTest on the the wsWindow object,
 			// if any, that matched the starting x,y coordinates
 		void addTopLevelWindow(wsTopLevelWindow *pWindow);

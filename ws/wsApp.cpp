@@ -201,27 +201,16 @@ void wsApplication::touchEventHandler(
 }
 
 	
-touchState_t *wsApplication::setTouchFocus(wsWindow *win)
+void wsApplication::setTouchFocus(wsWindow *win)
 	// called from hitTest on the the wsWindow object,
 	// if any, that matched the starting x,y coordinates
 {
 	m_pTouchFocus = win;
-	#if 1
+	#if DEBUG_TOUCH
 		LOG("setTouchFocus(%08x)",(u32)win);
 	#endif		
-	
-	if (win)
-	{
-		m_touch_state.start_state = m_touch_state.cur_state;
-		m_touch_state.start_x = m_touch_state.cur_x;
-		m_touch_state.start_y = m_touch_state.cur_y;
-		m_touch_state.start_time = m_touch_state.cur_time;
-	}
-	else
-	{
+	if (!win)
 		memset(&m_touch_state,0,sizeof(touchState_t));
-	}
-	return &m_touch_state;
 }
 
 
@@ -229,31 +218,33 @@ touchState_t *wsApplication::setTouchFocus(wsWindow *win)
 // system touch event handler
 //--------------------------------------------------
 
+
 void wsApplication::onTouchEvent(
 	unsigned x,
 	unsigned y,
 	u8 touch)
 {
-	m_touch_state.cur_state = touch;
-	m_touch_state.cur_x = x;
-	m_touch_state.cur_y = y;
-	m_touch_state.cur_time = CTimer::GetClockTicks() / 1000;
-	
-	#if 1
-		LOG("onTouchEvent(%d,%d,%02x) time=%d",x,y,touch,m_touch_state.cur_time);
+	#if DEBUG_TOUCH
+		LOG("onTouchEvent(%d,%d,%02x) time=%d",x,y,touch,m_touch_state.time);
 	#endif		
 
  	if (m_pTouchFocus)
 	{
+		m_pTouchFocus->m_state |= WIN_STATE_TOUCH_CHANGED;
+		m_touch_state.state = touch;
+		m_touch_state.x = x;
+		m_touch_state.y = y;
 		m_pTouchFocus->updateTouch(&m_touch_state);
 	}
 	else if (m_pTopWindow &&
 			(touch & TOUCH_DOWN))
 	{
-		m_touch_state.start_state = 0;
-		m_touch_state.start_x = 0;
-		m_touch_state.start_y = 0;
-		m_touch_state.start_time = 0;
+		memset(&m_touch_state,0,sizeof(touchState_t));
+		m_touch_state.state = touch;
+		m_touch_state.x = x;
+		m_touch_state.y = y;
+		m_touch_state.time = CTimer::GetClockTicks() / 1000;
+		m_touch_state.last_time = m_touch_state.time;
 		m_pTopWindow->hitTest(x,y);
 	}
 }
@@ -273,7 +264,7 @@ void wsApplication::timeSlice()
 	
 	if (m_pTouch)
 	{
-		if (CTimer::Get()->GetClockTicks() > m_lastTouchUpdate + CLOCKHZ/10)		// 60
+		if (CTimer::GetClockTicks() > m_lastTouchUpdate + CLOCKHZ/10)		// 60
 		{
 			m_pTouch->Update();
 			m_lastTouchUpdate = CTimer::Get()->GetClockTicks();
@@ -295,6 +286,17 @@ void wsApplication::timeSlice()
 	// response to the below events
 	
 	m_pDC->validate();
+
+	// Handle any time senstive touch (long click, repeat)
+	// or drag-move events after validation
+	
+	if (m_pTouchFocus)
+	{
+		if (m_pTouchFocus->m_style & WIN_STYLE_TOUCH_TIMING_EVENTS)
+		{
+			m_pTouchFocus->updateTouch(&m_touch_state);
+		}
+	}
 	
 	// dispatch any pending events to the top level window
 	

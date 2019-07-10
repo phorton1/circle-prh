@@ -54,7 +54,7 @@ wsWindow::wsWindow(
 	{
 		m_fore_color = defaultWindowForeColor;
 		m_back_color = defaultWindowBackColor;
-		m_align = ALIGN_CENTER;
+		m_align = ALIGN_CENTER_LEFT;
 	}
 
 	sizeWindow();
@@ -220,11 +220,13 @@ void wsWindow::resize(u16 xs, u16 ys, u16 xe, u16 ye )
 
 void wsWindow::move( u16 x, u16 y )
 {
+	m_pDC->invalidate(m_rect_abs);
 	u16 w = m_rect.xe - m_rect.xs + 1;
 	u16 h = m_rect.ye - m_rect.ys + 1;
 	m_rect.assign(x,y,x+w-1,y+h-1);
 	sizeSelfAndChildren();
 	redraw();
+		
 }
 
 
@@ -271,13 +273,13 @@ void wsWindow::update(bool visible)
 	if (visible && (m_state & WIN_STATE_VISIBLE))
 	{
 		if (m_rect_abs.intersects(invalid))
-			m_state |= WIN_STATE_REDRAW;
+			setBit(m_state,WIN_STATE_REDRAW);
 			
 		if (m_state & WIN_STATE_REDRAW)
 		{
 			draw();
 			redraw = true;
-			m_state &= ~WIN_STATE_REDRAW;
+			clearBit(m_state,WIN_STATE_REDRAW);
 		}
 	}
 	
@@ -290,7 +292,7 @@ void wsWindow::update(bool visible)
 			if (invalid.isEmpty() ||
 				p->m_rect_abs.intersects(invalid))
 			{
-				p->m_state |= WIN_STATE_REDRAW;
+				setBit(p->m_state,WIN_STATE_REDRAW);
 			}
 		}
 		
@@ -307,9 +309,11 @@ wsWindow* wsWindow::hitTest(unsigned x, unsigned y)
 	{
 		setBit(m_state,WIN_STATE_IS_TOUCHED);	// | WIN_STATE_TOUCH_CHANGED;
 		onTouch(1);
-		#if 0
+		#if DEBUG_TOUCH
 			LOG("wsWindow::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
 		#endif
+		if (m_style & WIN_STYLE_DRAG)
+			onDragBegin();
 		return this;
 	}
 	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
@@ -327,52 +331,327 @@ wsWindow* wsWindow::hitTest(unsigned x, unsigned y)
 }
 
 
+// timing:
+//
+//     click happens when let up, no matter how long, unless long click
+//     reoeat happens after 300 ms
+//     long click happens after 800 ms
+//     drag happens after 300 ms, or if they move the mouse out of the object
+
 
 void wsWindow::updateTouch(touchState_t *touch_state)
-	// called by the application on each subsequent
-	// touch event after an initial succesfull hitTest(),
-	// handles time and position based behaviors, generating
-	// calls to onClick, onDblClick, etc.
-
+	// after a hitTest, this is called by the application
+	// on actual subsequent touch events, as well as 
+	// from the main loop (very quickly) for windows
+	// with timing based touch flags.  It is called
+	// with the WIN_STATE_TOUCH_CHANGED bit set BEFORE
+	// validation (on actual move events) and without
+	// the bit set AFTER the validation.
+	//
+	// It generates the needed calls to onTouch(),
+	// onClick(), onLongTouch() and onDragXXX()
+	// which are NOT event handlers!
 {
-	#if 0
-		LOG("updateTouch(%d,%d,%02x)",touch_state->cur_x,touch_state->cur_y,touch_state->cur_state);
-	#endif
-	
-	u8 state = touch_state->cur_state;
+	u8 state = touch_state->state;
 		
+	//-------------------------------
+	// non timing related changes
+	//-------------------------------
 	// if the mouse has strayed out of the object,
 	// lose focus, 
 	
-	if (state & TOUCH_MOVE)
+	if (m_state & WIN_STATE_TOUCH_CHANGED)
 	{
-		if (!m_rect_abs.intersects(touch_state->cur_x,touch_state->cur_y))
+		#if DEBUG_TOUCH
+			LOG("updateTouch(%d,%d,%02x)",touch_state->x,touch_state->y,touch_state->state);
+		#endif
+
+		m_state &= ~WIN_STATE_TOUCH_CHANGED;
+		
+		if (state & TOUCH_MOVE)
 		{
-			#if 0
-				printf("updateTouch: touch strayed\n");
+			if (!(m_state & WIN_STATE_DRAGGING) &&
+				!m_rect_abs.intersects(touch_state->x,touch_state->y))
+			{
+				#if DEBUG_TOUCH
+					printf("updateTouch: touch strayed\n");
+				#endif
+				
+				// if they dragged outside of area start dragging immediately
+				
+				if (m_style & WIN_STYLE_DRAG)
+				{
+					setBit(m_state,WIN_STATE_DRAGGING);
+					touch_state->event_sent = true;
+					onDragBegin();
+				}
+				else 	// regular button lost focus
+				{
+					clearBit(m_state,WIN_STATE_IS_TOUCHED);
+					onTouch(0);
+					getApplication()->setTouchFocus(0);
+				}
+				return;
+			}
+		}
+	
+		// otherwise, if the mouse has been released, generate
+		// an onClick() event and lose focus
+		
+		if (state & TOUCH_UP)
+		{
+			#if DEBUG_TOUCH
+				printf("updateTouch: touch up m_state=%08x\n",m_state);
 			#endif
+			
 			clearBit(m_state,WIN_STATE_IS_TOUCHED);
 			onTouch(0);
+			
+			if (m_state & WIN_STATE_DRAGGING)
+			{
+				clearBit(m_state,WIN_STATE_DRAGGING);
+				onDragEnd();
+			}
+			else if (m_style & WIN_STYLE_CLICK)
+			{
+				if (!touch_state->event_sent)
+					onClick();
+			}
 			getApplication()->setTouchFocus(0);
+			return;
 		}
+		return;
 	}
 	
-	// otherwise, if the mouse has been release, generate
-	// an onClick() event and lose focus
 	
-	else if (!(state & TOUCH_DOWN))
+	//-------------------------------
+	// handle time related events
+	//-------------------------------
+	// generate any events for pending touched object
+
+	#define TOUCH_REPEAT_INC_INTERVAL    300		// the rate is increased every this many seconds
+	#define TOUCH_NUM_INTERVALS          6
+	#define TOUCH_RATE_MAX               5			// two hundred times per second max
+	#define TOUCH_RATE_INC               (TOUCH_REPEAT_INC_INTERVAL - TOUCH_RATE_MAX) / TOUCH_NUM_INTERVALS;
+
+	u32 now = CTimer::GetClockTicks() / 1000;
+	
+	if (m_style & WIN_STYLE_CLICK_REPEAT)
 	{
-		#if 0
-			printf("updateTouch: touch up\n");
-		#endif
-		
-		clearBit(m_state,WIN_STATE_IS_TOUCHED);
-		onTouch(0);
-		if (m_style & WIN_STYLE_CLICK)
-			onClick();
-		getApplication()->setTouchFocus(0);
+		u32 interval_num = (now - touch_state->time) / TOUCH_REPEAT_INC_INTERVAL;
+		if (interval_num > TOUCH_NUM_INTERVALS)
+			interval_num = TOUCH_NUM_INTERVALS;
+
+		if (interval_num)
+		{
+			u32 repeat_time = TOUCH_REPEAT_INC_INTERVAL - interval_num * TOUCH_RATE_INC;
+			if (now > touch_state->last_time + repeat_time)
+			{
+				touch_state->last_time = now;
+				onClick();
+			}
+		}
+		return;
 	}
+
+	// We only do drags AFTER validation (after the update() loop,
+	// when all objects have been redrawn, and at which time the
+	// "invalid" DC rectangle is reset.  This is necessary so
+	// that objects can invalidate their old rectangles for the
+	// next time through the call to timeSlice().
+
+	#define DRAG_CLICK_INTERVAL  400
+		// if the thing is also clickable
+		// we add a delay before we start moving
+		// and abrogate the click event
+
+	if (m_style & WIN_STYLE_DRAG)
+	{
+		if (!(m_state & WIN_STATE_DRAGGING))
+		{
+			u32 interval = (m_style & WIN_STYLE_CLICK) ?
+				DRAG_CLICK_INTERVAL : 0;
+			if (now > touch_state->time + interval)
+			{
+				m_state |= WIN_STATE_DRAGGING;
+				touch_state->event_sent = true;
+				onDragBegin();
+			}
+		}
+		else if (touch_state->x != touch_state->last_x ||
+				 touch_state->y != touch_state->last_y)
+		{
+			touch_state->last_x = touch_state->x;
+			touch_state->last_y = touch_state->y;
+			onDragMove();
+		}
+
+		return;
+	}
+
+	
+	#define TOUCH_LONG_INTERVAL  800
+	
+	if (m_style & WIN_STYLE_CLICK_LONG &&
+		!touch_state->event_sent &&
+		now > touch_state->time + TOUCH_LONG_INTERVAL)
+	{
+		touch_state->event_sent = true;
+		onLongClick();
+		return;
+	}
+
 }
 
+
+//-----------------------------------------
+// base class state handlers
+//-----------------------------------------
+// These are not event handlers.
+// They merely change the state of the object
+// and return quickly.
+//
+// Note that the base class provides basic
+// general behavior, and emits EVENT_TYPE_WINDOW
+// events WIN_EVENT_CLOCK, and so on.  You must
+// derive from this to emit other kinds of events
+// like EVENT_TYPE_BUTTON
+
+void wsWindow::onTouch(bool touched)
+{
+	redraw();
+}
+
+
+void wsWindow::onClick()
+{
+	getApplication()->addEvent(new wsEvent(
+		EVT_TYPE_WINDOW,
+		WIN_EVENT_CLICK,
+		this ));
+}
+
+void wsWindow::onLongClick()
+{
+	getApplication()->addEvent(new wsEvent(
+		EVT_TYPE_WINDOW,
+		WIN_EVENT_LONG_CLICK,
+		this ));
+	
+}
+
+void wsWindow::onDblClick()	{}
+
+
+
+//---------------------------------
+// Generic dragging behavior
+//---------------------------------
+
+#define  DEBUG_DRAG  0
+#define  DRAG_OUT_MARGIN  6
+	// number of pixels that will show on screen
+	// if they drag out right or bottom
+
+void wsWindow::onDragBegin()
+{
+	wsApplication *app = getApplication();
+	touchState_t *touch_state = app->getTouchState();
+	
+	// the drag could begin due to timing, or
+	// the mouse being dragged off the object
+	// in either case, we start by corraling
+	// the x,y to within the object
+
+	u16 x = touch_state->x;
+	u16 y = touch_state->y;
+	if (x < m_rect_abs.xs) x = m_rect_abs.xs;
+	if (y < m_rect_abs.ys) y = m_rect_abs.ys;
+	if (x > m_rect_abs.xe) x = m_rect_abs.xe;
+	if (y > m_rect_abs.ye) y = m_rect_abs.ye;
+	
+	// make it relative to the object
+	// and remember it
+
+	touch_state->drag_x  = x - m_rect_abs.xs;
+	touch_state->drag_y  = y - m_rect_abs.ys;
+
+	#if DEBUG_DRAG
+		LOG("onDragBegin(%d,%d) rect(%d,%d,%d,%d) drag_x=%d drag_y=%d",
+			touch_state->x,
+			touch_state->y,
+			m_rect_abs.xs,
+			m_rect_abs.ys,
+			m_rect_abs.xe,
+			m_rect_abs.ye,
+			touch_state->drag_x,
+			touch_state->drag_y);	
+	#endif
+}
+
+
+void wsWindow::onDragMove()
+{
+	wsApplication *app = getApplication();
+	touchState_t *touch_state = app->getTouchState();
+	wsRect rect(m_pParent->getClientRect());
+
+	#if DEBUG_DRAG
+		print_rect("client_rect",&rect);
+	#endif
+	
+	// offset the abs coordinates to the
+	// upper left corner of the object
+	// constrained by absolute 0,0
+	
+	u16 x = touch_state->x;
+	u16 y = touch_state->y;
+	u16 drag_x = touch_state->drag_x;
+	u16 drag_y = touch_state->drag_y;
+	if (x < drag_x) x = drag_x;
+	if (y < drag_y) y = drag_y;
+	x -= drag_x;
+	y -= drag_y;
+	
+	#if DEBUG_DRAG
+		LOG("onDragMove(%d,%d) upper_left=%d,%d",
+			touch_state->x,
+			touch_state->y,
+			x,y);
+	#endif
+	
+	// corral the touch to the client area
+	// and make it relative
+	
+	if (x < rect.xs) x = rect.xs;
+	if (y < rect.ys) y = rect.ys;
+	if (x > rect.xe - (DRAG_OUT_MARGIN-1)) x = rect.xe - (DRAG_OUT_MARGIN-1);
+	if (y > rect.ye - (DRAG_OUT_MARGIN-1)) y = rect.ye - (DRAG_OUT_MARGIN-1);
+
+	#if DEBUG_DRAG
+		LOG("    constrained=%d,%d",x,y);
+	#endif
+	
+	x -= rect.xs;
+	y -= rect.ys;
+	
+	#if DEBUG_DRAG
+		LOG("    relative=%d,%d",x,y);
+	#endif
+	
+	move(x,y);
+}
+
+
+void wsWindow::onDragEnd()
+{
+	#if DEBUG_DRAG
+		wsApplication *app = getApplication();
+		touchState_t *touch_state = app->getTouchState();
+		LOG("onDragEnd(%d,%d)",
+			touch_state->x,
+			touch_state->y);
+	#endif
+}
 	
 	
