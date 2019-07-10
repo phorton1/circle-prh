@@ -13,7 +13,7 @@
 // wsTopLevelWindow
 //----------------------------------------------
 
-wsTopLevelWindow::wsTopLevelWindow(wsApplication *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style) :
+wsTopLevelWindow::wsTopLevelWindow(wsApplication *pParent, u16 id, s32 xs, s32 ys, s32 xe, s32 ye, u32 style) :
 	wsWindow(pParent,id,xs,ys,xe,ye,style | WIN_STYLE_TOP_LEVEL)
 {
 	m_pPrevWindow = 0;
@@ -22,7 +22,7 @@ wsTopLevelWindow::wsTopLevelWindow(wsApplication *pParent, u16 id, u16 xs, u16 y
 }
 
 
-wsWindow* wsTopLevelWindow::hitTest(unsigned x, unsigned y)
+wsWindow* wsTopLevelWindow::hitTest(s32 x, s32 y)
 {
 	wsWindow *found = 0;
 	wsWindow *p = m_pFirstChild;

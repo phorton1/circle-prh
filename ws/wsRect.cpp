@@ -36,6 +36,14 @@ wsRect::wsRect(u16 x0, u16 y0, u16 x1, u16 y1)
 	ye = y1;
 }
 
+wsRect::wsRect(s32 x0, s32 y0, s32 x1, s32 y1)
+{
+	xs = x0;
+	ys = y0;
+	xe = x1;
+	ye = y1;
+}
+
 wsRect &wsRect::empty() 
 {
 	xs = 1;
@@ -46,6 +54,15 @@ wsRect &wsRect::empty()
 }
 
 wsRect &wsRect::assign(u16 x0, u16 y0, u16 x1, u16 y1)
+{
+	xs = x0;
+	ys = y0;
+	xe = x1;
+	ye = y1;
+	return *this;
+}
+
+wsRect &wsRect::assign(s32 x0, s32 y0, s32 x1, s32 y1)
 {
 	xs = x0;
 	ys = y0;
@@ -70,14 +87,14 @@ bool wsRect::isEmpty() const
 }
 
 
-u16 wsRect::getWidth() const
+s32 wsRect::getWidth() const
 {
 	if (xe < xs) return 0;
 	return xe-xs+1;
 }
 
 
-u16 wsRect::getHeight() const
+s32 wsRect::getHeight() const
 {
 	if (ye < ys) return 0;
 	return ye-ys+1;
@@ -98,6 +115,11 @@ bool wsRect::intersects(u16 x, u16 y) const
 	return (x >= xs) && (y >= ys) && (x <= xe) && (y <= ye);
 }
 
+bool wsRect::intersects(s32 x, s32 y) const
+{
+	return (x >= xs) && (y >= ys) && (x <= xe) && (y <= ye);
+}
+
 
 bool wsRect::intersects(const wsRect &rect) const
 {
@@ -105,8 +127,6 @@ bool wsRect::intersects(const wsRect &rect) const
 	arect.intersect(*this);
 	return !arect.isEmpty();
 }
-
-
 
 
 wsRect &wsRect::intersect(const wsRect &rect)

@@ -218,12 +218,12 @@ void wsCheckbox::draw()
 	wsColor color = m_checkbox_state & CHB_STATE_CHECKED ?
 		fc : bc;
 
-	u16 xoff = m_rect_abs.xs + 4;
-	u16 yoff = m_rect_abs.ys + 4;
+	s32 xoff = m_rect_abs.xs + 4;
+	s32 yoff = m_rect_abs.ys + 4;
 	for (u16 i=0; i<num_checkbox_coords; i++)
 	{
-		u16 x = xoff + checkbox_check_coords[i*2];
-		u16 y = yoff + checkbox_check_coords[i*2+1];
+		s32 x = xoff + checkbox_check_coords[i*2];
+		s32 y = yoff + checkbox_check_coords[i*2+1];
 		if (m_pDC->getClip().intersects(x,y))
 			m_pDC->setPixel(x,y,color);
 	}

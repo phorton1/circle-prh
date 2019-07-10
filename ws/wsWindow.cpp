@@ -17,10 +17,10 @@
 wsWindow::wsWindow(
 		wsWindow *pParent,
 		u16 id,
-		u16 xs,
-		u16 ys,
-		u16 xe,
-		u16 ye,
+		s32 xs,
+		s32 ys,
+		s32 xe,
+		s32 ye,
 		u32 style) :
 	m_id(id),
 	m_style(style),
@@ -207,7 +207,7 @@ void wsWindow::setText(const CString &text)
 }
 
 
-void wsWindow::resize(u16 xs, u16 ys, u16 xe, u16 ye )
+void wsWindow::resize(s32 xs, s32 ys, s32 xe, s32 ye )
 	// currently only resizes this window
 	// will need to resize/move children as well
 	// which, in turn, requires more care with
@@ -218,11 +218,11 @@ void wsWindow::resize(u16 xs, u16 ys, u16 xe, u16 ye )
 	redraw();
 }
 
-void wsWindow::move( u16 x, u16 y )
+void wsWindow::move( s32 x, s32 y )
 {
 	m_pDC->invalidate(m_rect_abs);
-	u16 w = m_rect.xe - m_rect.xs + 1;
-	u16 h = m_rect.ye - m_rect.ys + 1;
+	s32 w = m_rect.xe - m_rect.xs + 1;
+	s32 h = m_rect.ye - m_rect.ys + 1;
 	m_rect.assign(x,y,x+w-1,y+h-1);
 	sizeSelfAndChildren();
 	redraw();
@@ -301,7 +301,7 @@ void wsWindow::update(bool visible)
 }
 
 
-wsWindow* wsWindow::hitTest(unsigned x, unsigned y)
+wsWindow* wsWindow::hitTest(s32 x, s32 y)
 {
 	if ((m_style & WIN_STYLE_TOUCH) &&
 		(m_state & WIN_STATE_VISIBLE) &&
@@ -563,8 +563,8 @@ void wsWindow::onDragBegin()
 	// in either case, we start by corraling
 	// the x,y to within the object
 
-	u16 x = touch_state->x;
-	u16 y = touch_state->y;
+	s32 x = touch_state->x;
+	s32 y = touch_state->y;
 	if (x < m_rect_abs.xs) x = m_rect_abs.xs;
 	if (y < m_rect_abs.ys) y = m_rect_abs.ys;
 	if (x > m_rect_abs.xe) x = m_rect_abs.xe;
@@ -604,10 +604,10 @@ void wsWindow::onDragMove()
 	// upper left corner of the object
 	// constrained by absolute 0,0
 	
-	u16 x = touch_state->x;
-	u16 y = touch_state->y;
-	u16 drag_x = touch_state->drag_x;
-	u16 drag_y = touch_state->drag_y;
+	s32 x = touch_state->x;
+	s32 y = touch_state->y;
+	s32 drag_x = touch_state->drag_x;
+	s32 drag_y = touch_state->drag_y;
 	if (x < drag_x) x = drag_x;
 	if (y < drag_y) y = drag_y;
 	x -= drag_x;

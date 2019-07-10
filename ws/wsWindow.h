@@ -63,14 +63,14 @@ typedef u8 		wsAlignType;
 
 typedef struct {
 	u8  state;
-	u16 x;
-	u16 y;
+	s32 x;
+	s32 y;
 	u32 time;
 
-	u16 last_x;
-	u16 last_y;
-	u16 drag_x;
-	u16 drag_y;
+	s32 last_x;
+	s32 last_y;
+	s32 drag_x;
+	s32 drag_y;
 
 	bool event_sent;
 	u32 last_time;
@@ -94,13 +94,15 @@ public:
 	wsRect();
 	wsRect(const wsRect &rect);
 	wsRect(u16 x0, u16 y0, u16 x1, u16 y1);
+	wsRect(s32 x0, s32 y0, s32 x1, s32 y1);
 	
 	wsRect &assign(const wsRect &rect);
 	wsRect &assign(u16 x0, u16 y0, u16 x1, u16 y1);
+	wsRect &assign(s32 x0, s32 y0, s32 x1, s32 y1);
 
 	bool isEmpty() const;
-	u16 getWidth() const;
-	u16 getHeight() const;
+	s32 getWidth() const;
+	s32 getHeight() const;
 	
 	wsRect &empty();	
 	wsRect &expand(const wsRect &rect);
@@ -108,12 +110,13 @@ public:
 	wsRect &makeRelative(const wsRect &rect);
 	
 	bool intersects(u16 x, u16 y) const;
+	bool intersects(s32 x, s32 y) const;
 	bool intersects(const wsRect &rect) const;
 
-	u16 xs;
-	u16 ys;
-	u16 xe;
-	u16 ye;
+	s32 xs;
+	s32 ys;
+	s32 xe;
+	s32 ye;
 };
 
 
@@ -328,7 +331,7 @@ class wsWindow : public wsEventHandler
 {
 	public:
 	
-		wsWindow(wsWindow *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0);
+		wsWindow(wsWindow *pParent, u16 id, s32 xs, s32 ys, s32 xe, s32 ye, u32 style=0);
 		~wsWindow() {}	
 
 		u16 getID() const			{ return m_id; }
@@ -354,17 +357,17 @@ class wsWindow : public wsEventHandler
 			// m_pDC->invalidate(m_rect_abs);
 		}
 		
-		void resize(u16 xs, u16 ys, u16 xe, u16 ye );
-		void move( u16 x, u16 y );
+		void resize(s32 xs, s32 ys, s32 xe, s32 ye );
+		void move( s32 x, s32 y );
 		
 		const wsRect &getRect() const				{ return m_rect; }			
 		const wsRect &getOuterRect() const 			{ return m_rect_abs; }		
 		const wsRect &getClientRect() const 		{ return m_rect_client; }
 		
-		const u16 getWidth() const  { return m_rect.getWidth(); }
-		const u16 getHeight() const { return m_rect.getHeight(); }
-		const u16 getClientWidth() const  { return m_rect_client.getWidth(); }
-		const u16 getClientHeight() const { return m_rect_client.getHeight(); }
+		const s32 getWidth() const  { return m_rect.getWidth(); }
+		const s32 getHeight() const { return m_rect.getHeight(); }
+		const s32 getClientWidth() const  { return m_rect_client.getWidth(); }
+		const s32 getClientHeight() const { return m_rect_client.getHeight(); }
 		
 		const char *getText()				{ return (const char *) m_text; }
 		const CString &getString()			{ return (const CString &) m_text; }
@@ -384,8 +387,8 @@ class wsWindow : public wsEventHandler
 		wsApplication *getApplication();
 		wsWindow *findChildByID(u16 id);
 
-		// void setVirtualSize(u16 width, u16 height);
-		// void setVirtualOffset(u16 xoff, u16 yoff);
+		// void setVirtualSize(s32 width, s32 height);
+		// void setVirtualOffset(s32 xoff, s32 yoff);
 		// const wsRect &getVirtualRect() const  		{ return m_rect_virt;  }  
 		// const wsRect &getVirtualVisibleRect() const { return m_rect_vis;  }
 		// wsRect m_rect_virt;		// visible virtual screen size (0..any number) (not limited to screen size)
@@ -404,7 +407,7 @@ class wsWindow : public wsEventHandler
 		
 		void sizeWindow();
 		void sizeSelfAndChildren();
-		virtual wsWindow *hitTest(unsigned x, unsigned y);
+		virtual wsWindow *hitTest(s32 x, s32 y);
 		
 		void updateTouch(touchState_t *touch_state);
 
@@ -452,7 +455,7 @@ class wsTopLevelWindow : public wsWindow
 {
 	public:
 	
-		wsTopLevelWindow(wsApplication *pApp, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0);
+		wsTopLevelWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye, u32 style=0);
 		~wsTopLevelWindow() {}
 		
 		wsApplication *getApplication() const { return (wsApplication *) m_pParent; }
@@ -464,7 +467,7 @@ class wsTopLevelWindow : public wsWindow
 		
 		friend class wsApplication;
 		
-		virtual wsWindow *hitTest(unsigned x, unsigned y);
+		virtual wsWindow *hitTest(s32 x, s32 y);
 		
 		wsTopLevelWindow *m_pPrevWindow;
 		wsTopLevelWindow *m_pNextWindow;
@@ -483,7 +486,7 @@ class wsControl : public wsWindow
 	
 		~wsControl() {}
 		
-		wsControl(wsWindow *pParent, u16 id, u16 xs, u16 ys, u16 xe, u16 ye, u32 style=0) :
+		wsControl(wsWindow *pParent, u16 id, s32 xs, s32 ys, s32 xe, s32 ye, u32 style=0) :
 			wsWindow(pParent,id,xs,ys,xe,ye,style) {}
 };
 
@@ -495,7 +498,7 @@ class wsStaticText : public wsControl
 	
 		~wsStaticText() {}
 		
-		wsStaticText(wsWindow *pParent, u16 id, const char *text, u16 xs, u16 ys, u16 xe, u16 ye) :
+		wsStaticText(wsWindow *pParent, u16 id, const char *text, s32 xs, s32 ys, s32 xe, s32 ye) :
 			wsControl(pParent,id,xs,ys,xe,ye)
 		{
 			if (text)
@@ -535,10 +538,10 @@ class wsButton : public wsControl
 				wsWindow *pParent,
 				u16 id,
 				const char *text,
-				u16 xs,
-				u16 ys,
-				u16 xe,
-				u16 ye,
+				s32 xs,
+				s32 ys,
+				s32 xe,
+				s32 ye,
 				u16 bstyle=0,
 				u32 addl_wstyle=0) :
 			wsControl(pParent,id,xs,ys,xe,ye,
@@ -604,8 +607,8 @@ class wsCheckbox : public wsControl
 				wsWindow *pParent,
 				u16 id,
 				u8 checked,
-				u16 xs,
-				u16 ys,
+				s32 xs,
+				s32 ys,
 				u16 cstyle=0,
 				u32 addl_wstyle=0) :
 			wsControl(pParent,id,xs,ys,xs+CHECKBOX_SIZE-1,ys+CHECKBOX_SIZE-1,
@@ -661,7 +664,7 @@ class wsImage : public wsControl
 {
 	public:
 	
-		wsImage(wsWindow *pParent, u16 id, u8 value, u16 x, u16 y, u16 xe, u16 ye, u32 style=0);
+		wsImage(wsWindow *pParent, u16 id, u8 value, s32 x, s32 y, s32 xe, s32 ye, u32 style=0);
 		~wsImage() {}
 };
 

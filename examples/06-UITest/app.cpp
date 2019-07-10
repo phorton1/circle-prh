@@ -24,7 +24,7 @@ class dialogWindow : public wsTopLevelWindow
 {
 	public:
 		
-		dialogWindow(wsApplication *pApp, u16 id, u16 x, u16 y, u16 width, u16 height) :
+		dialogWindow(wsApplication *pApp, u16 id, s32 x, s32 y, s32 width, s32 height) :
 			wsTopLevelWindow(pApp,id,x,y,x + width-1,y + height-1,WIN_STYLE_3D)
 		{
 			setBackColor(wsDARK_BLUE);
@@ -118,7 +118,7 @@ class topWindow : public wsTopLevelWindow
 {
 	public:
 		
-		topWindow(wsApplication *pApp, u16 id, u16 xs, u16 ys, u16 xe, u16 ye) :
+		topWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) :
 			wsTopLevelWindow(pApp,id,xs,ys,xe,ye,WIN_STYLE_TRANSPARENT),
 			m_pDlg(0)
 		{
@@ -232,8 +232,8 @@ void wsApplication::Create()
 {
 	LOG("wsApplication::Create(%08x)",this);
 	
-	u16 width = getWidth();
-	u16 height = getHeight();
+	s32 width = getWidth();
+	s32 height = getHeight();
 	
 	topWindow *frame = new topWindow(this,1,0,0,width-1,height-1);
 	// printf("frame=%08x\n",(u32)frame);
