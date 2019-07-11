@@ -3,21 +3,13 @@
 //
 // A event driven windowing system that kind of combines uGUI and wxWindows.
 // Written for the rPi Circle bare metal C++ libraries.
+// (c) Copyright 2019 Patrick Horton- no rights reserved, 
 
 #ifndef _wsWindow_h
 #define _wsWindow_h
 
-#include <circle/string.h>
-#include <circle/screen.h>
-#include <circle/timer.h>
-#include <circle/input/mouse.h>
-#include <circle/input/touchscreen.h>
-#include "wsColor.h"
-#include "wsFont.h"
+#include "wsDC.h"
 #include "wsTheme.h"
-
-#define delay(ms)   CTimer::Get()->MsDelay(ms)
-
 
 // #define DEBUG_UPDATE
 
@@ -27,237 +19,6 @@
 #else
 	#define debugUpdate(num)
 #endif
-
-
-// alignment
-
-#define ALIGN_H_LEFT                                  (1<<0)
-#define ALIGN_H_CENTER                                (1<<1)
-#define ALIGN_H_RIGHT                                 (1<<2)
-#define ALIGN_V_TOP                                   (1<<3)
-#define ALIGN_V_CENTER                                (1<<4)
-#define ALIGN_V_BOTTOM                                (1<<5)
-#define ALIGN_BOTTOM_RIGHT                            (ALIGN_V_BOTTOM|ALIGN_H_RIGHT)
-#define ALIGN_BOTTOM_CENTER                           (ALIGN_V_BOTTOM|ALIGN_H_CENTER)
-#define ALIGN_BOTTOM_LEFT                             (ALIGN_V_BOTTOM|ALIGN_H_LEFT)
-#define ALIGN_CENTER_RIGHT                            (ALIGN_V_CENTER|ALIGN_H_RIGHT)
-#define ALIGN_CENTER                                  (ALIGN_V_CENTER|ALIGN_H_CENTER)
-#define ALIGN_CENTER_LEFT                             (ALIGN_V_CENTER|ALIGN_H_LEFT)
-#define ALIGN_TOP_RIGHT                               (ALIGN_V_TOP|ALIGN_H_RIGHT)
-#define ALIGN_TOP_CENTER                              (ALIGN_V_TOP|ALIGN_H_CENTER)
-#define ALIGN_TOP_LEFT                                (ALIGN_V_TOP|ALIGN_H_LEFT)
-
-// forwards
-
-class wsRect;
-class wsEvent;
-class wsWindow;
-class wsApplication;
-
-// types
-
-typedef u8 		wsAlignType;
-
-// inlines
-
-#define setBit(val, mask)		val |= (mask)
-#define clearBit(val, mask)	    val &= ~(mask)
-#define toggleBit(val, mask)    val ^= (mask)
-
-// touch stuff
-
-#define DEBUG_TOUCH   0
-
-#define TOUCH_DOWN   0x01
-#define TOUCH_UP     0x02
-#define TOUCH_MOVE   0x04
-
-typedef struct {
-	u8  state;
-	s32 x;
-	s32 y;
-	u32 time;
-
-	s32 last_x;
-	s32 last_y;
-	s32 drag_x;
-	s32 drag_y;
-
-	bool event_sent;
-	u32 last_time;
-	
-}  touchState_t;
-
-//------------------------------------
-// wsRect
-//------------------------------------
-
-extern void print_rect(const char *name, const wsRect *rect);
-
-class wsRect
-{
-public:
-
-	// expects normalized rectangles
-	// empty is indicated by end < start
-	// cannonical(1,1,0,0)
-	
-	wsRect();
-	wsRect(const wsRect &rect);
-	wsRect(u16 x0, u16 y0, u16 x1, u16 y1);
-	wsRect(s32 x0, s32 y0, s32 x1, s32 y1);
-	
-	wsRect &assign(const wsRect &rect);
-	wsRect &assign(u16 x0, u16 y0, u16 x1, u16 y1);
-	wsRect &assign(s32 x0, s32 y0, s32 x1, s32 y1);
-
-	bool isEmpty() const;
-	s32 getWidth() const;
-	s32 getHeight() const;
-	
-	wsRect &empty();	
-	wsRect &expand(const wsRect &rect);
-	wsRect &intersect(const wsRect &rect);
-	wsRect &makeRelative(const wsRect &rect);
-	
-	bool intersects(u16 x, u16 y) const;
-	bool intersects(s32 x, s32 y) const;
-	bool intersects(const wsRect &rect) const;
-
-	s32 xs;
-	s32 ys;
-	s32 xe;
-	s32 ye;
-};
-
-
-
-//-----------------------------------
-// wsDeviceContext
-//-----------------------------------
-
-#define NUM_OPT_DRIVERS  			3
-#define OPT_DRIVER_DRAW_LINE        0
-#define OPT_DRIVER_FILL_FRAME       1
-#define OPT_DRIVER_FILL_AREA        2
-
-
-class wsDC
-{
-	public:
-	
-		~wsDC();
-
-		wsDC(
-			CScreenDeviceBase *pScreen) :
-			m_pScreen(pScreen),
-			m_xdim(m_pScreen->GetWidth()),
-			m_ydim(m_pScreen->GetHeight()),
-			m_clip(0,0,m_xdim-1,m_ydim-1)
-			{
-				m_pFont = 0;
-				m_fore_color = 0;
-				m_back_color = 0;
-				m_align = 0;
-				m_hspace = 0;
-				m_vspace = 0;
-				for (int i=0; i<NUM_OPT_DRIVERS; i++)
-					m_opt_driver[i] = 0;
-				m_invalid.empty();
-			}
-
-		CScreenDeviceBase *getScreen() 	{ return m_pScreen; }
-		s32 getXDim( void ) const { return m_xdim; }
-		s32 getYDim( void ) const { return m_ydim; }
-		void setPixel(s32 x, s32 y, wsColor color)
-			{ m_pScreen->SetPixel(x,y,color); }
-
-		void fillScreen( wsColor color );
-		void fillFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
-		void drawLine( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
-		void drawFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
-		void draw3DFrame( s32 xs, s32 ys, s32 xe, s32 ye, const wsColor *pColor );
-
-		void fillRoundFrame( s32 x0, s32 y0, s32 x1, s32 y1, u16 r, wsColor color );
-		void drawMesh( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
-		void drawRoundFrame( s32 x0, s32 y0, s32 x1, s32 y1, u16 r, wsColor color );
-		void drawCircle( s32 x, s32 y, u16 r, wsColor color );
-		void fillCircle( s32 x, s32 y, u16 r, wsColor color );
-		void drawArc( s32 x, s32 y, u16 r, u8 s, wsColor color );
-
-		void setFont( const wsFont *pFont )  { m_pFont = pFont; }
-		void putString( s32 x, s32 y, const char* str );
-
-		const wsRect &getClip()  { return m_clip; }
-		void setClip(const wsRect &rect)
-			// temporarily set to the window clipping region
-			// for the next call(s)
-		{
-			m_clip.assign(rect);
-			if (!m_invalid.isEmpty())
-				m_clip.intersect(m_invalid);
-		}
-		const wsRect &getInvalid()			{ return m_invalid; }			
-		void validate()						{ m_invalid.empty(); }
-		void invalidate(const wsRect &rect)	{ m_invalid.expand(rect); }
-			// sets an area of the screen as invalid (needs repainting)
-			// so drawing methods only draw to the intersection of the
-			// clipping region and the invalid region.  The invalid region
-			// is cleared at the end of timeSlice() before sending events,
-			// and then windows that intersect it are set to REDRAW at
-			// the start of the loop.
-		
-		void putText(
-			wsColor bc,
-			wsColor fc,
-			const wsRect &area,
-			wsAlignType align,
-			s16     hspace,
-			s16     vspace,
-			const char *text);
-
-		void setForeColor( wsColor color )		{ m_fore_color = color; }
-		void setBackColor( wsColor color )		{ m_back_color = color; }
-		void setFontHSpace( s16 space )			{ m_hspace = space; }
-		void setFontVSpace( s16 space ) 		{ m_vspace = space; }
-		
-		void consolePutString( char* str );
-		void consoleSetArea( s32 xs, s32 ys, s32 xe, s32 ye );
-		void consoleSetForecolor( wsColor color );
-		void consoleSetBackcolor( wsColor color );
-		
-		void driverRegister(void *pUnusedScreen, u8 type, void *driver);
-		static void driverRegisterStub(void *pThis, void *pUnusedScreen, u8 type, void *driver);
-			// we don't need the pointer to the screen device inasmuch
-			// as we already have it.  UGUI requires it because it is "C" code
-			// calling static methods, divorced from the C++ object rst wrote.
-
-	private:
-		
-		wsDC() {}
-
-		void _putChar( char chr, s32 x, s32 y, wsColor fc, wsColor bc, const wsRect &clip);
-		
-		CScreenDeviceBase *m_pScreen;
-		
-		s32 m_xdim;
-		s32 m_ydim;
-		
-		wsRect m_clip;
-		wsRect m_invalid;
-
-		const wsFont *m_pFont;
-		wsColor m_fore_color;
-		wsColor m_back_color;
-		wsAlignType m_align;
-		s16 m_hspace;
-		s16 m_vspace;
-		
-		void *m_opt_driver[NUM_OPT_DRIVERS];
-		
-};	// wsDeviceContext
-
-
 
 
 //------------------------------------
@@ -327,76 +88,49 @@ class wsEventHandler
 #define WIN_STATE_UPDATE            0x00000020
 #define WIN_STATE_DRAW              0x00000040
 #define WIN_STATE_REDRAW            0x00000080
+#define WIN_STATE_INVALID           0x00000100
 
 #define WIN_STATE_IS_TOUCHED		0x00001000
 #define WIN_STATE_TOUCH_CHANGED		0x00002000
 #define WIN_STATE_DRAGGING			0x00004000
 
-#define INHERITED_WIN_STATE_MASK    0x000000f0
-	// How it works.
-	//
-	//     UPDATE ==> DRAW ==> REDRAW
-	//
-	// STATE_UPDATE means that the parent coordinates (may have)
-	//    changed and so the object's absolute and clipping coordinates
-	//    need to be recalculated.  This implies that the whole objecct
-	//    needs to be redrawn.
-	// STATE_DRAW means that the whole object needs to be drawn, perhaps
-	//    as a result of it intersecting with the invalid screen
-	//    region, or because it is newly being shown. So the frame,
-	//    background, and contents must all be redrawn.
-	// STATE_REDRAW means that only the semantic value of the object has
-	//    changed, and thus the object is free to use an optimized
-	//    redrawing method making assumptions about what is currently
-	//    visible.  This is important for highly dynamic controls
-	//    like sliders, scrollbars, vu meters, and so on.
-	// PARENT_VISIBLE is recursively passed down through the update
-	//    object tree, so objects know that if their parent is not
-	//    visible, they should not be drawn, while yet allowing each
-	//    object to maintain it's own visibility and disabled state.
-	//
-	// We try to keep update() implemented entirely in the base class,
-	//    with as much of the standardized behavior as possible
-	//
-	// The timeslice cycle starts with a recurive call to update()
-	//    through all existing objects.  
-	//
-	// If the STATE_UPDATE bit is set, onSize() is called, and the 
-	//    object recalcuates it's absolute and clipping coordinates
-	//    relative to the parent. The general base class onSize()
-	//    method is sufficient for most objects.
-	// if the PARENT_VISIBLE & VISIBLE & (DRAW | REDRAW) bits are set,
-	//    the onDraw() method is called and the object paints itself
-	//    on the screen.
-	//
-	// The base class update() method then recurses through immediate
-	// children, setting their inherited bits, and additionally possibly
-	// setting the STATE_DRAW flag if the object intersects with the
-	// wsDC's invalid region.
-	//
-	// The wsDC itself is aware of the invalid region and clips all
-	// screen output to that region if it is not empty.
-	//
-	// timeslize() then "validates" the srceen (sets the wsDC's
-	// invalid rectang to "empty").  Then time sensitive touch
-	// events (drag, long click, etc) are handled, which possibly
-	// generate client level events that are then, finally, dispatched.
-	//
-	// Events are (currently) generated (only) when a touch happens.
-	// The base class onTouch() method handles the touch behavior,
-	// and calls the appropriate onUpdateClick() or onUpdateDrag()
-	// methods, which in turn, generate the actual wsEvents.
-	//
-	// The touch handler (onClick(), ondDrage(), etc) and any
-	// client level events that happen thereafter that need to
-	// set the UPDATE, DRAW, or REDRAW bits MUST call the setInvalidate()
-	// method which, in addition to setting the bits, invalidate the region.
-	//
-	// These client level calls SHOULD NOT diddle the bits directly!
-	// Conversely, those methods SHOULD NOT be called by any methods
-	// directly in the update() call chain (i.e onSize(), onDraw()) or
-	// else they will turn on invalid region clipping when it should
-	// not be turned on.
+// How it works.
+//
+//     UPDATE ==> DRAW ==> REDRAW
+//     UPDATE ==> onSize()
+//          set m_rect_abs
+//          set m_rect_client
+//          set m_clip_abs
+//          set m_clip_client
+//     PARENT_VISIBLE = parent->VISIBLE & parent->PARENT_VISIBLE
+//     VISIBLE =>
+//     		!DRAW && !REDRAW && intersects(invalid) => INVALID
+//          DRAW | REDRAW | INVALID => onDraw()
+//  		onDraw() => setClip(m_clip_xxx,INVALID);
+//          setClip(INVALID) ==> clip.intersect(invalid)
+//
+// STATE_UPDATE means that the parent coordinates (may have)
+//    changed and so the object's absolute and clipping coordinates
+//    need to be recalculated.  This implies that the whole objecct
+//    needs to be redrawn.
+// STATE_DRAW means that the whole object needs to be drawn, perhaps
+//    as a result of it intersecting with the invalid screen
+//    region, or because it is newly being shown. So the frame,
+//    background, and contents must all be redrawn.
+// STATE_REDRAW means that only the semantic value of the object has
+//    changed, and thus the object is free to use an optimized
+//    redrawing method making assumptions about what is currently
+//    visible.  This is important for highly dynamic controls
+//    like sliders, scrollbars, vu meters, and so on.
+// STATE_INVALID means that there is an invalidated region,
+//    the object would not otherwise redraw,
+//    and the object intersects with the invalidated region.
+//
+// PARENT_VISIBLE is recursively set during the update() tree
+//    so objects know that if their parent is not visible, they
+//    should not be drawn (or accept hit tests), while yet allowing
+//    each object to maintain it's own visibility state.
+
 	
 // #define WIN_STATE_ENABLE            	0x00000002
 // #define WIN_STATE_UPDATE            	0x00000004
@@ -479,12 +213,6 @@ class wsWindow : public wsEventHandler
 		void setDragConstraint(u8 constraint)  		{ m_drag_constraint = constraint; }
 		u8  getDragConstraint() const 				{ return m_drag_constraint; }
 		
-		void setInvalidate(u32 bits)
-		{
-			setBit(m_state,bits);
-			m_pDC->invalidate(m_rect_abs);
-		}
-		
 	protected:
 		
 		friend class wsApplication;
@@ -541,372 +269,6 @@ class wsWindow : public wsEventHandler
 
 		CString m_text;
 		u8 m_drag_constraint;
-};
-
-
-
-//-------------------------------------------
-// top level windows
-//-------------------------------------------
-
-class wsTopLevelWindow : public wsWindow
-{
-	public:
-	
-		wsTopLevelWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye, u32 style=0);
-		~wsTopLevelWindow() {}
-		
-		wsApplication *getApplication() const { return (wsApplication *) m_pParent; }
-
-		void show();
-		void hide();
-		
-	protected:
-		
-		friend class wsApplication;
-		
-		virtual wsWindow *hitTest(s32 x, s32 y);
-		
-		wsTopLevelWindow *m_pPrevWindow;
-		wsTopLevelWindow *m_pNextWindow;
-		
-};
-
-
-
-//-------------------------------------------
-// controls
-//-------------------------------------------
-
-class wsControl : public wsWindow
-{
-	public:
-	
-		~wsControl() {}
-		
-		wsControl(wsWindow *pParent, u16 id, s32 xs, s32 ys, s32 xe, s32 ye, u32 style=0) :
-			wsWindow(pParent,id,xs,ys,xe,ye,style) {}
-};
-
-
-
-class wsStaticText : public wsControl
-{
-	public:
-	
-		~wsStaticText() {}
-		
-		wsStaticText(wsWindow *pParent, u16 id, const char *text, s32 xs, s32 ys, s32 xe, s32 ye) :
-			wsControl(pParent,id,xs,ys,xe,ye)
-		{
-			if (text)
-				m_text = text;
-		}
-		
-	protected:
-	
-		virtual void onDraw();
-	
-};
-
-
-
-
-//---------------------------
-// wsButton
-//---------------------------
-
-#define BTN_STATE_RELEASED                            0x0000
-#define BTN_STATE_PRESSED                             0x0001
-
-#define BTN_STYLE_2D                                  0x0001
-#define BTN_STYLE_3D                                  0x0002
-#define BTN_STYLE_TOGGLE_COLORS                       0x0004
-#define BTN_STYLE_USE_ALTERNATE_COLORS                0x0008
-#define BTN_STYLE_TOGGLE_VALUE                        0x0010
-
-
-class wsButton : public wsControl
-{
-	public:
-	
-		~wsButton() {}
-		
-		wsButton(
-				wsWindow *pParent,
-				u16 id,
-				const char *text,
-				s32 xs,
-				s32 ys,
-				s32 xe,
-				s32 ye,
-				u16 bstyle=0,
-				u32 addl_wstyle=0) :
-			wsControl(pParent,id,xs,ys,xe,ye,
-				addl_wstyle |
-				WIN_STYLE_TOUCH |
-				WIN_STYLE_CLICK | (
-				(bstyle & BTN_STYLE_3D) ? WIN_STYLE_3D :
-				(bstyle & BTN_STYLE_2D) ? WIN_STYLE_2D : 0)),
-			m_button_style(bstyle)
-		{
-			m_button_state = 0;
-			m_align = ALIGN_CENTER;
-			m_fore_color = defaultButtonForeColor;
-			m_back_color = defaultButtonReleasedColor;
-			m_alt_back_color = defaultButtonPressedColor;
-			m_alt_fore_color = m_fore_color;
-			if (text)
-				m_text = text;
-		}
- 
-		bool isPressed() const { return m_button_state & BTN_STATE_PRESSED; }
-		void setAltBackColor(wsColor color)  {m_alt_back_color = color;}
-		void setAltForeColor(wsColor color)  {m_alt_fore_color = color;}
-
-	protected:
-	
-		u8 m_button_state;
-		u16 m_button_style;
-		wsColor m_alt_back_color;
-		wsColor m_alt_fore_color;
-		
-		virtual void onDraw();
-		virtual void onUpdateClick();
-		virtual void onUpdateTouch(bool touched);
-		
-};	// wsButton
-
-
-
-//---------------------------
-// wsCheckbox
-//---------------------------
-// checkboxes have a fixed size
-
-#define CHECKBOX_SIZE   20
-
-#define CHB_STATE_RELEASED                            0x0000
-#define CHB_STATE_PRESSED                             0x0001
-#define CHB_STATE_CHECKED                             0x0002
-
-#define CHB_STYLE_2D                                  0x0001
-#define CHB_STYLE_3D                                  0x0002
-#define CHB_STYLE_TOGGLE_COLORS                       0x0004
-#define CHB_STYLE_USE_ALTERNATE_COLORS                0x0008
-
-
-class wsCheckbox : public wsControl
-{
-	public:
-	
-		~wsCheckbox() {}
-		wsCheckbox(
-				wsWindow *pParent,
-				u16 id,
-				u8 checked,
-				s32 xs,
-				s32 ys,
-				u16 cstyle=0,
-				u32 addl_wstyle=0) :
-			wsControl(pParent,id,xs,ys,xs+CHECKBOX_SIZE-1,ys+CHECKBOX_SIZE-1,
-				addl_wstyle |
-  				WIN_STYLE_TOUCH |
-				WIN_STYLE_CLICK | (
-				(cstyle & CHB_STYLE_2D) ? WIN_STYLE_2D :
-				(cstyle & CHB_STYLE_3D) ? WIN_STYLE_3D : 0)),
-			m_checkbox_style(cstyle)
-		{
-			m_checkbox_state = checked ? CHB_STATE_CHECKED : 0;
-			m_align = ALIGN_TOP_LEFT;
-			m_fore_color = defaultButtonForeColor;
-			m_back_color = defaultButtonReleasedColor;
-			m_alt_back_color = defaultButtonPressedColor;
-			m_alt_fore_color = m_fore_color;
-		}
-		
-		bool isChecked()  { return m_checkbox_state & CHB_STATE_CHECKED; }
-		void setChecked(bool checked)
-		{
-			if (checked)
-				m_checkbox_state |= CHB_STATE_CHECKED;
-			else
-				m_checkbox_state &= ~CHB_STATE_CHECKED;
-			setBit(m_state,WIN_STATE_DRAW);
-		}
-		
-		void setAltBackColor(wsColor color)  {m_alt_back_color = color;}
-		void setAltForeColor(wsColor color)  {m_alt_fore_color = color;}
-
-	protected:
-	
-		u8 m_checkbox_state;
-		u16 m_checkbox_style;
-		wsColor m_alt_back_color;
-		wsColor m_alt_fore_color;
-		
-		virtual void onDraw();
-		virtual void onUpdateClick();
-		virtual void onUpdateTouch(bool touched);
-		
-
-};	// wsCheckbox
-
-
-
-//---------------------------
-// wsImage
-//---------------------------
-
-class wsImage : public wsControl
-{
-	public:
-	
-		wsImage(wsWindow *pParent, u16 id, u8 value, s32 x, s32 y, s32 xe, s32 ye, u32 style=0);
-		~wsImage() {}
-};
-
-
-
-//------------------------------------
-// wsEvent 
-//------------------------------------
-
-
-#define EVT_TYPE_WINDOW    0x00000001
-#define EVT_TYPE_BUTTON    0x00000002
-#define EVT_TYPE_CHECKBOX  0x00000004
-
-#define WIN_EVENT_CLICK     	0x00000001
-#define WIN_EVENT_LONG_CLICK    0x00000002
-
-#define BTN_EVENT_PRESSED    	 0x00000001
-#define CHB_EVENT_VALUE_CHANGED  0x00000001
-
-
-class wsEvent
-{
-	public:
-	
-		wsEvent(u32 type, u32 id, wsWindow *obj) :
-			m_type(type),
-			m_id(id),
-			m_obj(obj)
-		{
-			m_pNext = 0;
-			m_pPrev = 0;
-		}
-
-		~wsEvent() {}
-		
-		u32 getEventType() const		{ return m_type; }
-		u32 getEventID() const			{ return m_id; }
-		u16 getID() const 			    { return m_obj->getID(); }
-		wsWindow *getObject() const		{ return m_obj; }
-
-	private:
-		friend class wsApplication;
-		
-		u32 m_type;
-		u32 m_id;
-		wsWindow *m_obj;
-		
-		wsEvent *m_pNext;
-		wsEvent *m_pPrev;
-		
-};	// wsEvent
-
-
-
-
-//------------------------------------
-// the application object
-//------------------------------------
-
-class wsApplication : public wsWindow
-{
-	public:
-		
-		~wsApplication();
-		wsApplication();
-
-		// You must call Initialize and provide a Create() method.
-		// The Create() method will be called to allow you to create
-		// the initial set of windows and controls, thereafter you
-		// need only call timeSlice() in a loop.
-		
-		void Initialize(
-			CScreenDeviceBase *pScreen,
-			CTouchScreenBase  *pTouch,
-			CMouseDevice      *pMouse);
-		
-		void Create();
-			// You must provide wsApplication::Create()
-			
-		void timeSlice();
-			// it's called timeSlice() to prevent confusion
-			// with the wsWindows::update() functions. 
-
-		wsTopLevelWindow *getTopWindow() const { return m_pTopWindow; }
-		touchState_t *getTouchState()	  	   { return &m_touch_state; }
-		
-		// public to wsWindows
-		// not intended for client use
-		
-		void setTouchFocus(wsWindow *win);
-			// called from hitTest on the the wsWindow object,
-			// if any, that matched the starting x,y coordinates
-		void addTopLevelWindow(wsTopLevelWindow *pWindow);
-		void removeTopLevelWindow(wsTopLevelWindow *pWindow);
-		
-		void addEvent(wsEvent *event);
-		
-	private:
-		
-		wsEvent *m_pFirstEvent;
-		wsEvent *m_pLastEvent;
-		
-		wsWindow *m_pTouchFocus;
-		touchState_t m_touch_state;
-		u32 m_lastTouchUpdate;
-		
-		wsTopLevelWindow *m_pBottomWindow;
-		wsTopLevelWindow *m_pTopWindow;
-		
-		CScreenDeviceBase *m_pScreen;
-		CTouchScreenBase  *m_pTouch;
-		CMouseDevice      *m_pMouse;
-		
-		void mouseEventHandler(
-			TMouseEvent event,
-			unsigned buttons,
-			unsigned x,
-			unsigned y);
-		static void mouseEventStub(
-			void *pThis,
-			TMouseEvent event,
-			unsigned buttons,
-			unsigned x,
-			unsigned y);
-	
-		void touchEventHandler(
-			TTouchScreenEvent event,
-			unsigned id,
-			unsigned x,
-			unsigned y);
-		static void touchEventStub(
-			void *pThis,
-			TTouchScreenEvent event,
-			unsigned id,
-			unsigned x,
-			unsigned y);
-		
-		void onTouchEvent(
-			unsigned x,
-			unsigned y,
-			u8 touch);
-		
-		
 };
 
 

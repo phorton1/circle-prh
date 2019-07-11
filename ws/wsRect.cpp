@@ -4,7 +4,7 @@
 // A event driven windowing system that kind of combines uGUI and wxWindows.
 // Written for the rPi Circle bare metal C++ libraries.
 
-#include "wsWindow.h"
+#include "wsRect.h"
 
 void print_rect(const char *name, const wsRect *rect)
 {

@@ -7,13 +7,15 @@ CIRCLEHOME = ../..
 # CPPFLAGS += -Wno-write-strings
 
 OBJS = \
-	wsDC.o \
-	wsApp.o \
 	wsFont.o \
 	wsRect.o \
+	wsDC.o \
 	wsWindow.o \
-	wsControl.o \
 	wsTopWindow.o \
+	wsControl.o \
+	wsButton.o \
+	wsCheckbox.o \
+	wsApp.o \
 	wsThemeStandard.o \
 	
 

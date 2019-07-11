@@ -4,11 +4,8 @@
 // At the end of the file is wsApplication::Create().
 // The calls to Initiatilize() and timeSliceBased() are in kernel.cpp
 
-#include "kernel.h"
-#include <circle/util.h>
-#include <circle/types.h>
-#include <ws/wsWindow.h>
-
+#include <ws/ws.h>
+#include <circle/logger.h>
 
 static const char log_name[] = "kapp";
 
@@ -18,7 +15,7 @@ static const char log_name[] = "kapp";
 
 
 #define ID_DLG  1000
-#define ID_BUTTON_CLOSE  1
+#define ID_BUTTON_CLOSE  1001
 
 class dialogWindow : public wsTopLevelWindow
 {
@@ -87,30 +84,35 @@ class dialogWindow : public wsTopLevelWindow
 };
 
 
-#define ID_WIN_TOP      1
-#define ID_WIN_LEFT     2
-#define ID_WIN_RIGHT    3
-#define ID_WIN_BOTTOM   4
+#define ID_WIN_FRAME    1
+#define ID_WIN_TOP      10
+#define ID_WIN_LEFT     20
+#define ID_WIN_RIGHT    30
+#define ID_WIN_BOTTOM   40
+#define ID_PANEL	   	100
 
-#define ID_BUTTON1    101
-#define ID_BUTTON2    102
-#define ID_BUTTON3    103
-#define ID_BUTTON4    104
-#define ID_BUTTON5    105
-#define ID_TEXT1      201
-#define ID_TEXT2      202
-#define ID_TEXT3      203
-#define ID_TEXT4      204
-#define ID_TEXT5      205
-#define ID_CHECKBOX1  301
-#define ID_CHECKBOX2  302
-#define ID_CHECKBOX3  303
-#define ID_CB_TEXT1   401
-#define ID_CB_TEXT2   402
-#define ID_CB_TEXT3   403
+#define ID_BUTTON1    	101
+#define ID_BUTTON2    	102
+#define ID_BUTTON3    	103
+#define ID_BUTTON4    	104
+#define ID_BUTTON5    	105
+
+#define ID_TEXT1      	201
+#define ID_TEXT2      	202
+#define ID_TEXT3      	203
+#define ID_TEXT4      	204
+#define ID_TEXT5      	205
+
+#define ID_CHECKBOX1  	301
+#define ID_CHECKBOX2  	302
+#define ID_CHECKBOX3  	303
+
+#define ID_CB_TEXT1   	401
+#define ID_CB_TEXT2   	402
+#define ID_CB_TEXT3   	403
 
 #define button(id)   ((wsButton *)findChildByID(id))
-#define stext(id)     ((wsStaticText *)findChildByID(id))
+#define stext(id)    ((wsStaticText *)findChildByID(id))
 #define box(id)      ((wsCheckbox *)findChildByID(id))
 
 
@@ -242,7 +244,7 @@ void wsApplication::Create()
 	s32 width = getWidth();
 	s32 height = getHeight();
 	
-	topWindow *frame = new topWindow(this,1,0,0,width-1,height-1);
+	topWindow *frame = new topWindow(this,ID_WIN_FRAME ,0,0,width-1,height-1);
 	LOG("frame=%08x",(u32)frame);
 	
 	// since all the controls in the top level window will trigger an event on it,
@@ -281,7 +283,7 @@ void wsApplication::Create()
 	new wsButton		(pStatus, ID_BUTTON4, "button4", 	4,   5,   119, 40, BTN_STYLE_2D | BTN_STYLE_TOGGLE_COLORS, WIN_STYLE_CLICK_LONG);
 	new wsStaticText	(pStatus, ID_TEXT4,   "text4", 		130, 5,   360, 40);
 
-	wsWindow *pPanel = new wsWindow(pLeft, 5, 10, 40, pLeft->getWidth()-10-1, pLeft->getHeight()-10-1, WIN_STYLE_2D | WIN_STYLE_TRANSPARENT);
+	wsWindow *pPanel = new wsWindow(pLeft, ID_PANEL, 10, 40, pLeft->getWidth()-10-1, pLeft->getHeight()-10-1, WIN_STYLE_2D | WIN_STYLE_TRANSPARENT);
 	
 	// instantiate the drag button after the other objects that are in the background
 	

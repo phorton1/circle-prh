@@ -33,7 +33,7 @@
 	#include <circle/usb/dwhcidevice.h>
 #endif
 
-#include <ws/wsWindow.h>
+#include <ws/ws.h>
 
 
 

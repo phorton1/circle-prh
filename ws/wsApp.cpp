@@ -4,7 +4,9 @@
 // A event driven windowing system that kind of combines uGUI and wxWindows.
 // Written for the rPi Circle bare metal C++ libraries.
 
-#include "wsWindow.h"
+#include "wsApp.h"
+#include "wsEvent.h"
+
 #include <circle/logger.h>
 #include <circle/util.h>
 #define log_name  "wsapp"
@@ -46,7 +48,8 @@ wsApplication::wsApplication() :
 	m_pLastEvent = 0;
 	
 	m_state |= WIN_STATE_PARENT_VISIBLE;
-		// the application is always progenator of visible
+		// the application is always progenator of
+		// win_state_parent_visible
 }
 
 
@@ -321,7 +324,10 @@ void wsApplication::timeSlice()
 	// first time through the loop.  They should not be reset
 	// thereafter.
 	
-	clearBit(m_state,WIN_STATE_UPDATE | WIN_STATE_DRAW | WIN_STATE_REDRAW );
+	clearBit(m_state,
+		WIN_STATE_UPDATE |
+		WIN_STATE_DRAW |
+		WIN_STATE_REDRAW );
 	
 	// At this point all objects should be up to date and completely drawn.
 	// We empty the DC's clipping region here, it will be expanded

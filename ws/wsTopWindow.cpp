@@ -4,7 +4,9 @@
 // A event driven windowing system that kind of combines uGUI and wxWindows.
 // Written for the rPi Circle bare metal C++ libraries.
 
-#include "wsWindow.h"
+#include "wsTopWindow.h"
+#include "wsApp.h"
+
 #include <circle/logger.h>
 #define log_name  "wstop"
 
@@ -23,6 +25,8 @@ wsTopLevelWindow::wsTopLevelWindow(wsApplication *pParent, u16 id, s32 xs, s32 y
 
 
 wsWindow* wsTopLevelWindow::hitTest(s32 x, s32 y)
+	// the current top level window is presumed
+	// to be visible ... 
 {
 	wsWindow *found = 0;
 	wsWindow *p = m_pFirstChild;

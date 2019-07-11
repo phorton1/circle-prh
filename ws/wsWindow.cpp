@@ -5,6 +5,9 @@
 // Written for the rPi Circle bare metal C++ libraries.
 
 #include "wsWindow.h"
+#include "wsApp.h"
+#include "wsEvent.h"
+
 #include <circle/logger.h>
 #define log_name  "wswin"
 
@@ -193,6 +196,27 @@ wsWindow *wsWindow::findChildByID(u16 id)
 
 void wsWindow::onDraw()
 {
+	#if 1
+		delay(1);
+		printf("draw(%08x:%d) m_state(%08x) ",
+			(u32)this,
+			m_id,
+			m_state);
+		if (m_state & WIN_STATE_DRAW)
+			printf("DRAW ");
+		if (m_state & WIN_STATE_REDRAW)
+			printf("REDRAW ");
+		if (m_state & WIN_STATE_INVALID)
+		{
+			printf("INVALID(%d,%d,%d,%d) ",
+				m_pDC->getInvalid().xs,
+				m_pDC->getInvalid().ys,
+				m_pDC->getInvalid().xe,
+				m_pDC->getInvalid().ye);
+		}
+		printf("\n");
+	#endif
+	
 	// draw self
 	#ifdef DEBUG_UPDATE
 		if (!m_pDC->getInvalid().isEmpty())
@@ -208,7 +232,7 @@ void wsWindow::onDraw()
 		DBG_UPDATE(1,"draw(%08x) 2d frame(%d,%d,%d,%d)\n",(u32)this,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
 		DBG_UPDATE(2,"               clip(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
 
-		m_pDC->setClip(m_clip_abs);
+		m_pDC->setClip(m_clip_abs,m_state & WIN_STATE_INVALID);
 		m_pDC->draw3DFrame(
 			m_rect_abs.xs,
 			m_rect_abs.ys,
@@ -221,7 +245,7 @@ void wsWindow::onDraw()
 		DBG_UPDATE(1,"draw(%08x) 2d frame(%d,%d,%d,%d)\n",(u32)this,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
 		DBG_UPDATE(2,"               clip(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
 
-		m_pDC->setClip(m_clip_abs);
+		m_pDC->setClip(m_clip_abs,m_state & WIN_STATE_INVALID);
 		m_pDC->drawFrame(
 			m_rect_abs.xs,
 			m_rect_abs.ys,
@@ -235,7 +259,7 @@ void wsWindow::onDraw()
 		DBG_UPDATE(2,"draw(%08x) fill(%d,%d,%d,%d)\n",(u32)this,m_rect_client.xs,m_rect_client.ys,m_rect_client.xe,m_rect_client.ye);
 		DBG_UPDATE(2,"           clip(%d,%d,%d,%d)\n",m_clip_client.xs,m_clip_client.ys,m_clip_client.xe,m_clip_client.ye);
 
-		m_pDC->setClip(m_clip_client);
+		m_pDC->setClip(m_clip_client,m_state & WIN_STATE_INVALID);
 		m_pDC->fillFrame(
 			m_rect_client.xs,
 			m_rect_client.ys,
@@ -251,7 +275,7 @@ void wsWindow::setText(const char *text)
 	// sets the invalid region!
 {
 	m_text = text;
-	setInvalidate(WIN_STATE_DRAW);
+	setBit(m_state,WIN_STATE_DRAW);
 }
 
 
@@ -267,8 +291,9 @@ void wsWindow::resize(s32 xs, s32 ys, s32 xe, s32 ye )
 	// which, in turn, requires more care with
 	// the window rectangles.
 {
+	m_pDC->invalidate(m_rect_abs);
 	m_rect.assign(xs,ys,xe,ye);
-	setInvalidate(WIN_STATE_UPDATE);
+	setBit(m_state,WIN_STATE_UPDATE);
 }
 
 void wsWindow::move( s32 x, s32 y )
@@ -277,7 +302,7 @@ void wsWindow::move( s32 x, s32 y )
 	s32 w = m_rect.xe - m_rect.xs + 1;
 	s32 h = m_rect.ye - m_rect.ys + 1;
 	m_rect.assign(x,y,x+w-1,y+h-1);
-	setInvalidate(WIN_STATE_UPDATE);
+	setBit(m_state,WIN_STATE_UPDATE);
 		
 }
 
@@ -287,8 +312,7 @@ void wsWindow::show()
 {
 	if (!(m_state & WIN_STATE_VISIBLE))
 	{
-		m_state |= WIN_STATE_VISIBLE;
-		setInvalidate(WIN_STATE_UPDATE);
+		setBit(m_state,WIN_STATE_VISIBLE | WIN_STATE_DRAW);
 	}
 }
 
@@ -535,10 +559,6 @@ void wsWindow::onUpdateTouch(bool touched)
 
 void wsWindow::onUpdateClick()
 {
-	// we don't know if the object needs to be redrawn,
-	// so we leave that up to derived classes to determine
-	// setInvalidate(WIN_STATE_DRAW);
-	
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_WINDOW,
 		WIN_EVENT_CLICK,
@@ -547,16 +567,14 @@ void wsWindow::onUpdateClick()
 
 void wsWindow::onUpdateLongClick()
 {
-	// setInvalidate(WIN_STATE_DRAW);
-	
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_WINDOW,
 		WIN_EVENT_LONG_CLICK,
 		this ));
-	
 }
 
-void wsWindow::onUpdateDblClick()	{}
+void wsWindow::onUpdateDblClick()
+{}
 
 
 
@@ -700,7 +718,6 @@ void wsWindow::onUpdateDragEnd()
 
 void wsWindow::update()
 {
-
 	// inherit bits from parent
 	
 	if (m_pParent)
@@ -708,10 +725,22 @@ void wsWindow::update()
 		DBG_UPDATE(0,"update(%08x) start m_state(%08x) inheriting(%08x)\n",
 				   (u32)this,
 				   m_state,
-				   m_pParent->m_state & INHERITED_WIN_STATE_MASK);
+				   m_pParent->m_state);
 		INC_UPDATE_LEVEL();
 
-		setBit(m_state,m_pParent->m_state & INHERITED_WIN_STATE_MASK);
+		// we inherit the update, draw and redraw bits directly,
+		// but we set out own parent visible based on the parent's
+		// state.
+		
+		setBit(m_state,m_pParent->m_state & (
+			WIN_STATE_UPDATE |
+			WIN_STATE_DRAW |
+			WIN_STATE_REDRAW ));
+		clearBit(m_state,WIN_STATE_PARENT_VISIBLE);
+		
+		if ((m_pParent->m_state & WIN_STATE_VISIBLE) &&
+			(m_pParent->m_state & WIN_STATE_PARENT_VISIBLE))
+			setBit(m_state,WIN_STATE_PARENT_VISIBLE);
 
 		DBG_UPDATE(1,"inherited m_state(%08x)\n",m_state);
 	}
@@ -731,10 +760,11 @@ void wsWindow::update()
 		(m_state & WIN_STATE_VISIBLE))
 	{
 		const wsRect &invalid = m_pDC->getInvalid();
-		if (m_rect_abs.intersects(invalid))
-			setBit(m_state,WIN_STATE_DRAW);
+		if (!(m_state & (WIN_STATE_DRAW | WIN_STATE_REDRAW)) &&
+		    m_rect_abs.intersects(invalid))
+			setBit(m_state,WIN_STATE_INVALID);
 			
-		if (m_state & (WIN_STATE_DRAW | WIN_STATE_REDRAW))
+		if (m_state & (WIN_STATE_DRAW | WIN_STATE_REDRAW | WIN_STATE_INVALID))
 		{
 			DBG_UPDATE(1,"calling onDraw()\n",0);
 			onDraw();
@@ -750,7 +780,11 @@ void wsWindow::update()
 	
 	// clear our handled state bits
 	
-	clearBit(m_state,WIN_STATE_UPDATE | WIN_STATE_DRAW | WIN_STATE_REDRAW);
+	clearBit(m_state,
+		WIN_STATE_UPDATE |
+		WIN_STATE_DRAW |
+		WIN_STATE_REDRAW |
+		WIN_STATE_INVALID);
 	
 	#ifdef DEBUG_UPDATE
 		if (m_pParent)
