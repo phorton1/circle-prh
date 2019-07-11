@@ -13,12 +13,12 @@
 // wsStaticText
 //-------------------------------------------------------
 
-void wsStaticText::draw()
+void wsStaticText::onDraw()
 {
 	wsColor bc = m_back_color;
 	wsColor fc = m_fore_color;
 
-	wsWindow::draw();
+	wsWindow::onDraw();
 	
 	//	m_pDC->setClip(m_clip_abs);
 	//	m_pDC->fillFrame(
@@ -43,28 +43,31 @@ void wsStaticText::draw()
 // wsButton
 //-------------------------------------------------------
 
-void wsButton::onTouch(bool touched)
-	// onTouch primarily exists to set the WIN_STATE_REDRAW bit
-	// which is done via calls to redraw()
+void wsButton::onUpdateTouch(bool touched)
+	// duplicate of base class
+	// here only to make button event handling orthogonol
+	// with checkbox for ease of understanding.
+	// just sets the DRAW bit.
 {
 	#if DEBUG_TOUCH
-		printf("wsButton::onTouch(%d)\n",touched);
+		printf("wsButton::onUpdateTouch(%d)\n",touched);
 	#endif
-	redraw();
+	setBit(m_state,WIN_STATE_DRAW);
 }
 
-void wsButton::onClick()
-	// onClick() handlers must change their state
-	// and also set WIN_STATE_REDRAW, as well as
-	// generate any needed events.
+
+void wsButton::onUpdateClick()
+	// onClick() handlers must change their state, call
+	// setInvalidate(DFRAW), as well as generate any
+	// needed client level events.
 {
 	#if DEBUG_TOUCH
-		printf("wsButton::onClick()\n",0);
+		printf("wsButton::onUpdateClick()\n",0);
 	#endif
 
 	if (m_button_style & BTN_STYLE_TOGGLE_VALUE)
 		toggleBit(m_button_state, BTN_STATE_PRESSED);
-	redraw();
+	setInvalidate(WIN_STATE_DRAW);
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_BUTTON,
 		BTN_EVENT_PRESSED,
@@ -73,13 +76,13 @@ void wsButton::onClick()
 
 
 
-void wsButton::draw()
+void wsButton::onDraw()
 {
 	wsColor bc = m_back_color;
 	wsColor fc = m_fore_color;
 	
 	#if 0
-		LOG("wsButton(%08x)::draw() m_button_style(0x%04x) m_state(0x%08x) m_button_state(0x%04x)",
+		LOG("wsButton(%08x)::onDraw() m_button_style(0x%04x) m_state(0x%08x) m_button_state(0x%04x)",
 			(u32) this,
 			m_button_style,
 			m_state,
@@ -154,8 +157,9 @@ void wsButton::draw()
 //-------------------------------------------------------
 // wsCheckbox
 //-------------------------------------------------------
+// see notes on wsButton methods
 
-void wsCheckbox::onTouch(bool touched)
+void wsCheckbox::onUpdateTouch(bool touched)
 {
 	#if DEBUG_TOUCH
 		printf("wsCheckbox::onTouch(%d)\n",touched);
@@ -164,18 +168,18 @@ void wsCheckbox::onTouch(bool touched)
 		setBit(m_checkbox_state,CHB_STATE_PRESSED);
 	else
 		clearBit(m_checkbox_state,CHB_STATE_PRESSED);
-	redraw();
+	setBit(m_state,WIN_STATE_DRAW);
 }
 
 
-void wsCheckbox::onClick()
+void wsCheckbox::onUpdateClick()
 {
 	#if DEBUG_TOUCH
 		printf("wsCheckbox::onClick()\n",0);
 	#endif
 	
 	toggleBit(m_checkbox_state, CHB_STATE_CHECKED);
-	redraw();
+	setInvalidate(WIN_STATE_DRAW);
 	
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_CHECKBOX,
@@ -185,7 +189,7 @@ void wsCheckbox::onClick()
 
 
 
-void wsCheckbox::draw()
+void wsCheckbox::onDraw()
 {
 	wsColor bc = m_back_color;
 	wsColor fc = m_fore_color;

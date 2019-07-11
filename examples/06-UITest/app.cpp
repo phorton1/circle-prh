@@ -166,7 +166,8 @@ class topWindow : public wsTopLevelWindow
 							20,
 							DLG_WIDTH,
 							200);
-						// printf("dlg=%08x\n",(u32)m_pDlg);
+						printf("dlg=%08x\n",(u32)m_pDlg);
+						// debugUpdate(1);
 					}
 					else
 					{
@@ -242,7 +243,7 @@ void wsApplication::Create()
 	s32 height = getHeight();
 	
 	topWindow *frame = new topWindow(this,1,0,0,width-1,height-1);
-	// printf("frame=%08x\n",(u32)frame);
+	LOG("frame=%08x",(u32)frame);
 	
 	// since all the controls in the top level window will trigger an event on it,
 	// they must have unique ids in that context

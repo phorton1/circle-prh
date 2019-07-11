@@ -10,6 +10,40 @@
 
 
 
+
+#ifdef DEBUG_UPDATE
+	#define DBG_UPDATE(level, format, ...)		\
+		if (debug_update)						\
+		{										\
+			delay(10);							\
+			debug_indent(level);			 	\
+			printf(format,__VA_ARGS__);			\
+		}
+
+	int debug_update = 1;
+		// set to 1 to show the first update, 0 to not
+	int debug_update_level = 0;
+	void debugUpdate(int num)
+	{
+		debug_update = num;
+	}
+	
+	void debug_indent(int addl)
+	{
+		for (int i=0; i<debug_update_level + addl; i++)
+			printf("  ");
+	}
+	#define INC_UPDATE_LEVEL()		debug_update_level++;
+	#define DEC_UPDATE_LEVEL()		debug_update_level--;
+	
+#else
+	#define DBG_UPDATE(l,f,...)
+	#define INC_UPDATE_LEVEL()	
+	#define DEC_UPDATE_LEVEL()	
+#endif
+
+
+
 //----------------------------------------------
 // wsWindow
 //----------------------------------------------
@@ -31,7 +65,7 @@ wsWindow::wsWindow(
 	// LOG("wsWindow(0x%08x,%d, %d,%d,%d,%d, 0x%08x)",(u32) this, id,xs,ys,xe,ye,style);
 	
 	m_pDC = 0;
-	m_state = WIN_STATE_VISIBLE | WIN_STATE_REDRAW;
+	m_state = WIN_STATE_VISIBLE | WIN_STATE_UPDATE | WIN_STATE_DRAW;
 	m_pFont = 0;
 	
 	m_pParent = pParent;
@@ -60,13 +94,14 @@ wsWindow::wsWindow(
 	m_drag_constraint =
 		DRAG_CONSTRAINT_OBJECT |
 		DRAG_CONSTRAINT_SHOW;
-	
-	sizeWindow();
 }
 
 
-void wsWindow::sizeWindow()
+
+void wsWindow::onSize()
 {
+	DBG_UPDATE(1,"onSize(%08x) m_rect(%d,%d,%d,%d)\n",(u32)this,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
+
 	m_rect_abs.assign(m_rect);
 	m_rect_client.assign(m_rect);
 	
@@ -91,6 +126,8 @@ void wsWindow::sizeWindow()
 	if (m_pParent)
 	{
 		const wsRect &parent_rect = m_pParent->getClientRect();
+		DBG_UPDATE(2,"parent_rect(%d,%d,%d,%d)\n",parent_rect.xs,parent_rect.ys,parent_rect.xe,parent_rect.ye);
+
 		m_rect_abs.makeRelative(parent_rect);
 		m_clip_abs.assign(m_rect_abs);
 		m_clip_abs.intersect(parent_rect);
@@ -99,17 +136,14 @@ void wsWindow::sizeWindow()
 		m_clip_client.assign(m_rect_client);
 		m_clip_client.intersect(parent_rect);
 	}
+	
+	DBG_UPDATE(2,"m_rect_abs(%d,%d,%d,%d)\n",m_rect_abs.xs,m_rect_abs.ys,m_rect_abs.xe,m_rect_abs.ye);
+	DBG_UPDATE(2,"m_rect_client(%d,%d,%d,%d)\n",m_rect_client.xs,m_rect_client.ys,m_rect_client.xe,m_rect_client.ye);
+	DBG_UPDATE(2,"m_clip_abs(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
+	DBG_UPDATE(2,"m_clip_client(%d,%d,%d,%d)\n",m_clip_client.xs,m_clip_client.ys,m_clip_client.xe,m_clip_client.ye);
+	
 }
 
-
-void wsWindow::sizeSelfAndChildren()
-{
-	sizeWindow();
-	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
-	{
-		p->sizeWindow();
-	}
-}
 
 
 wsApplication *wsWindow::getApplication()
@@ -157,24 +191,23 @@ wsWindow *wsWindow::findChildByID(u16 id)
 
 
 
-void wsWindow::draw()
+void wsWindow::onDraw()
 {
 	// draw self
+	#ifdef DEBUG_UPDATE
+		if (!m_pDC->getInvalid().isEmpty())
+			DBG_UPDATE(1,"draw(%08x) invalid(%d,%d,%d,%d)\n",(u32)this,
+				m_pDC->getInvalid().xs,
+				m_pDC->getInvalid().ys,
+				m_pDC->getInvalid().xe,
+				m_pDC->getInvalid().ye);
+	#endif
 	
-	if (m_style & WIN_STYLE_2D)
+	if (m_style & WIN_STYLE_3D)
 	{
-		// print_rect("2d frame",&m_rect_abs);
-		m_pDC->setClip(m_clip_abs);
-		m_pDC->drawFrame(
-			m_rect_abs.xs,
-			m_rect_abs.ys,
-			m_rect_abs.xe,
-			m_rect_abs.ye,
-			m_fore_color );
-	}
-	else if (m_style & WIN_STYLE_3D)
-	{
-		// print_rect("3d frame",&m_rect_abs);
+		DBG_UPDATE(1,"draw(%08x) 2d frame(%d,%d,%d,%d)\n",(u32)this,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
+		DBG_UPDATE(2,"               clip(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
+
 		m_pDC->setClip(m_clip_abs);
 		m_pDC->draw3DFrame(
 			m_rect_abs.xs,
@@ -183,10 +216,25 @@ void wsWindow::draw()
 			m_rect_abs.ye,
 			windowFrameColors );
 	}
+	else if (m_style & WIN_STYLE_2D)
+	{
+		DBG_UPDATE(1,"draw(%08x) 2d frame(%d,%d,%d,%d)\n",(u32)this,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
+		DBG_UPDATE(2,"               clip(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
+
+		m_pDC->setClip(m_clip_abs);
+		m_pDC->drawFrame(
+			m_rect_abs.xs,
+			m_rect_abs.ys,
+			m_rect_abs.xe,
+			m_rect_abs.ye,
+			m_fore_color );
+	}
 	
 	if (!(m_style & WIN_STYLE_TRANSPARENT))
 	{
-		// print_rect("fill client",&m_rect_abs);
+		DBG_UPDATE(2,"draw(%08x) fill(%d,%d,%d,%d)\n",(u32)this,m_rect_client.xs,m_rect_client.ys,m_rect_client.xe,m_rect_client.ye);
+		DBG_UPDATE(2,"           clip(%d,%d,%d,%d)\n",m_clip_client.xs,m_clip_client.ys,m_clip_client.xe,m_clip_client.ye);
+
 		m_pDC->setClip(m_clip_client);
 		m_pDC->fillFrame(
 			m_rect_client.xs,
@@ -199,9 +247,11 @@ void wsWindow::draw()
 
 
 void wsWindow::setText(const char *text)
+	// client level only!
+	// sets the invalid region!
 {
 	m_text = text;
-	redraw();
+	setInvalidate(WIN_STATE_DRAW);
 }
 
 
@@ -218,8 +268,7 @@ void wsWindow::resize(s32 xs, s32 ys, s32 xe, s32 ye )
 	// the window rectangles.
 {
 	m_rect.assign(xs,ys,xe,ye);
-	sizeSelfAndChildren();
-	redraw();
+	setInvalidate(WIN_STATE_UPDATE);
 }
 
 void wsWindow::move( s32 x, s32 y )
@@ -228,8 +277,7 @@ void wsWindow::move( s32 x, s32 y )
 	s32 w = m_rect.xe - m_rect.xs + 1;
 	s32 h = m_rect.ye - m_rect.ys + 1;
 	m_rect.assign(x,y,x+w-1,y+h-1);
-	sizeSelfAndChildren();
-	redraw();
+	setInvalidate(WIN_STATE_UPDATE);
 		
 }
 
@@ -240,7 +288,7 @@ void wsWindow::show()
 	if (!(m_state & WIN_STATE_VISIBLE))
 	{
 		m_state |= WIN_STATE_VISIBLE;
-		redraw();
+		setInvalidate(WIN_STATE_UPDATE);
 	}
 }
 
@@ -260,64 +308,26 @@ void wsWindow::hide()
 	if (m_state & WIN_STATE_VISIBLE)
 	{
 		m_pDC->invalidate(m_rect_abs);
-		m_state &= ~WIN_STATE_VISIBLE;
+		clearBit(m_state,WIN_STATE_VISIBLE);
 	}		
 }
 
-
-
-void wsWindow::update(bool visible)
-{
-	// update self
-	// and if drawing self, draw all children too
-	
-	bool redraw = false;
-	const wsRect &invalid = m_pDC->getInvalid();
-	
-	if (visible && (m_state & WIN_STATE_VISIBLE))
-	{
-		if (m_rect_abs.intersects(invalid))
-			setBit(m_state,WIN_STATE_REDRAW);
-			
-		if (m_state & WIN_STATE_REDRAW)
-		{
-			draw();
-			redraw = true;
-			clearBit(m_state,WIN_STATE_REDRAW);
-		}
-	}
-	
-	// update children
-	
-	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
-	{
-		if (redraw)
-		{
-			if (invalid.isEmpty() ||
-				p->m_rect_abs.intersects(invalid))
-			{
-				setBit(p->m_state,WIN_STATE_REDRAW);
-			}
-		}
-		
-		p->update(m_state & WIN_STATE_VISIBLE);
-	}
-}
 
 
 wsWindow* wsWindow::hitTest(s32 x, s32 y)
 {
 	if ((m_style & WIN_STYLE_TOUCH) &&
 		(m_state & WIN_STATE_VISIBLE) &&
+		(m_state & WIN_STATE_PARENT_VISIBLE) &&
 		m_clip_abs.intersects(x,y))
 	{
-		setBit(m_state,WIN_STATE_IS_TOUCHED);	// | WIN_STATE_TOUCH_CHANGED;
-		onTouch(1);
+		setBit(m_state,WIN_STATE_IS_TOUCHED);
+		onUpdateTouch(1);
 		#if DEBUG_TOUCH
 			LOG("wsWindow::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
 		#endif
 		if (m_style & WIN_STYLE_DRAG)
-			onDragBegin();
+			onUpdateDragBegin();
 		return this;
 	}
 	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
@@ -387,12 +397,12 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 				{
 					setBit(m_state,WIN_STATE_DRAGGING);
 					touch_state->event_sent = true;
-					onDragBegin();
+					onUpdateDragBegin();
 				}
 				else 	// regular button lost focus
 				{
 					clearBit(m_state,WIN_STATE_IS_TOUCHED);
-					onTouch(0);
+					onUpdateTouch(0);
 					getApplication()->setTouchFocus(0);
 				}
 				return;
@@ -409,17 +419,17 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 			#endif
 			
 			clearBit(m_state,WIN_STATE_IS_TOUCHED);
-			onTouch(0);
+			onUpdateTouch(0);
 			
 			if (m_state & WIN_STATE_DRAGGING)
 			{
 				clearBit(m_state,WIN_STATE_DRAGGING);
-				onDragEnd();
+				onUpdateDragEnd();
 			}
 			else if (m_style & WIN_STYLE_CLICK)
 			{
 				if (!touch_state->event_sent)
-					onClick();
+					onUpdateClick();
 			}
 			getApplication()->setTouchFocus(0);
 			return;
@@ -452,7 +462,7 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 			if (now > touch_state->last_time + repeat_time)
 			{
 				touch_state->last_time = now;
-				onClick();
+				onUpdateClick();
 			}
 		}
 		return;
@@ -479,7 +489,7 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 			{
 				m_state |= WIN_STATE_DRAGGING;
 				touch_state->event_sent = true;
-				onDragBegin();
+				onUpdateDragBegin();
 			}
 		}
 		else if (touch_state->x != touch_state->last_x ||
@@ -487,7 +497,7 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 		{
 			touch_state->last_x = touch_state->x;
 			touch_state->last_y = touch_state->y;
-			onDragMove();
+			onUpdateDragMove();
 		}
 
 		return;
@@ -501,7 +511,7 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 		now > touch_state->time + TOUCH_LONG_INTERVAL)
 	{
 		touch_state->event_sent = true;
-		onLongClick();
+		onUpdateLongClick();
 		return;
 	}
 
@@ -511,32 +521,34 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 //-----------------------------------------
 // base class state handlers
 //-----------------------------------------
-// These are not event handlers.
-// They merely change the state of the object
-// and return quickly.
+// These are not event handlers!
 //
-// Note that the base class provides basic
-// general behavior, and emits EVENT_TYPE_WINDOW
-// events WIN_EVENT_CLOCK, and so on.  You must
-// derive from this to emit other kinds of events
-// like EVENT_TYPE_BUTTON
+// They merely change the state of the object, possibly
+// enqueue an event, and return quickly.
 
-void wsWindow::onTouch(bool touched)
+void wsWindow::onUpdateTouch(bool touched)
+	// called before validation, sets the DRAW bit directly
 {
-	redraw();
+	setBit(m_state,WIN_STATE_DRAW);
 }
 
 
-void wsWindow::onClick()
+void wsWindow::onUpdateClick()
 {
+	// we don't know if the object needs to be redrawn,
+	// so we leave that up to derived classes to determine
+	// setInvalidate(WIN_STATE_DRAW);
+	
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_WINDOW,
 		WIN_EVENT_CLICK,
 		this ));
 }
 
-void wsWindow::onLongClick()
+void wsWindow::onUpdateLongClick()
 {
+	// setInvalidate(WIN_STATE_DRAW);
+	
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_WINDOW,
 		WIN_EVENT_LONG_CLICK,
@@ -544,7 +556,7 @@ void wsWindow::onLongClick()
 	
 }
 
-void wsWindow::onDblClick()	{}
+void wsWindow::onUpdateDblClick()	{}
 
 
 
@@ -557,7 +569,7 @@ void wsWindow::onDblClick()	{}
 	// number of pixels that will show on screen
 	// if they drag out right or bottom
 
-void wsWindow::onDragBegin()
+void wsWindow::onUpdateDragBegin()
 {
 	wsApplication *app = getApplication();
 	touchState_t *touch_state = app->getTouchState();
@@ -585,7 +597,7 @@ void wsWindow::onDragBegin()
 	touch_state->drag_y  = y - m_rect_abs.ys;
 
 	#if DEBUG_DRAG
-		LOG("onDragBegin(%i,%i) rect(%d,%d,%d,%d) drag_x=%d drag_y=%d",
+		LOG("onUpdateDragBegin(%i,%i) rect(%d,%d,%d,%d) drag_x=%d drag_y=%d",
 			touch_state->x,
 			touch_state->y,
 			m_rect_abs.xs,
@@ -599,7 +611,7 @@ void wsWindow::onDragBegin()
 }
 
 
-void wsWindow::onDragMove()
+void wsWindow::onUpdateDragMove()
 {
 	wsApplication *app = getApplication();
 	touchState_t *touch_state = app->getTouchState();
@@ -670,15 +682,84 @@ void wsWindow::onDragMove()
 }
 
 
-void wsWindow::onDragEnd()
+void wsWindow::onUpdateDragEnd()
 {
 	#if DEBUG_DRAG
 		wsApplication *app = getApplication();
 		touchState_t *touch_state = app->getTouchState();
-		LOG("onDragEnd(%d,%d)",
+		LOG("onUpdateDragEnd(%d,%d)",
 			touch_state->x,
 			touch_state->y);
 	#endif
 }
 	
 	
+
+
+
+
+void wsWindow::update()
+{
+
+	// inherit bits from parent
+	
+	if (m_pParent)
+	{
+		DBG_UPDATE(0,"update(%08x) start m_state(%08x) inheriting(%08x)\n",
+				   (u32)this,
+				   m_state,
+				   m_pParent->m_state & INHERITED_WIN_STATE_MASK);
+		INC_UPDATE_LEVEL();
+
+		setBit(m_state,m_pParent->m_state & INHERITED_WIN_STATE_MASK);
+
+		DBG_UPDATE(1,"inherited m_state(%08x)\n",m_state);
+	}
+
+	// resize the window if needed
+	
+	if (m_state & WIN_STATE_UPDATE)
+	{
+		DBG_UPDATE(1,"calling onSize()\n",0);
+		setBit(m_state,WIN_STATE_DRAW);
+		onSize();
+	}
+	
+	// draw the window if neeeded
+	
+	if ((m_state & WIN_STATE_PARENT_VISIBLE) &&
+		(m_state & WIN_STATE_VISIBLE))
+	{
+		const wsRect &invalid = m_pDC->getInvalid();
+		if (m_rect_abs.intersects(invalid))
+			setBit(m_state,WIN_STATE_DRAW);
+			
+		if (m_state & (WIN_STATE_DRAW | WIN_STATE_REDRAW))
+		{
+			DBG_UPDATE(1,"calling onDraw()\n",0);
+			onDraw();
+		}
+	}
+
+	// update children with inherited state bits
+
+	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
+	{
+		p->update();
+	}
+	
+	// clear our handled state bits
+	
+	clearBit(m_state,WIN_STATE_UPDATE | WIN_STATE_DRAW | WIN_STATE_REDRAW);
+	
+	#ifdef DEBUG_UPDATE
+		if (m_pParent)
+		{
+			DEC_UPDATE_LEVEL();
+			DBG_UPDATE(0,"end update(%08x)  m_state(%08x)\n",(u32)this,m_state);
+		}
+	#endif	
+}
+
+
+

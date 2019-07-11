@@ -44,6 +44,15 @@ wsWindow* wsTopLevelWindow::hitTest(s32 x, s32 y)
 }
 
 
+// In addtion to base class behavior, these methods add or
+// remove the top level window from the app's list of top level
+// windows.
+//
+// This should probably be generalized to the base object
+// with a zorder for things like bringing the currently
+// dragging object (temporarily) to the top of the window's
+// list of objects.
+
 void wsTopLevelWindow::show()
 {
 	if (!(m_state & WIN_STATE_VISIBLE))
@@ -60,10 +69,6 @@ void wsTopLevelWindow::hide()
 		wsApplication *pApp = ((wsApplication *)m_pParent);
 		wsWindow::hide();
 		pApp->removeTopLevelWindow(this);
-		
-		// wsTopLevelWindow *pTop = pApp->getTopWindow();
-		// if (pTop)
-		//	pTop->m_state |= WIN_STATE_REDRAW;
 	}
 }
 

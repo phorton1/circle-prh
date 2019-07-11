@@ -18,6 +18,17 @@
 
 #define delay(ms)   CTimer::Get()->MsDelay(ms)
 
+
+// #define DEBUG_UPDATE
+
+#ifdef DEBUG_UPDATE
+	extern int debug_update;
+	extern void debugUpdate(int num);
+#else
+	#define debugUpdate(num)
+#endif
+
+
 // alignment
 
 #define ALIGN_H_LEFT                                  (1<<0)
@@ -49,9 +60,9 @@ typedef u8 		wsAlignType;
 
 // inlines
 
-#define setBit(val, mask)		val |= mask
-#define clearBit(val, mask)	    val &= ~mask
-#define toggleBit(val, mask)    val ^= mask
+#define setBit(val, mask)		val |= (mask)
+#define clearBit(val, mask)	    val &= ~(mask)
+#define toggleBit(val, mask)    val ^= (mask)
 
 // touch stuff
 
@@ -311,12 +322,82 @@ class wsEventHandler
 
 
 #define WIN_STATE_VISIBLE           0x00000001
-#define WIN_STATE_REDRAW            0x00000002
 
-#define WIN_STATE_IS_TOUCHED		0x00000010
-#define WIN_STATE_TOUCH_CHANGED		0x00000020
-#define WIN_STATE_DRAGGING			0x00000040
+#define WIN_STATE_PARENT_VISIBLE    0x00000010
+#define WIN_STATE_UPDATE            0x00000020
+#define WIN_STATE_DRAW              0x00000040
+#define WIN_STATE_REDRAW            0x00000080
 
+#define WIN_STATE_IS_TOUCHED		0x00001000
+#define WIN_STATE_TOUCH_CHANGED		0x00002000
+#define WIN_STATE_DRAGGING			0x00004000
+
+#define INHERITED_WIN_STATE_MASK    0x000000f0
+	// How it works.
+	//
+	//     UPDATE ==> DRAW ==> REDRAW
+	//
+	// STATE_UPDATE means that the parent coordinates (may have)
+	//    changed and so the object's absolute and clipping coordinates
+	//    need to be recalculated.  This implies that the whole objecct
+	//    needs to be redrawn.
+	// STATE_DRAW means that the whole object needs to be drawn, perhaps
+	//    as a result of it intersecting with the invalid screen
+	//    region, or because it is newly being shown. So the frame,
+	//    background, and contents must all be redrawn.
+	// STATE_REDRAW means that only the semantic value of the object has
+	//    changed, and thus the object is free to use an optimized
+	//    redrawing method making assumptions about what is currently
+	//    visible.  This is important for highly dynamic controls
+	//    like sliders, scrollbars, vu meters, and so on.
+	// PARENT_VISIBLE is recursively passed down through the update
+	//    object tree, so objects know that if their parent is not
+	//    visible, they should not be drawn, while yet allowing each
+	//    object to maintain it's own visibility and disabled state.
+	//
+	// We try to keep update() implemented entirely in the base class,
+	//    with as much of the standardized behavior as possible
+	//
+	// The timeslice cycle starts with a recurive call to update()
+	//    through all existing objects.  
+	//
+	// If the STATE_UPDATE bit is set, onSize() is called, and the 
+	//    object recalcuates it's absolute and clipping coordinates
+	//    relative to the parent. The general base class onSize()
+	//    method is sufficient for most objects.
+	// if the PARENT_VISIBLE & VISIBLE & (DRAW | REDRAW) bits are set,
+	//    the onDraw() method is called and the object paints itself
+	//    on the screen.
+	//
+	// The base class update() method then recurses through immediate
+	// children, setting their inherited bits, and additionally possibly
+	// setting the STATE_DRAW flag if the object intersects with the
+	// wsDC's invalid region.
+	//
+	// The wsDC itself is aware of the invalid region and clips all
+	// screen output to that region if it is not empty.
+	//
+	// timeslize() then "validates" the srceen (sets the wsDC's
+	// invalid rectang to "empty").  Then time sensitive touch
+	// events (drag, long click, etc) are handled, which possibly
+	// generate client level events that are then, finally, dispatched.
+	//
+	// Events are (currently) generated (only) when a touch happens.
+	// The base class onTouch() method handles the touch behavior,
+	// and calls the appropriate onUpdateClick() or onUpdateDrag()
+	// methods, which in turn, generate the actual wsEvents.
+	//
+	// The touch handler (onClick(), ondDrage(), etc) and any
+	// client level events that happen thereafter that need to
+	// set the UPDATE, DRAW, or REDRAW bits MUST call the setInvalidate()
+	// method which, in addition to setting the bits, invalidate the region.
+	//
+	// These client level calls SHOULD NOT diddle the bits directly!
+	// Conversely, those methods SHOULD NOT be called by any methods
+	// directly in the update() call chain (i.e onSize(), onDraw()) or
+	// else they will turn on invalid region clipping when it should
+	// not be turned on.
+	
 // #define WIN_STATE_ENABLE            	0x00000002
 // #define WIN_STATE_UPDATE            	0x00000004
 // #define WIN_STATE_MOUSE_OVER        	0x00000010
@@ -358,12 +439,6 @@ class wsWindow : public wsEventHandler
 		
 		void show();
 		void hide();
-		void redraw()
-		{
-			m_state |= WIN_STATE_REDRAW;
-			// m_pDC->invalidate(m_rect_abs);
-		}
-		
 		void resize(s32 xs, s32 ys, s32 xe, s32 ye );
 		void move( s32 x, s32 y );
 		
@@ -404,6 +479,12 @@ class wsWindow : public wsEventHandler
 		void setDragConstraint(u8 constraint)  		{ m_drag_constraint = constraint; }
 		u8  getDragConstraint() const 				{ return m_drag_constraint; }
 		
+		void setInvalidate(u32 bits)
+		{
+			setBit(m_state,bits);
+			m_pDC->invalidate(m_rect_abs);
+		}
+		
 	protected:
 		
 		friend class wsApplication;
@@ -412,22 +493,28 @@ class wsWindow : public wsEventHandler
 		wsDC *getDC() const		{ return m_pDC; }
 		void setDC(wsDC *pDC)	{ m_pDC = pDC; }
 
-		virtual void update(bool visible);
-		virtual void draw();
-		
-		void sizeWindow();
-		void sizeSelfAndChildren();
+		virtual void update();
+		virtual void onDraw();
+		virtual void onSize();
 		virtual wsWindow *hitTest(s32 x, s32 y);
 		
 		void updateTouch(touchState_t *touch_state);
+			// called directly by mouse and touch handlers
+		virtual void onUpdateTouch(bool touched);
+			// called directly from updateTouch, must NOT
+			// call setInvalidate()!
 
-		virtual void onTouch(bool touched);
-		virtual void onClick();
-		virtual void onDblClick();
-		virtual void onLongClick();
-		virtual void onDragBegin();
-		virtual void onDragMove();
-		virtual void onDragEnd();
+		// derived implementations of the following methods must take care to
+		// call setInvalidate() if they want to update, draw, or redraw
+		// the object, as they are called from update() after m_pDC->validate(),
+		// and thus must expand the invalid region to include the object.
+		
+		virtual void onUpdateClick();
+		virtual void onUpdateDblClick();
+		virtual void onUpdateLongClick();
+		virtual void onUpdateDragBegin();
+		virtual void onUpdateDragMove();
+		virtual void onUpdateDragEnd();
 
 		u16 m_id;
 		u32 m_style;
@@ -513,12 +600,12 @@ class wsStaticText : public wsControl
 			wsControl(pParent,id,xs,ys,xe,ye)
 		{
 			if (text)
-				setText(text);
+				m_text = text;
 		}
 		
 	protected:
 	
-		virtual void draw();
+		virtual void onDraw();
 	
 };
 
@@ -570,7 +657,7 @@ class wsButton : public wsControl
 			m_alt_back_color = defaultButtonPressedColor;
 			m_alt_fore_color = m_fore_color;
 			if (text)
-				setText(text);
+				m_text = text;
 		}
  
 		bool isPressed() const { return m_button_state & BTN_STATE_PRESSED; }
@@ -584,9 +671,9 @@ class wsButton : public wsControl
 		wsColor m_alt_back_color;
 		wsColor m_alt_fore_color;
 		
-		virtual void draw();
-		virtual void onClick();
-		virtual void onTouch(bool touched);
+		virtual void onDraw();
+		virtual void onUpdateClick();
+		virtual void onUpdateTouch(bool touched);
 		
 };	// wsButton
 
@@ -645,7 +732,7 @@ class wsCheckbox : public wsControl
 				m_checkbox_state |= CHB_STATE_CHECKED;
 			else
 				m_checkbox_state &= ~CHB_STATE_CHECKED;
-			redraw();
+			setBit(m_state,WIN_STATE_DRAW);
 		}
 		
 		void setAltBackColor(wsColor color)  {m_alt_back_color = color;}
@@ -658,9 +745,9 @@ class wsCheckbox : public wsControl
 		wsColor m_alt_back_color;
 		wsColor m_alt_fore_color;
 		
-		virtual void draw();
-		virtual void onClick();
-		virtual void onTouch(bool touched);
+		virtual void onDraw();
+		virtual void onUpdateClick();
+		virtual void onUpdateTouch(bool touched);
 		
 
 };	// wsCheckbox

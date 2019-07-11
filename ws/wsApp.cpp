@@ -44,6 +44,9 @@ wsApplication::wsApplication() :
 
 	m_pFirstEvent = 0;
 	m_pLastEvent = 0;
+	
+	m_state |= WIN_STATE_PARENT_VISIBLE;
+		// the application is always progenator of visible
 }
 
 
@@ -99,10 +102,17 @@ void wsApplication::Initialize(
 	m_pTouch = pTouch;
 	m_pMouse = pMouse;
 
-	resize(0,0,m_pScreen->GetWidth()-1, pScreen->GetHeight()-1);
+	// the app's base class update() method is never called
+	// and it is assumed to never move and occupy the full screen.
+	// We set it's size here, and explicitly call onSize() to set
+	// full abs, client, and clipping rectangles.
+	
+	m_rect.assign(0,0,m_pScreen->GetWidth()-1, pScreen->GetHeight()-1);
+	onSize();
 	
 	m_pDC = new wsDC(m_pScreen);
 	m_pDC->setFont(wsFont8x14);
+	print_rect("initial invalid",&m_pDC->getInvalid());
 	
 	setFont(wsFont8x14);
 	m_pScreen->InitializeUI(m_pDC,wsDC::driverRegisterStub);
@@ -119,6 +129,7 @@ void wsApplication::Initialize(
 	// Call the client's Create() method
 	
 	Create();
+	print_rect("after create invalid",&m_pDC->getInvalid());
 }
 
 
@@ -254,10 +265,21 @@ void wsApplication::onTouchEvent(
 // timeSlice()
 //--------------------------------------------------
 
+
 void wsApplication::timeSlice()
 {
+	#ifdef DEBUG_UPDATE	
+		if (debug_update)
+		{
+			delay(10);
+			printf("================= update =====================\n");
+			if (!m_pDC->getInvalid().isEmpty())
+				print_rect("invalid",&m_pDC->getInvalid());
+		}
+	#endif
+	
 	if (m_pMouse)
-		m_pMouse->UpdateCursor ();
+		m_pMouse->UpdateCursor();
 	
 	// rate limit updates from the touch screen
 	// to 60 per second
@@ -274,29 +296,57 @@ void wsApplication::timeSlice()
 	// we do not call the base class update() method here ...
 	// instead, we call update directly on each top level window
 	// so that they are drawn in the right order (the stack order
-	// as opposed to their instantiation order)
+	// as opposed to their instantiation order).
+	//
+	// This should *probably* be made into a generic behvavior, i.e.
+	// each window's children should be in a modifyable zOrder with
+	// a bringToTop() method.  Top level windows that are shown() are
+	// then brought to the top, but so would be objects being dragged,
+	// etc.
 
 	for (wsTopLevelWindow *p=m_pBottomWindow; p; p=p->m_pNextWindow)
 	{
-		p->update(p->m_state & WIN_STATE_VISIBLE);
+		#ifdef DEBUG_UPDATE	
+			if (debug_update)
+			{
+				delay(10);
+				printf("---- top window ----\n");
+			}
+		#endif
+		p->update();
 	}
 	
-	// we empty the clipping region here, it will be expanded
+	// since we do not call our own base class update() method
+	// we need to explicitly clear the state bits after the
+	// first time through the loop.  They should not be reset
+	// thereafter.
+	
+	clearBit(m_state,WIN_STATE_UPDATE | WIN_STATE_DRAW | WIN_STATE_REDRAW );
+	
+	// At this point all objects should be up to date and completely drawn.
+	// We empty the DC's clipping region here, it will be expanded
 	// as any objects are hidden or need to be redrawn in
-	// response to the below events
+	// response to the below (client) updateXXX() calls or
+	// events
 	
 	m_pDC->validate();
 
 	// Handle any time senstive touch (long click, repeat)
-	// or drag-move events after validation
+	// or drag-move events after validation.  
 	
 	if (m_pTouchFocus)
 	{
 		if (m_pTouchFocus->m_style & WIN_STYLE_TOUCH_TIMING_EVENTS)
 		{
 			m_pTouchFocus->updateTouch(&m_touch_state);
+				// can call onUpdateClick(), onUpdateDrag(), etc
 		}
 	}
+
+	#ifdef DEBUG_UPDATE	
+		if (debug_update)
+			debug_update--;
+	#endif
 	
 	// dispatch any pending events to the top level window
 	
