@@ -6,6 +6,7 @@
 
 #include "wsTopWindow.h"
 #include "wsApp.h"
+#include "wsEvent.h"
 
 #include <circle/logger.h>
 #define log_name  "wstop"
@@ -42,10 +43,48 @@ wsWindow* wsTopLevelWindow::hitTest(s32 x, s32 y)
 	if (found)
 	{
 		// printf("wsTopLevelWindow::setTouchFocus(%08x)\n",found);
-		((wsApplication *)m_pParent)->setTouchFocus(found);
+		getApplication()->setTouchFocus(found);
 	}
+	
+	// if the click is outside of the object, and it is registered,
+	// directly generate a WIN_EVENT_CLICK_OUTSIDE event, which
+	// the window will then use to hide itself.
+	
+	else if (m_style & WIN_STYLE_POPUP)
+	{
+		LOG("%08x:%d WIN_STYLE_POPUP generating WIN_EVENT_CLICK_OUTSIDE",(u32)this,m_id);
+		if (!m_rect_abs.intersects(x,y))
+		{
+			getApplication()->addEvent(new wsEvent(
+				EVT_TYPE_WINDOW,
+				WIN_EVENT_CLICK_OUTSIDE,
+				this ));
+		}
+	}
+	
+	
 	return found;
 }
+
+
+u32 wsTopLevelWindow::handleEvent(wsEvent *event)
+{
+	LOG("%08x:%d handleEvent(%08x,%04x)",(u32)this,m_id,event->getEventType(),event->getEventID());
+	u32 result_handled = 0;
+	if (event->getEventType() == EVT_TYPE_WINDOW &&
+		event->getEventID() == WIN_EVENT_CLICK_OUTSIDE)
+	{
+		LOG("%08x:%d WIN_EVENT_CLICK_OUTSIDE hiding self",(u32)this,m_id);
+		assert(event->getObject() == this);
+		debugUpdate(1);
+		hide();
+		result_handled = 1;
+	}
+	if (!result_handled)
+		result_handled = wsWindow::handleEvent(event);
+	
+	return result_handled; 	// return value unclear
+};
 
 
 // In addtion to base class behavior, these methods add or
@@ -62,7 +101,7 @@ void wsTopLevelWindow::show()
 	if (!(m_state & WIN_STATE_VISIBLE))
 	{
 		wsWindow::show();
-		((wsApplication *)m_pParent)->addTopLevelWindow(this);
+		getApplication()->addTopLevelWindow(this);
 	}
 }
 
@@ -70,9 +109,8 @@ void wsTopLevelWindow::hide()
 {
 	if (m_state & WIN_STATE_VISIBLE)
 	{
-		wsApplication *pApp = ((wsApplication *)m_pParent);
 		wsWindow::hide();
-		pApp->removeTopLevelWindow(this);
+		getApplication()->removeTopLevelWindow(this);
 	}
 }
 

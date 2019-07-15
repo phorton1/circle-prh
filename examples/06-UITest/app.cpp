@@ -22,7 +22,8 @@ class dialogWindow : public wsTopLevelWindow
 	public:
 		
 		dialogWindow(wsApplication *pApp, u16 id, s32 x, s32 y, s32 width, s32 height) :
-			wsTopLevelWindow(pApp,id,x,y,x + width-1,y + height-1,WIN_STYLE_3D)
+			wsTopLevelWindow(pApp,id,x,y,x + width-1,y + height-1,
+				WIN_STYLE_3D | WIN_STYLE_POPUP)
 		{
 			setBackColor(wsDARK_BLUE);
 			setForeColor(wsWHITE);
@@ -56,6 +57,8 @@ class dialogWindow : public wsTopLevelWindow
 			u32 type = event->getEventType();
 			u32 event_id = event->getEventID();
 			u32 id = event->getID();
+			u32 result_handled = 0;
+			
 			// wsWindow *obj = event->getObject();
 			
 			#if 0
@@ -75,11 +78,14 @@ class dialogWindow : public wsTopLevelWindow
 					    m_pDC->setClip(full);
 					    m_pDC->fillFrame(0,0,full.xe,full.ye,wsDARK_GRAY);
 					#endif
-					
+					result_handled = 1;
 					hide();
 				}
 			}
-			return 0;
+
+			if (!result_handled)
+				result_handled = wsTopLevelWindow::handleEvent(event);
+			return result_handled;
 		}
 };
 
@@ -147,6 +153,7 @@ class topWindow : public wsTopLevelWindow
 			u32 event_id = event->getEventID();
 			u32 id = event->getID();
 			wsWindow *obj = event->getObject();
+			u32 result_handled = 0;
 			
 			#if DEBUG_TOUCH
 				LOG("handleEvent(%08x,%d,%d)",type,event_id,id);
@@ -157,6 +164,7 @@ class topWindow : public wsTopLevelWindow
 			{
 				if (id == ID_BUTTON1)
 				{
+					result_handled = 1;
 					m_button1_count++;
 					if (!m_pDlg)
 					{
@@ -183,6 +191,7 @@ class topWindow : public wsTopLevelWindow
 					wsButton *button = (wsButton *) event->getObject();
 					stext(ID_TEXT2)->setText(
 						button->isPressed() ? "DOWN" : "UP");
+					result_handled = 1;
 				}
 				else if (id == ID_BUTTON3)
 				{
@@ -190,6 +199,7 @@ class topWindow : public wsTopLevelWindow
 					CString string;
 					string.Format("text3 - %d",m_button3_count);
 					stext(ID_TEXT3)->setText(string);
+					result_handled = 1;
 				}
 				else if (id == ID_BUTTON4)
 				{
@@ -200,6 +210,7 @@ class topWindow : public wsTopLevelWindow
 					string.Format("text4 - clicked 0x%02x",m_button4_count);
 					stext(ID_TEXT4)->setText(string);
 					button(ID_BUTTON5)->setDragConstraint(m_button4_count);
+					result_handled = 1;
 				}
 				else if (id == ID_BUTTON5)
 				{
@@ -207,6 +218,7 @@ class topWindow : public wsTopLevelWindow
 					CString string;
 					string.Format("text5 - clicked %d",m_button5_count);
 					stext(ID_TEXT5)->setText(string);
+					result_handled = 1;
 				}
 			}
 			else if (type == EVT_TYPE_CHECKBOX &&
@@ -216,6 +228,7 @@ class topWindow : public wsTopLevelWindow
 				{
 					wsCheckbox *box = (wsCheckbox *) obj;
 					stext(ID_CB_TEXT2)->setText(box->isChecked() ? "two checked" : "two not checked");
+					result_handled = 1;
 				}
 			}
 			else if (type == EVT_TYPE_WINDOW &&
@@ -229,11 +242,16 @@ class topWindow : public wsTopLevelWindow
 					string.Format("text4 - long clicked 0x%02x",m_button4_count);
 					stext(ID_TEXT4)->setText(string);
 					button(ID_BUTTON5)->setDragConstraint(m_button4_count);
+					result_handled = 1;
 				}
 			}
-			return 0;
+	
+			if (!result_handled)
+				result_handled = wsTopLevelWindow::handleEvent(event);
+			
+			return result_handled;
 		}
-		
+	
 };
 
 

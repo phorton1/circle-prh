@@ -20,7 +20,8 @@ class wsTopLevelWindow : public wsWindow
 		wsTopLevelWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye, u32 style=0);
 		~wsTopLevelWindow() {}
 		
-		wsApplication *getApplication() const { return (wsApplication *) m_pParent; }
+		virtual wsApplication *getApplication() const
+			{ return (wsApplication *) m_pParent; }
 
 		void show();
 		void hide();
@@ -30,6 +31,8 @@ class wsTopLevelWindow : public wsWindow
 		friend class wsApplication;
 		
 		virtual wsWindow *hitTest(s32 x, s32 y);
+		virtual u32 handleEvent(wsEvent *event);
+		
 		
 		wsTopLevelWindow *m_pPrevWindow;
 		wsTopLevelWindow *m_pNextWindow;

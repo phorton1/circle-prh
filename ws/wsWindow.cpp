@@ -149,9 +149,9 @@ void wsWindow::onSize()
 
 
 
-wsApplication *wsWindow::getApplication()
+wsApplication *wsWindow::getApplication() const
 {
-	wsWindow *p = this;
+	const wsWindow *p = this;
 	while (p && !(p->m_style & WIN_STYLE_APPLICATION))
 		p = p->m_pParent;
 	if (!p)
@@ -220,7 +220,7 @@ void wsWindow::onDraw()
 	// draw self
 	#ifdef DEBUG_UPDATE
 		if (!m_pDC->getInvalid().isEmpty())
-			DBG_UPDATE(1,"draw(%08x) invalid(%d,%d,%d,%d)\n",(u32)this,
+			DBG_UPDATE(1,"draw(%08x:%d) invalid(%d,%d,%d,%d)\n",(u32)this,m_id,
 				m_pDC->getInvalid().xs,
 				m_pDC->getInvalid().ys,
 				m_pDC->getInvalid().xe,
@@ -229,8 +229,8 @@ void wsWindow::onDraw()
 	
 	if (m_style & WIN_STYLE_3D)
 	{
-		DBG_UPDATE(1,"draw(%08x) 2d frame(%d,%d,%d,%d)\n",(u32)this,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
-		DBG_UPDATE(2,"               clip(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
+		DBG_UPDATE(1,"draw(%08x:%d) 2d frame(%d,%d,%d,%d)\n",(u32)this,m_id,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
+		DBG_UPDATE(2,"                 clip(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
 
 		m_pDC->setClip(m_clip_abs,m_state & WIN_STATE_INVALID);
 		m_pDC->draw3DFrame(
@@ -242,8 +242,8 @@ void wsWindow::onDraw()
 	}
 	else if (m_style & WIN_STYLE_2D)
 	{
-		DBG_UPDATE(1,"draw(%08x) 2d frame(%d,%d,%d,%d)\n",(u32)this,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
-		DBG_UPDATE(2,"               clip(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
+		DBG_UPDATE(1,"draw(%08x:%d) 2d frame(%d,%d,%d,%d)\n",(u32)this,m_id,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
+		DBG_UPDATE(2,"                 clip(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
 
 		m_pDC->setClip(m_clip_abs,m_state & WIN_STATE_INVALID);
 		m_pDC->drawFrame(
@@ -348,7 +348,7 @@ wsWindow* wsWindow::hitTest(s32 x, s32 y)
 		setBit(m_state,WIN_STATE_IS_TOUCHED);
 		onUpdateTouch(1);
 		#if DEBUG_TOUCH
-			LOG("wsWindow::hitTest(%d,%d)=0x%08x",x,y,(u32)this);
+			LOG("wsWindow::hitTest(%d,%d)=%08x:%d",x,y,(u32)this,m_id);
 		#endif
 		if (m_style & WIN_STYLE_DRAG)
 			onUpdateDragBegin();
@@ -360,7 +360,7 @@ wsWindow* wsWindow::hitTest(s32 x, s32 y)
 		if (found)
 		{
 			#if 0
-				LOG("wsWindow::hitTest(%d,%d) returning 0x%08x",x,y,(u32)found);
+				LOG("wsWindow::hitTest(%d,%d) returning %08x:%d",x,y,(u32)found,found->m_id);
 			#endif
 			return found;
 		}
@@ -722,8 +722,8 @@ void wsWindow::update()
 	
 	if (m_pParent)
 	{
-		DBG_UPDATE(0,"update(%08x) start m_state(%08x) inheriting(%08x)\n",
-				   (u32)this,
+		DBG_UPDATE(0,"update(%08x:%d) start m_state(%08x) inheriting(%08x)\n",
+				   (u32)this,m_id,
 				   m_state,
 				   m_pParent->m_state);
 		INC_UPDATE_LEVEL();
@@ -790,7 +790,7 @@ void wsWindow::update()
 		if (m_pParent)
 		{
 			DEC_UPDATE_LEVEL();
-			DBG_UPDATE(0,"end update(%08x)  m_state(%08x)\n",(u32)this,m_state);
+			DBG_UPDATE(0,"end update(%08x:%d)  m_state(%08x)\n",(u32)this,m_id,m_state);
 		}
 	#endif	
 }

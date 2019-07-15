@@ -33,6 +33,10 @@ class wsEventHandler
 		~wsEventHandler() {}
 		
 		virtual u32 handleEvent(wsEvent *event) { return 0; };
+			// at this time the semantics of the return value are unclear
+			// I was thinking it could be the object, if any, that handled
+			// the event, but it would probably be better to have explicit
+			// bits, like STOP_PROPOGATION, ALLOW, etc.
 	
 	private:
 		
@@ -200,7 +204,7 @@ class wsWindow : public wsEventHandler
 		void deleteChild(wsWindow *pWin);
 		u16 getNumChildren()		{ return m_numChildren; }
 
-		wsApplication *getApplication();
+		virtual wsApplication *getApplication() const;
 		wsWindow *findChildByID(u16 id);
 
 		// void setVirtualSize(s32 width, s32 height);

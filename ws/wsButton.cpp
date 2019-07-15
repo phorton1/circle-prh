@@ -40,8 +40,6 @@ void wsButton::onUpdateClick()
 		EVT_TYPE_BUTTON,
 		BTN_EVENT_PRESSED,
 		this ));
-	
-	debugUpdate(1);
 }
 
 
