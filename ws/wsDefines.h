@@ -38,6 +38,7 @@
 class wsRect;
 class wsEvent;
 class wsWindow;
+class wsTopLevelWindow;
 class wsApplication;
 
 // types

@@ -20,5 +20,6 @@
 #include "wsCheckbox.h"
 #include "wsEvent.h"
 #include "wsApp.h"
+#include "wsMenu.h"
 
 #endif  // !_ws_h

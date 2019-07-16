@@ -53,6 +53,9 @@ class wsApplication : public wsWindow
 		void removeTopLevelWindow(wsTopLevelWindow *pWindow);
 		
 		void addEvent(wsEvent *event);
+			// addEvent() is only to be called during the update() cycle.
+			// you cannot call addEvent() from handleEvent() !!!
+			// addPendingEvent() not implemented yet!
 		
 	private:
 		

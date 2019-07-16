@@ -205,6 +205,7 @@ class wsWindow : public wsEventHandler
 		u16 getNumChildren()		{ return m_numChildren; }
 
 		virtual wsApplication *getApplication() const;
+		virtual wsTopLevelWindow *getTopWindow() const;
 		wsWindow *findChildByID(u16 id);
 
 		// void setVirtualSize(s32 width, s32 height);

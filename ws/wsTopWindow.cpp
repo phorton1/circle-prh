@@ -77,6 +77,13 @@ u32 wsTopLevelWindow::handleEvent(wsEvent *event)
 		LOG("%08x:%d WIN_EVENT_CLICK_OUTSIDE hiding self",(u32)this,m_id);
 		assert(event->getObject() == this);
 		debugUpdate(1);
+		
+		// not that we don't try to dispatch an event 
+		// from an event handler
+		//
+		// you cannot call addEvent() from handleEvent() !!!
+		// and addPendingEvent() is not implemented yet!
+		
 		hide();
 		result_handled = 1;
 	}

@@ -121,9 +121,17 @@ class dialogWindow : public wsTopLevelWindow
 #define ID_CB_TEXT2   	402
 #define ID_CB_TEXT3   	403
 
+#define ID_MENU1         		500
+#define ID_MENU1_OPTION1		501
+#define ID_MENU1_OPTION2        502
+#define ID_MENU1_OPTION3		503
+
+
+
 #define button(id)   ((wsButton *)findChildByID(id))
 #define stext(id)    ((wsStaticText *)findChildByID(id))
 #define box(id)      ((wsCheckbox *)findChildByID(id))
+#define menu(id)     ((wsMenu *)findChildByID(id))
 
 
 class topWindow : public wsTopLevelWindow
@@ -224,6 +232,27 @@ class topWindow : public wsTopLevelWindow
 					stext(ID_TEXT5)->setText(string);
 					result_handled = 1;
 				}
+				else if (id == ID_MENU1)
+				{	
+					LOG("ID_MENU1",0);
+					menu(ID_MENU1)->popup();
+					result_handled = 1;
+				}
+				else if (id == ID_MENU1_OPTION1)
+				{	
+					LOG("ID_MENU1_OPTION1",0);
+					result_handled = 1;
+				}
+				else if (id == ID_MENU1_OPTION2)
+				{	
+					LOG("ID_MENU1_OPTION2",0);
+					result_handled = 1;
+				}
+				else if (id == ID_MENU1_OPTION3)
+				{	
+					LOG("ID_MENU1_OPTION3",0);
+					result_handled = 1;
+				}
 			}
 			else if (type == EVT_TYPE_CHECKBOX &&
 					 event_id == CHB_EVENT_VALUE_CHANGED)
@@ -295,6 +324,11 @@ void wsApplication::Create()
 	stext(ID_TEXT1)->setFont(wsFont12x16);
 	button(ID_BUTTON1)->setAltBackColor(wsBLUE);
 	button(ID_BUTTON1)->setAltForeColor(wsWHITE);
+	
+	wsMenu *pMenu = new wsMenu(pTitle, ID_MENU1, "MENU", width-121, 0, width-1, 49, 120);
+	pMenu->addChoice(ID_MENU1_OPTION1,"option1");
+	pMenu->addChoice(ID_MENU1_OPTION2,"option2");
+	pMenu->addChoice(ID_MENU1_OPTION3,"option3");
 	
 	new wsButton		(pLeft,   ID_BUTTON2, "button2", 	4,   5,   119, 33, BTN_STYLE_3D | BTN_STYLE_TOGGLE_COLORS | BTN_STYLE_TOGGLE_VALUE);
 	new wsStaticText	(pLeft,   ID_TEXT2,   "text2", 		130, 5,   360, 33);

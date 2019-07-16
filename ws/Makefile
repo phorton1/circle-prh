@@ -17,6 +17,7 @@ OBJS = \
 	wsCheckbox.o \
 	wsApp.o \
 	wsThemeStandard.o \
+	wsMenu.o \
 	
 
 libws.a: $(OBJS)

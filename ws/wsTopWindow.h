@@ -25,13 +25,16 @@ class wsTopLevelWindow : public wsWindow
 
 		void show();
 		void hide();
+
+		// not intended for public use
+		
+		virtual u32 handleEvent(wsEvent *event);
 		
 	protected:
 		
 		friend class wsApplication;
 		
 		virtual wsWindow *hitTest(s32 x, s32 y);
-		virtual u32 handleEvent(wsEvent *event);
 		
 		
 		wsTopLevelWindow *m_pPrevWindow;

@@ -162,6 +162,20 @@ wsApplication *wsWindow::getApplication() const
 }
 
 
+
+wsTopLevelWindow *wsWindow::getTopWindow() const
+{
+	const wsWindow *p = this->m_pParent;
+	while (p && !(p->m_style & WIN_STYLE_TOP_LEVEL))
+		p = p->m_pParent;
+	if (!p)
+	{
+		LOG_ERROR("win(%08x) could not find top level window!",(u32)this);
+	}
+	return (wsTopLevelWindow *) p;
+}
+
+
 void wsWindow::addChild(wsWindow *pWin)
 {
 	if (m_pLastChild)
