@@ -9,7 +9,7 @@ OBJS	= \
     main.o \
 	std_kernel.o \
 
-std_kernel.a: $(OBJS)
+libsystem.a: $(OBJS)
 	@echo "  AR    $@"
 	@rm -f $@
 	@$(AR) cr $@ $(OBJS)

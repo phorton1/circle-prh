@@ -1,6 +1,6 @@
 // requires USE_AUDIO_SYSTEM=1 to be set in std_kernl.h
 
-#include <kernel/std_kernel.h>
+#include <system/std_kernel.h>
 #include <audio\Audio.h>
 
 // including an application requries USE_UI_SYSTEM to be set in std_kernel.h,
