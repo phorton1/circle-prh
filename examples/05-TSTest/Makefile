@@ -11,7 +11,6 @@ MAKE_LIBS = \
 	
 LIBS	= \
 	$(CIRCLEHOME)/lib/libcircle.a \
-	$(CIRCLEHOME)/addon/ugui/libugui.a \
 	../../devices/libdevices.a \
 
 

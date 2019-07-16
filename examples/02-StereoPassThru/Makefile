@@ -2,31 +2,26 @@
 # Makefile
 #
 
-CIRCLEHOME = ../../../../../circle
+CIRCLEHOME = ../../..
 
 OBJS = 02-StereoPassThru.o
 
 MAKE_LIBS = \
-	../std_kernel.mark \
-	../../libaudio.mark \
-	../../ui/libaudio_ui.mark \
-	$(CIRCLEHOME)/addon/ugui/libugui.mark
-	
+	$(CIRCLEHOME)/_prh/ws/libws.mark \
+	$(CIRCLEHOME)/_prh/audio/libaudio.mark \
+	$(CIRCLEHOME)/_prh/kernel/std_kernel.mark \
+	$(CIRCLEHOME)/_prh/devices/lib_devices.mark \
 
 LIBS	= \
-	../std_kernel.a \
-	../../libaudio.a \
-	../../ui/libaudio_ui.a \
+	$(CIRCLEHOME)/_prh/ws/libws.a \
+	$(CIRCLEHOME)/_prh/audio/libaudio.a \
+	$(CIRCLEHOME)/_prh/kernel/std_kernel.a \
+	$(CIRCLEHOME)/_prh/devices/libdevices.a \
 	$(CIRCLEHOME)/lib/libcircle.a \
+	$(CIRCLEHOME)/lib/input/libinput.a \
 	$(CIRCLEHOME)/lib/sched/libsched.a \
-	\
-	$(CIRCLEHOME)/addon/ugui/libugui.a \
 	$(CIRCLEHOME)/lib/usb/libusb.a \
     $(CIRCLEHOME)/lib/fs/libfs.a \
-	$(CIRCLEHOME)/lib/input/libinput.a \
-
-# for some reason the usb library requires the file system library
-# i hope this is not a conflict if I want to use the addon/fatfs in the future
-
+	
 
 include $(CIRCLEHOME)/Rules.mk

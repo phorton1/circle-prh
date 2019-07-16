@@ -10,9 +10,12 @@
 #include <circle/types.h>
 #include <circle/timer.h>
 
+#ifndef delay
 #define delay(ms)   CTimer::Get()->MsDelay(ms)
+#endif
 
 // alignment
+
 
 #define ALIGN_H_LEFT                                  (1<<0)
 #define ALIGN_H_CENTER                                (1<<1)

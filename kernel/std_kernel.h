@@ -1,35 +1,45 @@
 //
 // std_kernel.h
 //
-// A standard kernel that implements arduino like setup() and loop()
-// calls to minimize changes to teensy audio library test programs
-
+// A standard kernel that:
 //
-// Circle - A C++ bare metal environment for Raspberry Pi
-// Copyright (C) 2015-2016  R. Stange <rsta2@o2online.de>
-// 
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// - Implements the basic UI timeSlice() loop.
+// - also implements arduino like setup() and loop()
+//   calls to minimize changes to teensy audio library test programs.
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// Based on Circle - A C++ bare metal environment for Raspberry Pi
+// Copyright (c) 2015-2016  R. Stange <rsta2@o2online.de>
+// Copyright (c) 2019 Patrick Horton- no rights reserved, 
+// please see license details in LICENSE.TXT
 
 #ifndef _std_kernel_h
 #define _std_kernel_h
 
-#define USE_SCREEN  	 1
-#define USE_USB          1
-#define USE_UGUI         1		// requires USE_SCREEN and USE_USB
-#define USE_MINI_SERIAL  0
-#define USE_MAIN_SERIAL  1
-#define USE_ALT_TOUCH_SCREEN  1
+#define USE_UI_SYSTEM 		1			// more or less always defined
+#define USE_AUDIO_SYSTEM 	1
+
+#define USE_SCREEN  	 	1			// may run with only specific i2c/spi touch screen devices
+#define USE_USB          	1			// may run with, or without, a mouse
+#define USE_MINI_SERIAL  	0			// can output log to either serial port
+#define USE_MAIN_SERIAL  	1
+
+// At most, one of the following may be defined/
+// If USE_UI_SYSTEM then USE_SCREEN or one of these MUST be defined.
+//
+// The following defines override the binding of the user
+// interface to phsical devices.  By defaut, it expects
+// a bcm hdmi circle CScreen device, and will automatically
+// use the Circle default official rpi touchscreen if one is
+// present.  If USE_USB is defined it will additionally bind
+// the UI to a mouse device.
+//
+// If one of the below is defined, the CScreen, nor the default
+// touchscreen, nor the mouse will be bound to the UI.
+
+// #define USE_480x320_ILI9486_XPT2046_TOUCHSCREEN 
+	// This define corresponds to the standard cheap resistive
+	// rpi touch screen that I implemented.
+
 
 #include <circle/memory.h>
 #include <circle/actled.h>
@@ -54,24 +64,20 @@
 	#include <circle/usb/dwhcidevice.h>
 #endif
 
-#if USE_UGUI
-	#include <audio/audio.h>	// for arduino.h NULL definition
-	#if USE_ALT_TOUCH_SCREEN
+#if USE_UI_SYSTEM
+	#include <ws/wsApp.h>
+	#if USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
 		#include <devices/ili9486.h>
 		#include <devices/xpt2046.h>
 	#else
 		#include <circle/input/touchscreen.h>
 	#endif
-	#include <ugui/uguicpp.h>
-	
 #endif
 
 
 #ifdef ARM_ALLOW_MULTI_CORE
 #define USE_MULTI_CORE
 #endif
-
-
 
 
 #ifdef USE_MULTI_CORE
@@ -120,8 +126,10 @@ class CCoreTask
 		void Run(unsigned nCore);
 		static CCoreTask *Get() {return s_pCoreTask;}
 		
-		#if CORE_FOR_AUDIO_SYSTEM != 0
-			void IPIHandler(unsigned nCore, unsigned nIPI);
+		#if USE_AUDIO_SYSTEM
+			#if CORE_FOR_AUDIO_SYSTEM != 0
+				void IPIHandler(unsigned nCore, unsigned nIPI);
+			#endif
 		#endif
 		
 	private:
@@ -129,10 +137,12 @@ class CCoreTask
 		CKernel *m_pKernel;
 		static CCoreTask *s_pCoreTask;
 		
+	#if USE_AUDIO_SYSTEM
 		void runAudioSystem(unsigned nCore, bool init);
 		volatile bool m_bAudioStarted;
-		
-	#if USE_UGUI
+	#endif
+	
+	#if USE_UI_SYSTEM
 		void runUISystem(unsigned nCore, bool init);
 		volatile bool m_bUIStarted;
 	#endif
@@ -166,35 +176,43 @@ private:
 	CActLED				m_ActLED;
 	CKernelOptions		m_Options;
 	CDeviceNameService	m_DeviceNameService;
+	
 	#if USE_SCREEN
 		CScreenDevice	m_Screen;
 	#endif
+	
 	#if USE_MINI_SERIAL
 		CMiniUartDevice m_MiniUart;
 	#endif
+	
 	CExceptionHandler	m_ExceptionHandler;
 	CInterruptSystem	m_Interrupt;
 	CTimer				m_Timer;
+	
 	#if USE_MAIN_SERIAL
 		CSerialDevice	m_Serial;
 	#endif
+	
 	CLogger				m_Logger;
 	CScheduler			m_Scheduler;
+	
 	#if USE_USB
 		CDWHCIDevice	m_DWHCI;
 	#endif
-	#if USE_UGUI
-		#if USE_ALT_TOUCH_SCREEN
+	
+	#if USE_UI_SYSTEM
+		wsApplication 	m_app;
+		#ifdef USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
 			CSPIMaster	m_SPI;
 			ILI9846 	m_ili9486;
 			XPT2046 	m_xpt2046;
 		#else	
 			CTouchScreenDevice	m_TouchScreen;
 		#endif
-		CUGUI			m_GUI;
 	#endif
 	
 	CCoreTask 	m_CoreTask;
+	
 	
 };
 

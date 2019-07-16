@@ -1,10 +1,11 @@
+// requires USE_AUDIO_SYSTEM=1 to be set in std_kernl.h
 
 #include <audio\Audio.h>
 
 // note that you must use 'master' control devices
 // if you use 'slave' i2s devices.
 
-#define USE_CS42448             1
+#define USE_CS42448             0
 #define USE_TEENSY_QUAD_SLAVE   0
 
 
@@ -51,6 +52,7 @@
 #else
 
     #define I2S_MASTER   1
+        // wm831 is the master i2s device
 
     AudioOutputI2S output;
 

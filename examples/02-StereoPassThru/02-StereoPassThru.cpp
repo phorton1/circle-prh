@@ -33,6 +33,8 @@
 #else   // wm8731 in master or slave mode
 
     #define I2S_MASTER    1
+        // wm831 is the master i2s device
+
     AudioInputI2S input;
     AudioOutputI2S output;
 

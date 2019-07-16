@@ -1,9 +1,11 @@
+// requires USE_AUDIO_SYSTEM=1 to be set in std_kernl.h
+// currently my Octo is broken ... not repsonding to initial i2C :-(
 
 #include <audio\Audio.h>
 
 #define WITH_MIXER 1
-#define WITH_SINE  0        // requires WITH_MIXER
-#define WITH_PROBE 1
+#define WITH_SINE  1        // requires WITH_MIXER
+#define WITH_PROBE 0
 
 #if WITH_PROBE
     #include "../statusScreen.h"
@@ -102,8 +104,7 @@ void setup()
         #endif
     }
     
-    control.enable();        // setup up the condec control bits ...    
-    AudioMemory(100);        // Also setups and starts DMA for bcm_pcm devices
+    AudioSystem::initialize(150);
     
     // zero the volumes
     

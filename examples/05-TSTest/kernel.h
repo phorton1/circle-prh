@@ -1,5 +1,7 @@
 // kernel.h
 //
+// this test program uses it's own kernel
+//
 // Based on Circle - A C++ bare metal environment for Raspberry Pi
 // which is Copyright (C) 2015-2019  R. Stange <rsta2@o2online.de>
 // This code is Copyright (C) 2019, Patrick Horton, no rights reserved.
@@ -62,6 +64,18 @@ private:
 	CSPIMaster	        m_SPI;
 	ILI9846    			m_ili9486;
 	XPT2046    			m_xpt2046;
+	
+	void touchEventHandler(
+		TTouchScreenEvent event,
+		unsigned id,
+		unsigned x,
+		unsigned y);
+	static void touchEventStub(
+		void *pThis,
+		TTouchScreenEvent event,
+		unsigned id,
+		unsigned x,
+		unsigned y);
 	
 };
 

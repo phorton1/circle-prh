@@ -4,20 +4,24 @@
 
 CIRCLEHOME = ../../..
 
-OBJS = kernel.o main.o app.o
+OBJS = app.o
 
 MAKE_LIBS = \
-	../../ws/libws.mark \
-	../../devices/libdevices.mark \
-	
+	$(CIRCLEHOME)/_prh/ws/libws.mark \
+	$(CIRCLEHOME)/_prh/audio/libaudio.mark \
+	$(CIRCLEHOME)/_prh/kernel/std_kernel.mark \
+	$(CIRCLEHOME)/_prh/devices/lib_devices.mark \
+
 LIBS	= \
-	../../devices/libdevices.a \
+	$(CIRCLEHOME)/_prh/ws/libws.a \
+	$(CIRCLEHOME)/_prh/audio/libaudio.a \
+	$(CIRCLEHOME)/_prh/kernel/std_kernel.a \
+	$(CIRCLEHOME)/_prh/devices/libdevices.a \
 	$(CIRCLEHOME)/lib/libcircle.a \
 	$(CIRCLEHOME)/lib/input/libinput.a \
-	$(CIRCLEHOME)/lib/usb/libusb.a \
 	$(CIRCLEHOME)/lib/sched/libsched.a \
+	$(CIRCLEHOME)/lib/usb/libusb.a \
     $(CIRCLEHOME)/lib/fs/libfs.a \
-	../../ws/libws.a \
-
+	
 
 include $(CIRCLEHOME)/Rules.mk

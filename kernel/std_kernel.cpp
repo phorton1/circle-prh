@@ -9,11 +9,13 @@
 #include "std_kernel.h"
 #include <circle/util.h>
 #include <circle/types.h>
+#include <circle/alloc.h>
 #include <circle/gpiopin.h>
-#include <audio/AudioStream.h>
-#if USE_UGUI
-	#include <ui/app.h>
+
+#if USE_AUDIO_SYSTEM
+	#include <audio/AudioStream.h>
 #endif
+
 
 #define USE_GPIO_READY_PIN    0		// 25
 
@@ -50,9 +52,13 @@ CCoreTask::CCoreTask(CKernel *pKernel)	:
 	#ifdef USE_MULTI_CORE
 		CMultiCoreSupport(&pKernel->m_Memory),
 	#endif
-	m_pKernel(pKernel),
-	m_bAudioStarted(0),
-	m_bUIStarted(0)
+	m_pKernel(pKernel)
+	#if USE_AUDIO_SYSTEM
+		,m_bAudioStarted(0)
+	#endif
+	#if USE_UI_SYSTEM
+		,m_bUIStarted(0)
+	#endif
 {
 	s_pCoreTask = this;
 }
@@ -64,45 +70,59 @@ CCoreTask::~CCoreTask()
 }
 
 
-void CCoreTask::runAudioSystem(unsigned nCore, bool init)
-{
-	if (init)
+#if USE_AUDIO_SYSTEM
+	// audio system currently includes pseudo arduino api
+	void CCoreTask::runAudioSystem(unsigned nCore, bool init)
 	{
-		LOG("AudioSystem starting on Core(%d) mem=%dM",nCore,mem_get_size()/1000000);
-		setup();
-		m_bAudioStarted = 1;
-		LOG("after AudioSystem started mem=%dM",mem_get_size()/1000000);
+		if (init)
+		{
+			LOG("AudioSystem starting on Core(%d) mem=%dM",nCore,mem_get_size()/1000000);
+			setup();
+			m_bAudioStarted = 1;
+			LOG("after AudioSystem started mem=%dM",mem_get_size()/1000000);
+		}
+		else
+		{
+			loop();
+		}
 	}
-	else
-	{
-		loop();
-	}
-}
+#endif
 
 
 
-#if USE_UGUI
+#if USE_UI_SYSTEM
 	void CCoreTask::runUISystem(unsigned nCore, bool init)
 	{
 		if (init)
 		{
-			while (!m_bAudioStarted);
+			#if USE_AUDIO_SYSTEM
+				while (!m_bAudioStarted);
+			#endif
 			
 			LOG("UI starting on Core(%d) mem=%dM",nCore,mem_get_size()/1000000);
-			CApplication *app = new CApplication();
-			if (!app)
-			{
-				LOG_ERROR("Could not create CApplication",0);
-			}
-			else
-			{
-				LOG("after UI initialization mem=%dM",mem_get_size()/1000000);
-				m_bUIStarted = 1;
-			}
+			delay(1000);
+
+			CMouseDevice *pMouse = (CMouseDevice *) CDeviceNameService::Get ()->GetDevice ("mouse1", FALSE);
+			
+			#ifdef USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
+				CScreenDeviceBase *pUseScreen = &m_pKernel->m_ili9486;
+				CTouchScreenBase  *pTouch = &m_pKernel->m_xpt2046;
+			#else
+				CScreenDeviceBase *pUseScreen = &m_pKernel->m_Screen;
+				CTouchScreenBase  *pTouch = (CTouchScreenBase *) CDeviceNameService::Get ()->GetDevice ("touch1", FALSE);
+			#endif
+		
+			m_pKernel->m_app.Initialize(pUseScreen,pTouch,pMouse);
+	
+			LOG("after UI initialization mem=%dM",mem_get_size()/1000000);
+			m_bUIStarted = 1;
 		}
-		else if (m_bAudioStarted)
+		else
+			#if USE_AUDIO_SYSTEM
+				if (m_bAudioStarted)
+			#endif
 		{
-			m_pKernel->m_GUI.Update ();
+			m_pKernel->m_app.timeSlice();
 		}
 	}
 #endif
@@ -116,17 +136,19 @@ void CCoreTask::Run(unsigned nCore)
 		
 	// initialize the audio system on the given core
 	
-	if (nCore == CORE_FOR_AUDIO_SYSTEM)
-		runAudioSystem(nCore,true);
+	#if USE_AUDIO_SYSTEM
+		if (nCore == CORE_FOR_AUDIO_SYSTEM)
+			runAudioSystem(nCore,true);
+	#endif
 	
 	// initialilze the ui on the given core
 	
-	#if USE_UGUI
+	#if USE_UI_SYSTEM
 		if (nCore == CORE_FOR_UI_SYSTEM)
 			runUISystem(nCore,true);
 	#endif
 	
-	delay(5000);
+	delay(500);
 
 	while (1)
 	{
@@ -135,12 +157,14 @@ void CCoreTask::Run(unsigned nCore)
 		// method very rapidly, as audio will be handled by
 		// inter-processor interrupts
 
-		if (nCore == CORE_FOR_AUDIO_SYSTEM)
-			runAudioSystem(nCore,false);
+		#if USE_AUDIO_SYSTEM
+			if (nCore == CORE_FOR_AUDIO_SYSTEM)
+				runAudioSystem(nCore,false);
+		#endif
 		
 		// do a timeslice of the ui system on given core
 		
-		#if USE_UGUI
+		#if USE_UI_SYSTEM
 			if (nCore == CORE_FOR_UI_SYSTEM)
 				runUISystem(nCore,false);
 		#endif
@@ -152,11 +176,14 @@ void CCoreTask::Run(unsigned nCore)
 		{
 			main_loop_counter++;
 			
-			if (!bCore0StartupReported &&
-				#if USE_UGUI
-					m_bUIStarted &&
+			if (!bCore0StartupReported
+				#if USE_UI_SYSTEM
+					&& m_bUIStarted 
 				#endif
-				m_bAudioStarted)
+				#if USE_AUDIO_SYSTEM
+					&& m_bAudioStarted
+				#endif
+				)
 			{
 				bCore0StartupReported = 1;
 				printf("ready ...\n");
@@ -179,16 +206,18 @@ void CCoreTask::Run(unsigned nCore)
 // AudioStream::update_all() IPI handler
 //---------------------------------------------
 
-#if CORE_FOR_AUDIO_SYSTEM != 0
-
-	void CCoreTask::IPIHandler(unsigned nCore, unsigned nIPI)
-	{
-		if (nCore == CORE_FOR_AUDIO_SYSTEM &&
-			nIPI == IPI_AUDIO_UPDATE)
+#if USE_AUDIO_SYSTEM
+	#if CORE_FOR_AUDIO_SYSTEM != 0
+	
+		void CCoreTask::IPIHandler(unsigned nCore, unsigned nIPI)
 		{
-			AudioStream::do_update();
+			if (nCore == CORE_FOR_AUDIO_SYSTEM &&
+				nIPI == IPI_AUDIO_UPDATE)
+			{
+				AudioStream::do_update();
+			}
 		}
-	}
+	#endif
 #endif
 
 
@@ -212,14 +241,10 @@ CKernel::CKernel(void) :
 	#if USE_USB
 		,m_DWHCI(&m_Interrupt, &m_Timer)
 	#endif
-	#if USE_UGUI
-		#if USE_ALT_TOUCH_SCREEN
-			// ,m_SPI(),
+	#if USE_UI_SYSTEM
+		#ifdef USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
 			,m_ili9486(&m_SPI)
 			,m_xpt2046(&m_SPI)
-			,m_GUI(&m_ili9846,&m_xpt2046)
-		#else
-			,m_GUI(&m_Screen)
 		#endif
 	#endif
 	,m_CoreTask(this)
@@ -276,16 +301,15 @@ boolean CKernel::Initialize (void)
 			bOK = m_CoreTask.Initialize();
 	#endif
 	
-	#if USE_UGUI
+	#if USE_UI_SYSTEM
 		if (bOK)
 		{
-			#if USE_ALT_TOUCH_SCREEN
+			#ifdef USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
 				m_SPI.Initialize();
 				m_ili9486.Initialize ();
 			#else
 				m_TouchScreen.Initialize ();
 			#endif
-			bOK = m_GUI.Initialize ();
 		}
 	#endif
 	

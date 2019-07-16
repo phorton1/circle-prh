@@ -21,6 +21,9 @@
 #define WIN_EVENT_CLICK     	0x00000001
 #define WIN_EVENT_LONG_CLICK    0x00000002
 #define WIN_EVENT_CLICK_OUTSIDE 0x00000010
+#define WIN_EVENT_FRAME         0x00000100
+	// possibly temporary - event sent to current top level
+	// window on every timeSlice()
 
 #define BTN_EVENT_PRESSED    	 0x00000001
 #define CHB_EVENT_VALUE_CHANGED  0x00000001

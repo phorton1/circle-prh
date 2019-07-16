@@ -24,7 +24,9 @@
 #define __enable_irq()      // EnableIRQs()
 #define __disable_irq()	    // DisableIRQs()
 
+#ifndef delay
 #define delay(ms)   (CTimer::Get()->MsDelay(ms))
+#endif
 
 #define DMAMEM
 

@@ -358,6 +358,15 @@ void wsApplication::timeSlice()
 	
 	if (m_pFirstEvent && m_pTopWindow)
 	{
+		// always dispatch WIN_EVENT_FRAME to the top level
+		
+		wsEvent *frame_event = new wsEvent(
+			EVT_TYPE_WINDOW,
+			WIN_EVENT_FRAME,
+			m_pTopWindow);
+		m_pTopWindow->handleEvent(frame_event);
+		delete frame_event;
+		
 		wsEvent *event = m_pFirstEvent;
 		if (event->m_pNext)
 		{

@@ -3,16 +3,20 @@
 // An application to test the wsWindows UI functionality.
 // At the end of the file is wsApplication::Create().
 // The calls to Initiatilize() and timeSliceBased() are in kernel.cpp
+// Requires USE_UI_SYSTEM to be defined in std_kernel.h
 
 #include <ws/ws.h>
 #include <circle/logger.h>
 
+void setup()	{}
+void loop()		{}
+	// to satisfy arduino link-alike
+	
+	
 static const char log_name[] = "kapp";
 
 #define TOP_MARGIN  50
 #define BOTTOM_MARGIN 50
-
-
 
 #define ID_DLG  1000
 #define ID_BUTTON_CLOSE  1001

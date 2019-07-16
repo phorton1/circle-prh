@@ -56,6 +56,8 @@ boolean CKernel::Initialize (void)
 		bOK = m_ili9486.Initialize();
 		m_xpt2046.setDimensions(m_ili9486.GetWidth(),m_ili9486.GetHeight());
 		m_xpt2046.setRotation(m_ili9486.getRotation());
+		m_xpt2046.RegisterEventHandler(touchEventStub,this);
+
 	}
 	
 	return bOK;
@@ -79,3 +81,31 @@ TShutdownMode CKernel::Run(void)
 }
 
 
+//--------------------------
+// touch event handler
+//--------------------------
+
+void CKernel::touchEventStub(
+	void *pThis,
+	TTouchScreenEvent event,
+	unsigned id,
+	unsigned x,
+	unsigned y)
+{
+	assert(pThis);
+	((CKernel *)pThis)->touchEventHandler(event,id,x,y);
+}
+
+
+void CKernel::touchEventHandler(
+	TTouchScreenEvent event,
+	unsigned id,
+	unsigned x,
+	unsigned y)
+{
+	LOG("touchEventHandler(%d,%d,%s)",
+		x,y,
+		(event == TouchScreenEventFingerDown) ? "down" :
+		(event == TouchScreenEventFingerMove) ? "move" :
+		(event == TouchScreenEventFingerUp)   ? "up" : "unknown");
+}

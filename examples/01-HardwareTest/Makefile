@@ -2,27 +2,26 @@
 # Makefile
 #
 
-CIRCLEHOME = ../../../../../circle
+CIRCLEHOME = ../../..
 
 OBJS = 01-HardwareTest.o
 
 MAKE_LIBS = \
-	../std_kernel.mark \
-	../../libaudio.mark \
-	$(CIRCLEHOME)/addon/ugui/libugui.mark
+	$(CIRCLEHOME)/_prh/ws/libws.mark \
+	$(CIRCLEHOME)/_prh/audio/libaudio.mark \
+	$(CIRCLEHOME)/_prh/kernel/std_kernel.mark \
+	$(CIRCLEHOME)/_prh/devices/lib_devices.mark \
 
 LIBS	= \
-	../std_kernel.a \
-	../../libaudio.a \
-	../../ui/libaudio_ui.a \
+	$(CIRCLEHOME)/_prh/ws/libws.a \
+	$(CIRCLEHOME)/_prh/audio/libaudio.a \
+	$(CIRCLEHOME)/_prh/kernel/std_kernel.a \
+	$(CIRCLEHOME)/_prh/devices/libdevices.a \
 	$(CIRCLEHOME)/lib/libcircle.a \
+	$(CIRCLEHOME)/lib/input/libinput.a \
 	$(CIRCLEHOME)/lib/sched/libsched.a \
-	\
-	$(CIRCLEHOME)/addon/ugui/libugui.a \
 	$(CIRCLEHOME)/lib/usb/libusb.a \
     $(CIRCLEHOME)/lib/fs/libfs.a \
-	$(CIRCLEHOME)/lib/input/libinput.a \
-	
 	
 
 include $(CIRCLEHOME)/Rules.mk
