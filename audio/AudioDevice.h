@@ -3,9 +3,10 @@
 #define AudioDevice_h
 
 #include "AudioTypes.h"
+#include <system/systemEvent.h>
 
 
-class AudioDevice
+class AudioDevice : public systemEventHandler
 {
 public:
 
@@ -13,13 +14,14 @@ public:
 	AudioDevice(
         u16  num_controls,
         audioControl_t *control_setup) :
+            systemEventHandler(getType()),
             m_numControls(num_controls),
             m_pControls(control_setup)
     {
         m_instance = 0;
     }
     
-	virtual u16 getType() = 0;
+	virtual u16 getType() { return 0; } // = 0;
 	virtual const char *getName() = 0;
     virtual u16 getInstance() { return m_instance; }
     

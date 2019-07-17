@@ -613,7 +613,6 @@ void AudioControlSGTL5000::start()
     
     muted = true;
     Wire.begin();
-    delay(5);
     
     LOG("chip ID=0x%04x",read(CHIP_ID));
 

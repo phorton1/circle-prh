@@ -49,6 +49,9 @@ protected:
     AudioControlWM8731(u16 dummy) {}
 	void write(unsigned int reg, unsigned int val);
     
+	virtual u32 handleEvent(systemEvent *event);
+    
+    
 private:
     
 	void volumeInteger(unsigned int n); // range: 0x2F to 0x7F

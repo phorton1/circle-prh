@@ -204,7 +204,7 @@ void AudioControlCS42448::start(void)
     #endif
     
 	Wire.begin();
-
+	
 	// __circle__ sanity check code to make sure I am talking i2c
 	// My chip revision is 0x04 instead of documented 0x01
 

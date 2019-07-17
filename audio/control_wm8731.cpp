@@ -30,6 +30,8 @@
 
 #include <audio/bcm_pcm.h>
 #include <circle/logger.h>
+#include <system/std_kernel.h>
+
 #define log_name getName()
 
 
@@ -78,7 +80,7 @@ void AudioControlWM8731::start(void)
 	LOG("start()",0);
 	
 	Wire.begin();
-	delay(5);
+	delay(200);
 	
 	//write(WM8731_REG_RESET, 0);
 
@@ -107,7 +109,9 @@ void AudioControlWM8731::start(void)
 	write(WM8731_REG_DIGITAL, 0x00);   // DAC unmuted
 	write(WM8731_REG_ANALOG, 0x10);    // DAC selected
 		// 0x10 = WM8731_ANALOG_DACSEL
-	
+
+	CCoreTask::Get()->addEventListener(this);
+
 	// LOG("start() finished",0);
 }
 
@@ -192,7 +196,6 @@ void AudioControlWM8731Slave::start(void)
 	LOG("start()",0);
 	
 	Wire.begin();
-	delay(5);
 	//write(WM8731_REG_RESET, 0);
 
 	write(WM8731_REG_INTERFACE, 0x02); // I2S, 16 bit, MCLK slave
@@ -219,3 +222,23 @@ void AudioControlWM8731Slave::start(void)
 	
 	// LOG("start() finished",0);
 }
+
+
+//----------------------------------
+// event handling
+//----------------------------------
+
+u32 AudioControlWM8731::handleEvent(systemEvent *event)
+{
+	if (event->getEventType() == EVENT_TYPE_AUDIO_CONTROL)
+	{
+		#define S32_MAX  ((s32)0x7fffffff)		
+		s32 s32_value = event->getEventValue();
+		float float_value = ((float)s32_value)/((float)S32_MAX);
+		LOG("EVENT_TYPE_AUDIO_CONTROL value=%d float=%0.02f",s32_value,float_value);
+		volume(float_value);
+		return EVENT_HANDLED;
+	}
+	return 0;
+}
+

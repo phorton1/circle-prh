@@ -35,6 +35,7 @@ void CWire::begin()
         assert(m_pI2CMaster);
         m_pI2CMaster->SetClock(I2C_CLOCK_SPEED);
     }
+	delay(200);
 }
 
 void CWire::end()
@@ -59,11 +60,12 @@ int CWire::endTransmission()
     {
         // printf("Wire endTransmission addr(0x%02x) len=%d data=0x%02x 0x%02x \n",m_addr,m_len,m_buf[0],m_buf[1]);
         rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len);
-        assert(rslt == m_len);
-        // if (rslt != m_len)
-        // {
-        //     printf("got error result %d\n",m_len);
-        // }
+		if (rslt != m_len)
+		{
+			assert(rslt == m_len);
+			printf("error result %d\n",rslt);
+			display_bytes("buffer",m_buf,m_len);
+        }
         return (rslt == m_len) ? 0 : 1;
     }
 	return 0;
