@@ -16,6 +16,11 @@
 	#include <audio/AudioStream.h>
 #endif
 
+#if USE_MIDI_SYSTEM
+	#include <circle/usb/usbmidi.h>
+	#include <circle/usb/usbstring.h>
+#endif
+
 
 #define USE_GPIO_READY_PIN    0		// 25
 
@@ -49,6 +54,7 @@ CCoreTask *CCoreTask::s_pCoreTask = 0;
 
 
 CCoreTask::CCoreTask(CKernel *pKernel)	:
+	systemEventHandler(0),
 	#ifdef USE_MULTI_CORE
 		CMultiCoreSupport(&pKernel->m_Memory),
 	#endif
@@ -318,10 +324,89 @@ boolean CKernel::Initialize (void)
 
 
 
+
+CString *getDeviceString(CUSBDevice *usb_device, u8 which)
+{
+	const TUSBDeviceDescriptor *pDesc = usb_device->GetDeviceDescriptor();
+	u8 id =
+		which == 0 ? pDesc->iManufacturer	:
+		which == 1 ? pDesc->iProduct		:
+		which == 2 ? pDesc->iSerialNumber	: 0;
+	if (!id) return 0;
+	if (id == 0xff) return 0;
+	
+	CUSBString usb_string(usb_device);
+	if (usb_string.GetFromDescriptor(id, usb_string.GetLanguageID()))
+	{
+		return new CString(usb_string.Get());
+	}
+	return 0;
+}
+
+
+
 TShutdownMode CKernel::Run(void)
 	// calls the CoreTask to do all the work
 {
 	LOG("std_kernel " __DATE__ " " __TIME__ " available memory=%d",mem_get_size());
+	
+	// With two midi devices on a single core, behavior went to hell.
+	// Once you moved the mouse, the audio system got noises due, presumably,
+	// to the many USB interrupts.  For some unknown reason, setting
+	// USE_USB_SOF_INTR in circle/include/sys_config.h helped.
+	
+	#if USE_MIDI_SYSTEM
+		// enumerate midi devices
+		unsigned dev_num = 1;
+		boolean found = 1;
+		while (found)
+		{
+			CString dev_name;
+			dev_name.Format("umidi%d",dev_num);
+			CUSBMIDIDevice *pMidiDevice = (CUSBMIDIDevice *) // : public CUSBFunction : public CDevice
+				CDeviceNameService::Get ()->GetDevice (dev_name, FALSE);
+				
+			if (pMidiDevice)
+			{
+				CUSBDevice *usb_device = pMidiDevice->GetDevice();
+				LOG("found MIDI DEVICE[%d]: %08x",dev_num,pMidiDevice);
+				CString *vendor_name = usb_device->GetName(DeviceNameVendor);
+				CString *device_name = usb_device->GetName(DeviceNameDevice);
+				LOG("    usb_device(%08x) addr(%d) vendor_name(%s) device_name(%s)",
+					(u32)usb_device,
+					usb_device->GetAddress(),
+					vendor_name ? ((const char *)*vendor_name) : "null",
+					device_name ? ((const char *)*device_name) : "null");
+				if (vendor_name)
+					delete vendor_name;
+				if (device_name)
+					delete device_name;
+			
+				// this is how you get to the device strings
+				// which requies access to specific members of
+				// the TUSBDeviceDescriptor ...
+				
+				CString *p_str0 = getDeviceString(usb_device,0);
+				CString *p_str1 = getDeviceString(usb_device,1);
+				CString *p_str2 = getDeviceString(usb_device,2);
+				LOG("    manuf(%s) product(%s) serial(%s)",
+					p_str0 ? ((const char *)*p_str0) : "empty",
+					p_str1 ? ((const char *)*p_str1) : "empty",
+					p_str2 ? ((const char *)*p_str2) : "empty");
+				delete p_str0;
+				delete p_str1;
+				delete p_str2;
+
+				
+				dev_num++;
+			}
+			else
+			{
+				found = 0;
+			}
+		}
+		//		pMIDIDevice->RegisterPacketHandler(midiPacketHandler);
+	#endif	
 
 	m_CoreTask.Run(0);
 	

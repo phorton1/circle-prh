@@ -7,91 +7,43 @@
 
 #include <ws/ws.h>
 #include <circle/logger.h>
+#include <system/std_kernel.h>
 
-void setup()	{}
-void loop()		{}
-	// to satisfy arduino link-alike
+#define log_name  "app"
+
+#define WITH_AUDIO_SYSTEM_TEST
+
+#ifdef WITH_AUDIO_SYSTEM_TEST
+	#include <audio\Audio.h>
+    AudioInputI2S input;
+    AudioOutputI2S output;
+    AudioControlWM8731 control;
 	
+	void setup()
+	{
+        new AudioConnection(input, 0, output, 0);
+        new AudioConnection(input, 1, output, 1);
+		AudioSystem::initialize(150);
+        control.inputSelect(AUDIO_INPUT_LINEIN);
+        control.inputLevel(1.0);
+		for (u16 i=0; i<=50; i++)
+		{
+			control.volume(((float)i) / 50.0);
+			delay(20);
+		}		
+	}
 	
-static const char log_name[] = "kapp";
+	void loop()		{}
+	
+#else	// !WITH_AUDIO_SYSTEM_TEST
+	void setup()	{}
+	void loop()		{}
+#endif
+
+	
 
 #define TOP_MARGIN  50
 #define BOTTOM_MARGIN 50
-
-#define ID_DLG  1000
-#define ID_BUTTON_CLOSE  1001
-
-class dialogWindow : public wsTopLevelWindow
-{
-	public:
-		
-		dialogWindow(wsApplication *pApp, u16 id, s32 x, s32 y, s32 width, s32 height) :
-			wsTopLevelWindow(pApp,id,x,y,x + width-1,y + height-1,
-				WIN_STYLE_3D | WIN_STYLE_POPUP)
-		{
-			setBackColor(wsDARK_BLUE);
-			setForeColor(wsWHITE);
-			
-			const char *msg =
-				"This is a test dialog window\n\n"
-				"It presents a \"close\" button\n"
-				"to allow you to close it.\n\n"
-				"Clicking anywhere outside of it\n"
-				"should close it too. It does not clip text very well.";
-				
-			wsStaticText *text = new wsStaticText(this,
-				0, msg,
-				10, 10, getWidth()-10-1, getHeight()-60-1);
-			text->setAlign(ALIGN_TOP_LEFT);
-			text->setBackColor(wsPURPLE);
-			
-			new wsButton(this,
-				ID_BUTTON_CLOSE,
-				"close",
-				getWidth()-95,
-				getHeight()-50,
-				getWidth()-15-1,
-				getHeight()-15-1);
-		}
-			
-	private:
-		
-		virtual u32 handleEvent(wsEvent *event)
-		{
-			u32 type = event->getEventType();
-			u32 event_id = event->getEventID();
-			u32 id = event->getID();
-			u32 result_handled = 0;
-			
-			// wsWindow *obj = event->getObject();
-			
-			#if 0
-				LOG("dlg::handleEvent(%08x,%d,%d)",type,event_id,id);
-			#endif
-			
-			if (type == EVT_TYPE_BUTTON &&
-				event_id == BTN_EVENT_PRESSED)
-			{
-				if (id == ID_BUTTON_CLOSE)
-				{
-					printf("hiding dialog\n");
-					
-					#if 0
-						// set the background to gray to prove it only redraws the invalidated area
-						wsRect full(0,0,getApplication()->getWidth()-1,getApplication()->getHeight()-1);
-					    m_pDC->setClip(full);
-					    m_pDC->fillFrame(0,0,full.xe,full.ye,wsDARK_GRAY);
-					#endif
-					result_handled = 1;
-					hide();
-				}
-			}
-
-			if (!result_handled)
-				result_handled = wsTopLevelWindow::handleEvent(event);
-			return result_handled;
-		}
-};
 
 
 #define ID_WIN_FRAME    1
@@ -126,12 +78,110 @@ class dialogWindow : public wsTopLevelWindow
 #define ID_MENU1_OPTION2        502
 #define ID_MENU1_OPTION3		503
 
+#define ID_DLG  1000
+#define ID_BUTTON_CLOSE  1001
+#define ID_BUTTON_BUG    1002 
 
 
 #define button(id)   ((wsButton *)findChildByID(id))
 #define stext(id)    ((wsStaticText *)findChildByID(id))
 #define box(id)      ((wsCheckbox *)findChildByID(id))
 #define menu(id)     ((wsMenu *)findChildByID(id))
+
+
+
+class dialogWindow : public wsTopLevelWindow
+{
+	public:
+		
+		dialogWindow(wsTopLevelWindow *pPrevTop, u16 id, s32 x, s32 y, s32 width, s32 height) :
+			wsTopLevelWindow(pPrevTop->getApplication(),id,x,y,x + width-1,y + height-1,
+				WIN_STYLE_3D | WIN_STYLE_POPUP),
+			m_pPrevTop(pPrevTop)
+		{
+			setBackColor(wsDARK_BLUE);
+			setForeColor(wsWHITE);
+			
+			const char *msg =
+				"This is a test dialog window\n\n"
+				"It presents a \"close\" button\n"
+				"to allow you to close it.\n\n"
+				"Clicking anywhere outside of it\n"
+				"should close it too. It does not clip text very well.";
+				
+			wsStaticText *text = new wsStaticText(this,
+				0, msg,
+				10, 10, getWidth()-10-1, getHeight()-60-1);
+			text->setAlign(ALIGN_TOP_LEFT);
+			text->setBackColor(wsPURPLE);
+			
+			new wsButton(this,
+				ID_BUTTON_CLOSE,
+				"close",
+				getWidth()-95,
+				getHeight()-50,
+				getWidth()-15-1,
+				getHeight()-15-1);
+			
+			new wsButton(this,
+				ID_BUTTON_BUG,
+				"bug",
+				15,
+				getHeight()-50,
+				95,
+				getHeight()-15-1);
+			
+		}
+			
+	private:
+		
+		wsTopLevelWindow *m_pPrevTop;
+		
+		virtual u32 handleEvent(wsEvent *event)
+		{
+			u32 type = event->getEventType();
+			u32 event_id = event->getEventID();
+			u32 id = event->getID();
+			u32 result_handled = 0;
+			
+			// wsWindow *obj = event->getObject();
+			
+			#if 0
+				LOG("dlg::handleEvent(%08x,%d,%d)",type,event_id,id);
+			#endif
+			
+			if (type == EVT_TYPE_BUTTON &&
+				event_id == BTN_EVENT_PRESSED)
+			{
+				if (id == ID_BUTTON_CLOSE)
+				{
+					printf("hiding dialog\n");
+					
+					#if 0
+						// set the background to gray to prove it only redraws the invalidated area
+						wsRect full(0,0,getApplication()->getWidth()-1,getApplication()->getHeight()-1);
+					    m_pDC->setClip(full);
+					    m_pDC->fillFrame(0,0,full.xe,full.ye,wsDARK_GRAY);
+					#endif
+					result_handled = 1;
+					hide();
+				}
+				else if (id == ID_BUTTON_BUG)
+				{
+					static int bug_count = 0;
+					CString msg;
+					msg.Format("this is bug %d",bug_count++);
+					((wsStaticText *)m_pPrevTop->findChildByID(ID_TEXT3))->setText(msg);
+				}
+			}
+
+			if (!result_handled)
+				result_handled = wsTopLevelWindow::handleEvent(event);
+			return result_handled;
+		}
+};
+
+
 
 
 class topWindow : public wsTopLevelWindow
@@ -181,10 +231,9 @@ class topWindow : public wsTopLevelWindow
 					if (!m_pDlg)
 					{
 						#define DLG_WIDTH  300
-						wsApplication *pApp = getApplication();
 						printf("creating dialog\n");
-						m_pDlg = new dialogWindow(pApp,ID_DLG,
-							(pApp->getWidth()-DLG_WIDTH)/2,
+						m_pDlg = new dialogWindow(this,ID_DLG,
+							(getApplication()->getWidth()-DLG_WIDTH)/2,
 							20,
 							DLG_WIDTH,
 							200);
@@ -223,6 +272,18 @@ class topWindow : public wsTopLevelWindow
 					stext(ID_TEXT4)->setText(string);
 					button(ID_BUTTON5)->setDragConstraint(m_button4_count);
 					result_handled = 1;
+					
+					#ifdef WITH_AUDIO_SYSTEM_TEST
+						#define S32_MAX  ((s32)0x7fffffff)
+						float float_value = ((float)m_button4_count)/10.00;
+						s32 s32_value = (float)(float_value * S32_MAX);
+						LOG("float_value=%0.02f  s32_value=%d",float_value,s32_value);
+						CCoreTask::Get()->handleEvent(new systemEvent(
+							EVENT_TYPE_AUDIO_CONTROL,
+							EVENT_ID_ALL,
+							s32_value));
+					#endif
+
 				}
 				else if (id == ID_BUTTON5)
 				{

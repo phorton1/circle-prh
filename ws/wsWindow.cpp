@@ -289,7 +289,8 @@ void wsWindow::setText(const char *text)
 	// sets the invalid region!
 {
 	m_text = text;
-	setBit(m_state,WIN_STATE_DRAW);
+	m_pDC->invalidate(m_rect_abs);
+	// setBit(m_state,WIN_STATE_DRAW);
 }
 
 

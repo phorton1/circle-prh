@@ -17,6 +17,7 @@
 
 #define USE_UI_SYSTEM 		1			// more or less always defined
 #define USE_AUDIO_SYSTEM 	1
+#define USE_MIDI_SYSTEM     1			// requires USE_USB
 
 #define USE_SCREEN  	 	1			// may run with only specific i2c/spi touch screen devices
 #define USE_USB          	1			// may run with, or without, a mouse
@@ -40,7 +41,7 @@
 	// This define corresponds to the standard cheap resistive
 	// rpi touch screen that I implemented.
 
-
+#include "systemEvent.h"
 #include <circle/memory.h>
 #include <circle/actled.h>
 #include <circle/koptions.h>
@@ -114,7 +115,7 @@
 
 
 class CKernel;
-class CCoreTask
+class CCoreTask : public systemEventHandler
 	#ifdef USE_MULTI_CORE
 		: public CMultiCoreSupport
 	#endif
@@ -158,7 +159,7 @@ enum TShutdownMode
 	ShutdownReboot
 };
 
-class CKernel
+class CKernel 
 {
 public:
 	CKernel (void);

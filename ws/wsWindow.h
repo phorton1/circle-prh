@@ -3,7 +3,13 @@
 //
 // A event driven windowing system that kind of combines uGUI and wxWindows.
 // Written for the rPi Circle bare metal C++ libraries.
-// (c) Copyright 2019 Patrick Horton- no rights reserved, 
+// (c) Copyright 2019 Patrick Horton- no rights reserved.
+
+// Once again, the whole thing needs to be reworked.
+// It is possibly good enough for other system design, though.
+// Needs a much better concept of a windows truly visible region
+// which implies a clip_list of some kind, and reworking the entire
+// invalidation/draw/event scheme.
 
 #ifndef _wsWindow_h
 #define _wsWindow_h
