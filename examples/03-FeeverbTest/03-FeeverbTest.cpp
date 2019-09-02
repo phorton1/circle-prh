@@ -6,20 +6,6 @@
 #include <system/std_kernel.h>
 #include <audio\Audio.h>
 
-// including an application requries USE_UI_SYSTEM to be set in std_kernel.h,
-// which in turn requires you to link in a wsApplication::Create() method.
-// The wsNullApp.h allows you to create headless apps, while still linking
-// the UI system with no windows.
-
-// I am considering writing a linking loader.
-// But for now, I create a new subtree with apps/recorder that
-// is a linkable "application"
-
-
-#if USE_UI_SYSTEM
-    #include <ws/wsNullApp.h>
-#endif
-
 
 // you may define 0 or 1 of USE_REVERB and USE_FREEVERB
 // USE_MIXER puts the output through a mixer first

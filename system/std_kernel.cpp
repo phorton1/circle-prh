@@ -22,7 +22,7 @@
 #endif
 
 
-#define USE_GPIO_READY_PIN    0		// 25
+#define USE_GPIO_READY_PIN    25		// 25
 
 static const char log_name[] = "kernel";
 

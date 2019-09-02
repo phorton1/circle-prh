@@ -18,43 +18,6 @@
 
 #define log_name  "app"
 
-// USE_AUDIO_SYSTEM must be defined as 1 in std_kernel.h
-// for this part which ensures that the audio system can
-// be linked and used within a program using the UI_SYSTEM
-
-#if USE_AUDIO_SYSTEM
-	
-	// #define WITH_AUDIO_SYSTEM_TEST
-	
-	#ifdef WITH_AUDIO_SYSTEM_TEST
-		#include <audio\Audio.h>
-		AudioInputI2S input;
-		AudioOutputI2S output;
-		AudioControlWM8731 control;
-		
-		void setup()
-		{
-			new AudioConnection(input, 0, output, 0);
-			new AudioConnection(input, 1, output, 1);
-			AudioSystem::initialize(150);
-			control.inputSelect(AUDIO_INPUT_LINEIN);
-			control.inputLevel(1.0);
-			for (u16 i=0; i<=50; i++)
-			{
-				control.volume(((float)i) / 50.0);
-				delay(20);
-			}		
-		}
-		
-		void loop()		{}
-		
-	#else	// !WITH_AUDIO_SYSTEM_TEST
-		void setup()	{}
-		void loop()		{}
-	#endif
-	
-#endif`// USE_AUDIO_SYSTEM
-
 	
 //------------------------------------------------------------
 // define the layout, ids, windows, and objects of the UI
@@ -283,9 +246,6 @@ class topWindow : public wsTopLevelWindow
 				}
 				else if (id == ID_BUTTON4)
 				{
-					// m_button4_count = midi_volume
-					// 0..15 increasing, 16..31 decreasing
-					
 					m_button4_count++;
 					if (m_button4_count > 31) m_button4_count = 0;
 					
@@ -294,36 +254,6 @@ class topWindow : public wsTopLevelWindow
 					stext(ID_TEXT4)->setText(string);
 					button(ID_BUTTON5)->setDragConstraint(m_button4_count);
 					result_handled = 1;
-					
-					#ifdef WITH_AUDIO_SYSTEM_TEST
-					
-						float value = m_button4_count>15 ?
-							16-(m_button4_count-16) :   //	16..1
-							m_button4_count;              //    0..15
-						value = (value / 16) * 127;
-						s8 midi_value = value;
-						
-						LOG("sending midi volume value %d",midi_value);
-						
-						midiDevice *pWM8731 =
-							AudioCodec::getSystemCodec();
-							// AudioSystem::find(AUDIO_DEVICE_CODEC,0,0);	// "wm8731s",0);
-							
-						assert(pWM8731);
-						
-						if (pWM8731)
-						{
-							midiEvent *event = new midiEvent(
-								0,				// channel 0
-								MIDI_MSG_CC,	//   0xb9
-								MIDI_CC_VOL,	//   0x07
-								midi_value);
-							pWM8731->handleMidiEvent(event);
-							delete event;
-						}
-						
-					#endif
-
 				}
 				else if (id == ID_BUTTON5)
 				{

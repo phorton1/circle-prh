@@ -9,6 +9,7 @@ OBJS	= \
     main.o \
 	std_kernel.o \
 	std_empty_ui.o \
+	std_null_audio_system.o
 
 libsystem.a: $(OBJS)
 	@echo "  AR    $@"

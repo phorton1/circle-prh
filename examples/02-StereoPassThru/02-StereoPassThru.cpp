@@ -12,7 +12,7 @@
 // to the teensy audio card (STGL500) or a teensy
 // running the AudioInputI2SQuad device.
 
-#define USE_CS42448             1
+#define USE_CS42448             0
 #define USE_STGL5000            0
 #define USE_TEENSY_QUAD_SLAVE   0
 
