@@ -1,13 +1,30 @@
-// requires USE_AUDIO_SYSTEM=1 to be set in std_kernl.h
+// 01-HardwareTest.cpp
+//
+// This, the initial audio example, merely makes a tone that
+// comes out of the audio device.  It does not make use of any
+// input devices.
 
 #include <audio\Audio.h>
 
-// note that you must use 'master' control devices
-// if you use 'slave' i2s devices.
+// By default, this test program uses the WM8731 AudioInjector Stereo
+// audio card set to the Master BCLK/FCLK device.  You may define ONE
+// of the following two defines to use the CS42448 AudioInjector Octo
+// audio card, or to interface to a Teensy running the AudioInputI2SQuad
+// device where channels 3/4 are hooked up as I/O channels to the rPi.
 
 #define USE_CS42448             1
 #define USE_TEENSY_QUAD_SLAVE   0
 
+// These defines let you choose various ways the sound
+// comes out.  On the CS42448, for instance, it can be
+// useful to have each channel output a different note
+// on the 8 tone musical scale with USE_MUSICAL_SCALE.
+// USE_MODULATION creates a distinctive sound that can
+// be differentiated from a static backround sine wave.
+// TOGGLE_SOUND sends out three half second "beeps" with
+// a 1.5 second interval between them, and the default
+// VOLUME_LEVEL is used to generate a comfortable sound
+// for my setup.
 
 #if USE_CS42448
     #define USE_MUSICAL_SCALE   1
@@ -20,7 +37,6 @@
     #define TOGGLE_SOUND        1
     #define VOLUME_LEVEL        0.5
 #endif
-
 
 
 #if USE_MUSICAL_SCALE
@@ -43,6 +59,13 @@
 #endif
 
 
+// note that you must use 'master' control devices
+// if you use 'slave' i2s devices.  In general, the
+// rPi is horrible as the clock master, so all of these
+// examples, by default, use the attached device as
+// the i2S master ..
+
+
 #if USE_CS42448
     AudioOutputTDM output;
     AudioControlCS42448 control;
@@ -52,7 +75,8 @@
 #else
 
     #define I2S_MASTER   1
-        // wm831 is the master i2s device
+        // the rPi is a horrible i2s master.
+        // It is better with the wm831 as the master i2s device
 
     AudioOutputI2S output;
 
@@ -63,6 +87,11 @@
     #endif
 #endif
 
+
+// This early test program explicitly declares static
+// connection objects.  Later these will prove problematic
+// for soft-routable connections, as you cannot properly
+// "delete" them.   
 
 #if USE_MUSICAL_SCALE
     AudioConnection  c0(input0, 0, output, 0);

@@ -5,6 +5,9 @@
 #include <circle/gpiomanager.h>
 #include <circle/util.h>
 
+#define SHOW_DISTINCTIVE_STARTUP_PATTERN	1
+	// on by default, the screen displays a distinct pattern
+	// of squares to verify basic functionality at boot ...
 
 #define log_name "ili9846s"
 #define SPI_FREQ  26000000		// 26000000    // 500000 1000000 2000000 5000000 10000000 20000000 50000000
@@ -169,7 +172,7 @@ boolean ILI9846::Initialize()
 	setRotation(3);
 		// prh - right now it's upside down on my desk :-)
 	
-    #if 1
+    #if SHOW_DISTINCTIVE_STARTUP_PATTERN
         LOG("test",0,0);
 		#if ILI9846_WITH_DEBUG_PIN
 			m_pinDebug.Write(1);

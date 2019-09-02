@@ -1,14 +1,20 @@
+// 02-StereoPassThru.cpp example program
+//
+// This, the second audio example, merely passes the buffers
+// from the input device to the output device to verify that
+// both input and outputs work.  For the Octo, the six inputs
+// are mapped to the first 6 outputs.
 
 #include <audio\Audio.h>
 
-// You may define zero or one of the following
-// the default is wm8731
+// You may define zero or one of the following.
+// The default is wm8731.  You can also connect
+// to the teensy audio card (STGL500) or a teensy
+// running the AudioInputI2SQuad device.
 
 #define USE_CS42448             1
 #define USE_STGL5000            0
 #define USE_TEENSY_QUAD_SLAVE   0
-#define WITH_RECORDER           0
-
 
 #if USE_CS42448
 
@@ -33,7 +39,8 @@
 #else   // wm8731 in master or slave mode
 
     #define I2S_MASTER    1
-        // wm831 is the master i2s device
+        // the rPi is a horrible i2s master.
+        // It is better with the wm831 as the master i2s device
 
     AudioInputI2S input;
     AudioOutputI2S output;
@@ -47,32 +54,19 @@
 #endif
 
 
-#if WITH_RECORDER
-    AudioRecorder recorder;
-    AudioConnection c0(input,    0, recorder, 0);
-    AudioConnection c1(input,    1, recorder, 1);
-    AudioConnection c2(recorder, 0, output,   0);
-    AudioConnection c3(recorder, 1, output,   1);
-    #if USE_CS42448
-        AudioConnection c4(input,    2, recorder, 2);
-        AudioConnection c5(input,    3, recorder, 3);
-        AudioConnection c6(recorder, 2, output,   2);
-        AudioConnection c7(recorder, 3, output,   3);
-    #endif
-#else
-    AudioConnection  o0(input, 0, output, 0);
-    AudioConnection  o1(input, 0, output, 1);
+AudioConnection  o0(input, 0, output, 0);
+AudioConnection  o1(input, 1, output, 1);
+#if USE_CS42448
+    AudioConnection  o2(input, 2, output, 2);
+    AudioConnection  o3(input, 3, output, 3);
+    AudioConnection  o4(input, 4, output, 4);
+    AudioConnection  o5(input, 5, output, 5);
 #endif
 
 
 void setup()
 {
     printf("02-StereoPassThru::setup()\n");
-    
-    #if 0 && WITH_VU_METER    
-        new AudioConnection(input, 0, peak0, 0);
-        new AudioConnection(input, 1, peak1, 0);
-    #endif
 
     // The audio memory system can now be instantiated
     // with very large buffers ..

@@ -1,4 +1,7 @@
-// requires USE_AUDIO_SYSTEM=1 to be set in std_kernl.h
+// 03-FreeverbTest.cpp
+//
+// This example program adds the Reverb/Freeverb objects.
+
 
 #include <system/std_kernel.h>
 #include <audio\Audio.h>
@@ -24,7 +27,8 @@
 #define USE_REVERB      0
 #define USE_FREEVERB    1
 #define USE_MIXER       1
-#define USE_RECORDER    1
+
+
 
 #define USE_CS42448  0
     // default is AudioInjector Stereo wm8731 running the clocks
@@ -56,10 +60,6 @@
 #if USE_MIXER
     AudioMixer4 mixer0;
     AudioMixer4 mixer1;
-#endif
-
-#if USE_RECORDER
-    AudioRecorder recorder;
 #endif
 
 
@@ -98,20 +98,6 @@ void setup()
         bus0 = &mixer0;
         bus1 = &mixer1;
         channel1 = 0;
-    #endif
-    
-    #if USE_RECORDER
-        new AudioConnection(*bus0, channel0, recorder, 0);
-        new AudioConnection(*bus1, channel1, recorder, 1);
-        #if USE_FREEVERB
-            new AudioConnection(reverb, 0, recorder, 2);
-            new AudioConnection(reverb, 1, recorder, 3);
-        #elif USE_REVERB
-            new AudioConnection(reverb, 0, recorder, 2);
-        #endif
-        bus0 = &recorder;
-        bus1 = &recorder;
-        channel1 = 1;
     #endif
     
     new AudioConnection(*bus0, channel0, output, 0);
@@ -154,46 +140,8 @@ void setup()
 
 
 
-#include <circle/sched/scheduler.h>
-    // for testing different update() strategies
-
 void loop()
 {
-    // do some work in the loop
-    // one way or the other the client has to be aware
-    // and either keep their code in loop() short, or
-    // call Yield appropriately.
-    
-    #if 0
-        delay(3);
-            // delay(), which calls Timer::MsDelay(), does not yield,
-            // and so you get overflows and artifcats starting at 3ms
-    #elif 0
-        // If I instead go back and assume there will be a scheduler,
-        // or at least check if there is one, and implement delay()
-        // in terms of CScheduler::sleep(), then I can take all the
-        // time I want ..
-
-        CScheduler::Get()->MsSleep(2000);
-
-    #elif 0
-        // at about 100,000 times through this loop
-        // I start getting overflows and noise artifacts
-        // with a straight thru config on the Octo, which
-        // uses very little CPU time
-        //
-        // by adding Yield calls it can go on forever if you want ..
-        
-        volatile u32 i,j;
-        for (i=0; i<100000; i++)
-        {
-            if (i) j = i;
-            if (j) i = i;
-            #if 1
-                CScheduler::Get()->Yield();
-            #endif
-        }
-    #endif
 }
 
 

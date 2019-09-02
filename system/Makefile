@@ -8,6 +8,7 @@ CIRCLEHOME = ../../
 OBJS	= \
     main.o \
 	std_kernel.o \
+	std_empty_ui.o \
 
 libsystem.a: $(OBJS)
 	@echo "  AR    $@"

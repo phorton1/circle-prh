@@ -1,9 +1,16 @@
-// wsWindows - test app.cpp
+// 06-UITest (app.cpp)
 //
-// An application to test the wsWindows UI functionality.
-// At the end of the file is wsApplication::Create().
-// The calls to Initiatilize() and timeSliceBased() are in kernel.cpp
-// Requires USE_UI_SYSTEM to be defined in std_kernel.h
+// This is a "program" to test my wsWindows subsystem.
+// It, of course, requires that USE_UI_SYSTEM is defined as 1 in std_kernel.h
+// At the end of this file is wsApplication::Create(), which *should* be linked
+// before the version in std_empty_ui.
+//
+// The calls to Initialize() and timeSlice() are in std_kernel.cpp
+//
+// It makes use of whatever UI device (the HDMI screen, official
+// rPI touchscreen, or cheap ili9485/xpt2046 3.5 touchscreen, at
+// this time) is defined for use there.
+
 
 #include <ws/ws.h>
 #include <circle/logger.h>
@@ -11,36 +18,47 @@
 
 #define log_name  "app"
 
-#define WITH_AUDIO_SYSTEM_TEST
+// USE_AUDIO_SYSTEM must be defined as 1 in std_kernel.h
+// for this part which ensures that the audio system can
+// be linked and used within a program using the UI_SYSTEM
 
-#ifdef WITH_AUDIO_SYSTEM_TEST
-	#include <audio\Audio.h>
-    AudioInputI2S input;
-    AudioOutputI2S output;
-    AudioControlWM8731 control;
+#if USE_AUDIO_SYSTEM
 	
-	void setup()
-	{
-        new AudioConnection(input, 0, output, 0);
-        new AudioConnection(input, 1, output, 1);
-		AudioSystem::initialize(150);
-        control.inputSelect(AUDIO_INPUT_LINEIN);
-        control.inputLevel(1.0);
-		for (u16 i=0; i<=50; i++)
+	// #define WITH_AUDIO_SYSTEM_TEST
+	
+	#ifdef WITH_AUDIO_SYSTEM_TEST
+		#include <audio\Audio.h>
+		AudioInputI2S input;
+		AudioOutputI2S output;
+		AudioControlWM8731 control;
+		
+		void setup()
 		{
-			control.volume(((float)i) / 50.0);
-			delay(20);
-		}		
-	}
+			new AudioConnection(input, 0, output, 0);
+			new AudioConnection(input, 1, output, 1);
+			AudioSystem::initialize(150);
+			control.inputSelect(AUDIO_INPUT_LINEIN);
+			control.inputLevel(1.0);
+			for (u16 i=0; i<=50; i++)
+			{
+				control.volume(((float)i) / 50.0);
+				delay(20);
+			}		
+		}
+		
+		void loop()		{}
+		
+	#else	// !WITH_AUDIO_SYSTEM_TEST
+		void setup()	{}
+		void loop()		{}
+	#endif
 	
-	void loop()		{}
-	
-#else	// !WITH_AUDIO_SYSTEM_TEST
-	void setup()	{}
-	void loop()		{}
-#endif
+#endif`// USE_AUDIO_SYSTEM
 
 	
+//------------------------------------------------------------
+// define the layout, ids, windows, and objects of the UI
+//------------------------------------------------------------
 
 #define TOP_MARGIN  50
 #define BOTTOM_MARGIN 50
@@ -82,15 +100,14 @@
 #define ID_BUTTON_CLOSE  1001
 #define ID_BUTTON_BUG    1002 
 
-
 #define button(id)   ((wsButton *)findChildByID(id))
 #define stext(id)    ((wsStaticText *)findChildByID(id))
 #define box(id)      ((wsCheckbox *)findChildByID(id))
 #define menu(id)     ((wsMenu *)findChildByID(id))
 
 
-
 class dialogWindow : public wsTopLevelWindow
+	// a popup test dialog window
 {
 	public:
 		
@@ -185,6 +202,8 @@ class dialogWindow : public wsTopLevelWindow
 
 
 class topWindow : public wsTopLevelWindow
+	// The "main" test application window with a
+	// bunch of buttons, etc.
 {
 	public:
 		
@@ -369,6 +388,13 @@ class topWindow : public wsTopLevelWindow
 	
 };
 
+
+//---------------------------------------
+// wsApplication::Create()
+//---------------------------------------
+// Called by std_kernel.cpp, this method creates the UI
+// which is then "run" via calls to wsApplication::Initialize()
+// and wsApplication::timeSlice()
 
 void wsApplication::Create()
 {

@@ -7,8 +7,8 @@ OBJS = 04-OctoTest.o
 MAKE_LIBS = \
 	$(CIRCLEHOME)/_prh/ws/libws.mark \
 	$(CIRCLEHOME)/_prh/audio/libaudio.mark \
-	$(CIRCLEHOME)/_prh/kernel/std_kernel.mark \
-	$(CIRCLEHOME)/_prh/devices/lib_devices.mark \
+	$(CIRCLEHOME)/_prh/system/libsystem.mark \
+	$(CIRCLEHOME)/_prh/devices/libdevices.mark \
 
 LIBS	= \
 	$(CIRCLEHOME)/_prh/ws/libws.a \

@@ -15,7 +15,27 @@
 #ifndef _std_kernel_h
 #define _std_kernel_h
 
-#define USE_UI_SYSTEM 		0			// more or less always defined
+// Notes on defines:
+//
+// Defines that start with USE_ have 0/1 values, one of which MUST be set
+// Defines that start with WITH_ may be defined, or not
+//
+// At this time the defines here must be coordinated with the compilation
+// of the various example programs.  For instance, USE_AUDIO_SYSTEM must
+// be set to 1 in order to compile and link any of the examples that use
+// audio.
+//
+// If USE_UI_SYSTEM is defined, then someone must implement a method
+// wsApplication::Create() which defines the windows in the UI.
+// An empty method can be provided by includingstd_empty_ui.h.
+//
+// I don't like the way this works.
+// I am considering a compilation strategy whereby all variants
+// are compiled to objects of different names, and then the
+// programs link against the pieces they want.
+
+
+#define USE_UI_SYSTEM 		1			
 #define USE_AUDIO_SYSTEM 	1
 #define USE_MIDI_SYSTEM     1			// requires USE_USB
 
@@ -28,7 +48,7 @@
 // If USE_UI_SYSTEM then USE_SCREEN or one of these MUST be defined.
 //
 // The following defines override the binding of the user
-// interface to phsical devices.  By defaut, it expects
+// interface to physical devices.  By defaut, it expects
 // a bcm hdmi circle CScreen device, and will automatically
 // use the Circle default official rpi touchscreen if one is
 // present.  If USE_USB is defined it will additionally bind
