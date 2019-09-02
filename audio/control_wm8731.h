@@ -40,7 +40,7 @@ public:
 	virtual void start();
 		// public until AudioSystem starts it ...
 
-	void volume(float n) { return volumeInteger(n * 80.0 + 47.499); }
+	void volume(float n);
 	void inputLevel(float n); // range: 0.0f to 1.0f
 	void inputSelect(int n);
     
@@ -49,12 +49,8 @@ protected:
     AudioControlWM8731(u16 dummy) {}
 	void write(unsigned int reg, unsigned int val);
     
-	virtual u32 handleEvent(systemEvent *event);
+	virtual u8 handleMidiEvent(midiEvent *event);
     
-    
-private:
-    
-	void volumeInteger(unsigned int n); // range: 0x2F to 0x7F
 
 };
 

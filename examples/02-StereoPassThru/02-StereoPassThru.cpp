@@ -4,10 +4,10 @@
 // You may define zero or one of the following
 // the default is wm8731
 
-#define USE_CS42448             0
+#define USE_CS42448             1
 #define USE_STGL5000            0
 #define USE_TEENSY_QUAD_SLAVE   0
-#define WITH_RECORDER           1
+#define WITH_RECORDER           0
 
 
 #if USE_CS42448

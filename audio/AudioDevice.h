@@ -3,10 +3,10 @@
 #define AudioDevice_h
 
 #include "AudioTypes.h"
-#include <system/systemEvent.h>
+#include <midi/midiEvent.h>
 
 
-class AudioDevice : public systemEventHandler
+class AudioDevice : public midiDevice
 {
 public:
 
@@ -14,7 +14,6 @@ public:
 	AudioDevice(
         u16  num_controls,
         audioControl_t *control_setup) :
-            systemEventHandler(getType()),
             m_numControls(num_controls),
             m_pControls(control_setup)
     {
@@ -22,8 +21,8 @@ public:
     }
     
 	virtual u16 getType() { return 0; } // = 0;
-	virtual const char *getName() = 0;
-    virtual u16 getInstance() { return m_instance; }
+	// virtual const char *getName() = 0;
+    // virtual u16 getInstance() { return m_instance; }
     
 	// controls
 
@@ -37,7 +36,7 @@ protected:
     virtual void start() {}
     virtual void stop()  {}
     
-    u16              m_instance;
+    // u16              m_instance;
 	u16              m_numControls;
 	audioControl_t   *m_pControls;
     
@@ -57,6 +56,7 @@ public:
         s_pCodec = this;
     }
     virtual u16 getType()  { return AUDIO_DEVICE_CODEC; }
+	static AudioCodec *getSystemCodec() { return s_pCodec; }
     
 private:
     friend class AudioSystem;

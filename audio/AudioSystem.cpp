@@ -102,7 +102,7 @@ AudioStream *AudioSystem::find(u32 type, const char *name, s16 instance)
     for (AudioStream *p=s_pFirstStream; p; p=p->m_pNextStream)
     {
         bool type_match = (!type) || (type == p->getType());
-        bool name_match = (name==NULL) || (!strcmp(name,p->getName()));
+        bool name_match = (!name) || (!strcmp(name,p->getName()));
         bool inst_match = (instance == -1) || (instance == (s16) p->getInstance());
         if (type_match && name_match && inst_match)
         {

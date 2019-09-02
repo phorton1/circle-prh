@@ -15,7 +15,7 @@
 #ifndef _std_kernel_h
 #define _std_kernel_h
 
-#define USE_UI_SYSTEM 		1			// more or less always defined
+#define USE_UI_SYSTEM 		0			// more or less always defined
 #define USE_AUDIO_SYSTEM 	1
 #define USE_MIDI_SYSTEM     1			// requires USE_USB
 
@@ -41,7 +41,6 @@
 	// This define corresponds to the standard cheap resistive
 	// rpi touch screen that I implemented.
 
-#include "systemEvent.h"
 #include <circle/memory.h>
 #include <circle/actled.h>
 #include <circle/koptions.h>
@@ -115,7 +114,7 @@
 
 
 class CKernel;
-class CCoreTask : public systemEventHandler
+class CCoreTask 
 	#ifdef USE_MULTI_CORE
 		: public CMultiCoreSupport
 	#endif

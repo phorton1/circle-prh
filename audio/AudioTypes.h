@@ -38,15 +38,14 @@ typedef struct audio_block_struct
 #define AC_TYPE_INPUT           0x0001
 
 typedef struct audioControl
+	// henceforth all audio controls are mapped to midi
+	// 0..127 range and these are essentially channel/ccnum
+	// mappings
 {
     u8              type;             // 0 == output control
-    s8              channel;          // -1 == all channels
     const char      *name;
-    float           min;              
-    float           max;
-    float           step;
-    float           value;
-    
+    u8              channel;
+	u8              ccnum;			
 }   audioControl_t;
 
 

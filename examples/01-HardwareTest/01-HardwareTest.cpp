@@ -5,7 +5,7 @@
 // note that you must use 'master' control devices
 // if you use 'slave' i2s devices.
 
-#define USE_CS42448             0
+#define USE_CS42448             1
 #define USE_TEENSY_QUAD_SLAVE   0
 
 

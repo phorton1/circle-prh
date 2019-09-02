@@ -264,6 +264,9 @@ class topWindow : public wsTopLevelWindow
 				}
 				else if (id == ID_BUTTON4)
 				{
+					// m_button4_count = midi_volume
+					// 0..15 increasing, 16..31 decreasing
+					
 					m_button4_count++;
 					if (m_button4_count > 31) m_button4_count = 0;
 					
@@ -274,14 +277,32 @@ class topWindow : public wsTopLevelWindow
 					result_handled = 1;
 					
 					#ifdef WITH_AUDIO_SYSTEM_TEST
-						#define S32_MAX  ((s32)0x7fffffff)
-						float float_value = ((float)m_button4_count)/10.00;
-						s32 s32_value = (float)(float_value * S32_MAX);
-						LOG("float_value=%0.02f  s32_value=%d",float_value,s32_value);
-						CCoreTask::Get()->handleEvent(new systemEvent(
-							EVENT_TYPE_AUDIO_CONTROL,
-							EVENT_ID_ALL,
-							s32_value));
+					
+						float value = m_button4_count>15 ?
+							16-(m_button4_count-16) :   //	16..1
+							m_button4_count;              //    0..15
+						value = (value / 16) * 127;
+						s8 midi_value = value;
+						
+						LOG("sending midi volume value %d",midi_value);
+						
+						midiDevice *pWM8731 =
+							AudioCodec::getSystemCodec();
+							// AudioSystem::find(AUDIO_DEVICE_CODEC,0,0);	// "wm8731s",0);
+							
+						assert(pWM8731);
+						
+						if (pWM8731)
+						{
+							midiEvent *event = new midiEvent(
+								0,				// channel 0
+								MIDI_MSG_CC,	//   0xb9
+								MIDI_CC_VOL,	//   0x07
+								midi_value);
+							pWM8731->handleMidiEvent(event);
+							delete event;
+						}
+						
 					#endif
 
 				}

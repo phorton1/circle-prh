@@ -109,9 +109,6 @@ void AudioControlWM8731::start(void)
 	write(WM8731_REG_DIGITAL, 0x00);   // DAC unmuted
 	write(WM8731_REG_ANALOG, 0x10);    // DAC selected
 		// 0x10 = WM8731_ANALOG_DACSEL
-
-	CCoreTask::Get()->addEventListener(this);
-
 	// LOG("start() finished",0);
 }
 
@@ -124,16 +121,24 @@ void AudioControlWM8731::write(unsigned int reg, unsigned int val)
 	Wire.endTransmission();
 }
 
-void AudioControlWM8731::volumeInteger(unsigned int n)
-{
-	// LOG("volumeInteger(%d)",n);
-	// n = 127 for max volume (+6 dB)
-	// n = 48 for min volume (-73 dB)
-	// n = 0 to 47 for mute
 
-	if (n > 127) n = 127;
-	write(WM8731_REG_LHEADOUT, n | 0x180);
-	write(WM8731_REG_RHEADOUT, n | 0x80);
+
+
+
+void AudioControlWM8731::volume(float n)
+{
+	// LOG("volume(%0.2f)",n);
+
+	unsigned i =  n * 80.0 + 47.499;
+
+	// LOG("volumeInteger(%d)",i);
+	// i = 127 for max volume (+6 dB)
+	// i = 48 for min volume (-73 dB)
+	// i = 0 to 47 for mute
+
+	if (i > 127) i = 127;
+	write(WM8731_REG_LHEADOUT, i | 0x180);
+	write(WM8731_REG_RHEADOUT, i | 0x80);
 }
 
 
@@ -228,16 +233,21 @@ void AudioControlWM8731Slave::start(void)
 // event handling
 //----------------------------------
 
-u32 AudioControlWM8731::handleEvent(systemEvent *event)
+u8 AudioControlWM8731::handleMidiEvent(midiEvent *event)
 {
-	if (event->getEventType() == EVENT_TYPE_AUDIO_CONTROL)
+	LOG("MIDI_EVENT msg(0x%02x) value1(0x%02x) value2(%d)",
+		event->getMsg(),
+		event->getValue1(),
+		event->getValue2());
+	
+	if (event->getMsg() == MIDI_MSG_CC)
 	{
-		#define S32_MAX  ((s32)0x7fffffff)		
-		s32 s32_value = event->getEventValue();
-		float float_value = ((float)s32_value)/((float)S32_MAX);
-		LOG("EVENT_TYPE_AUDIO_CONTROL value=%d float=%0.02f",s32_value,float_value);
-		volume(float_value);
-		return EVENT_HANDLED;
+		if (event->getValue1() == MIDI_CC_VOL)
+		{
+			float value = event->getValue2() / 127;
+			LOG("MIDI_EVENT alue=%d float=%0.02f",event->getValue2(),value);
+			volume(value);
+		}
 	}
 	return 0;
 }

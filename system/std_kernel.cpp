@@ -54,7 +54,6 @@ CCoreTask *CCoreTask::s_pCoreTask = 0;
 
 
 CCoreTask::CCoreTask(CKernel *pKernel)	:
-	systemEventHandler(0),
 	#ifdef USE_MULTI_CORE
 		CMultiCoreSupport(&pKernel->m_Memory),
 	#endif
