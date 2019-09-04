@@ -11,6 +11,7 @@
 #include <circle/util.h>
 #include <circle/timer.h>
 #include <circle/synchronize.h>
+#include <utils/myUtils.h>
 
 #include <stdint.h>
     // from gcc standard libraries, i *hope* this matches

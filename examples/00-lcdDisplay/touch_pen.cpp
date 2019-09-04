@@ -3,13 +3,11 @@
 
 #include "touch_pen.h"
 #include "kernel.h"
-//#include <lcd/TouchScreen.h> 
 #include <lcd/LCDWIKI_GUI.h> 
 #include <lcd/LCDWIKI_KBV.h> 
 #include <lcd/_pins_arduino.h>
 
 #define log_name "touch_pen"
-#include "../../_pins_arduino.h"
 
 #define LCD_RST     8
 #define LCD_CS      9

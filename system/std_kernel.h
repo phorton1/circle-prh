@@ -64,7 +64,7 @@
 	// rpi touch screen that I implemented.
 
 #include <circle/memory.h>
-#include <circle/actled.h>
+#include <utils/myActLED.h>
 #include <circle/koptions.h>
 #include <circle/devicenameservice.h>
 #if USE_SCREEN
@@ -204,7 +204,7 @@ private:
 	friend class CCoreTask;
 
 	CMemorySystem		m_Memory;
-	CActLED				m_ActLED;
+	myActLED			m_ActLED;
 	CKernelOptions		m_Options;
 	CDeviceNameService	m_DeviceNameService;
 	

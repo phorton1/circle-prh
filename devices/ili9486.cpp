@@ -4,6 +4,8 @@
 #include <circle/logger.h>
 #include <circle/gpiomanager.h>
 #include <circle/util.h>
+#include <utils/myUtils.h>
+
 
 #define SHOW_DISTINCTIVE_STARTUP_PATTERN	1
 	// on by default, the screen displays a distinct pattern

@@ -4,6 +4,8 @@
 #include "xpt2046.h"
 #include <circle/logger.h>
 #include <circle/util.h>
+#include <utils/myUtils.h>
+
 
 #define GENERATE_MOVE_EVENTS
 // #define PRINT_MOUSE_EVENTS

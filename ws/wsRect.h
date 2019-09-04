@@ -9,6 +9,8 @@
 
 #include <circle/types.h>
 #include "wsDefines.h"
+#include <utils/myUtils.h>
+
 
 //------------------------------------
 // wsRect

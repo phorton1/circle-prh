@@ -8,6 +8,7 @@
 
     #include <circle/types.h>
     #include <circle/gpiopin.h>
+	#include <utils/myUtils.h>
     
     extern void init_pins_arduino();
     
