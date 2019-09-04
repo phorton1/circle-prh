@@ -152,6 +152,11 @@ class dialogWindow : public wsTopLevelWindow
 					CString msg;
 					msg.Format("this is bug %d",bug_count++);
 					((wsStaticText *)m_pPrevTop->findChildByID(ID_TEXT3))->setText(msg);
+					
+					// the reason this is questionable is that entire static text control
+					// repaints itself, and then later, the dialog again repaints itself.
+					// only the portion of the static text control that is really visible
+					// should be repainted, which requires complicated clipping regions.
 				}
 			}
 
