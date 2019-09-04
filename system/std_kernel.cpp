@@ -12,6 +12,7 @@
 #include <circle/alloc.h>
 #include <circle/gpiopin.h>
 
+
 #if USE_AUDIO_SYSTEM
 	#include <audio/AudioStream.h>
 #endif
@@ -19,6 +20,11 @@
 #if USE_MIDI_SYSTEM
 	#include <circle/usb/usbmidi.h>
 	#include <circle/usb/usbstring.h>
+#endif
+
+#if USE_FILE_SYSTEM
+	#define SHOW_ROOT_DIRECTORY  1
+	#define DRIVE		"SD:"
 #endif
 
 
@@ -54,7 +60,7 @@ CCoreTask *CCoreTask::s_pCoreTask = 0;
 
 
 CCoreTask::CCoreTask(CKernel *pKernel)	:
-	#ifdef USE_MULTI_CORE
+	#ifdef WITH_MULTI_CORE
 		CMultiCoreSupport(&pKernel->m_Memory),
 	#endif
 	m_pKernel(pKernel)
@@ -73,6 +79,13 @@ CCoreTask::~CCoreTask()
 {
 	m_pKernel = 0;
 }
+
+#if USE_FILE_SYSTEM
+	FATFS *CCoreTask::GetFileSystem()
+	{
+		return &m_pKernel->m_FileSystem;
+	}
+#endif
 
 
 #if USE_AUDIO_SYSTEM
@@ -96,6 +109,10 @@ CCoreTask::~CCoreTask()
 
 
 #if USE_UI_SYSTEM
+
+	#define UI_FRAME_RATE   60
+		// undefine this to not throttle the UI
+
 	void CCoreTask::runUISystem(unsigned nCore, bool init)
 	{
 		if (init)
@@ -109,7 +126,7 @@ CCoreTask::~CCoreTask()
 
 			CMouseDevice *pMouse = (CMouseDevice *) CDeviceNameService::Get ()->GetDevice ("mouse1", FALSE);
 			
-			#ifdef USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
+			#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
 				CScreenDeviceBase *pUseScreen = &m_pKernel->m_ili9486;
 				CTouchScreenBase  *pTouch = &m_pKernel->m_xpt2046;
 			#else
@@ -127,7 +144,19 @@ CCoreTask::~CCoreTask()
 				if (m_bAudioStarted)
 			#endif
 		{
-			m_pKernel->m_app.timeSlice();
+			#ifdef UI_FRAME_RATE
+			static u32 ui_timer = 0;
+			u32 now = m_pKernel->m_Timer.GetClockTicks();
+			if (now > ui_timer + (1000000/UI_FRAME_RATE))
+			{
+				ui_timer = now;
+			#endif
+
+				m_pKernel->m_app.timeSlice();
+
+			#if UI_FRAME_RATE
+			}
+			#endif
 		}
 	}
 #endif
@@ -247,12 +276,15 @@ CKernel::CKernel(void) :
 		,m_DWHCI(&m_Interrupt, &m_Timer)
 	#endif
 	#if USE_UI_SYSTEM
-		#ifdef USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
+		#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
 			,m_ili9486(&m_SPI)
 			,m_xpt2046(&m_SPI)
 		#endif
 	#endif
 	,m_CoreTask(this)
+	#if USE_FILE_SYSTEM
+		,m_EMMC(&m_Interrupt, &m_Timer, &m_ActLED)
+	#endif
 {
 	m_ActLED.Toggle();
 }
@@ -301,7 +333,7 @@ boolean CKernel::Initialize (void)
 			bOK = m_DWHCI.Initialize ();
 	#endif
 	
-	#ifdef USE_MULTI_CORE
+	#ifdef WITH_MULTI_CORE
 		if (bOK)
 			bOK = m_CoreTask.Initialize();
 	#endif
@@ -309,7 +341,7 @@ boolean CKernel::Initialize (void)
 	#if USE_UI_SYSTEM
 		if (bOK)
 		{
-			#ifdef USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
+			#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
 				m_SPI.Initialize();
 				m_ili9486.Initialize ();
 			#else
@@ -317,6 +349,15 @@ boolean CKernel::Initialize (void)
 			#endif
 		}
 	#endif
+	
+	#if USE_FILE_SYSTEM
+		if (bOK)
+		{
+			bOK = m_EMMC.Initialize();
+			initFileSystem();
+		}
+	#endif
+
 	
 	return bOK;
 }
@@ -411,6 +452,33 @@ TShutdownMode CKernel::Run(void)
 	
 	return ShutdownHalt;
 
+}
+
+
+
+
+void CKernel::initFileSystem()
+{
+	if (f_mount(&m_FileSystem, DRIVE, 1) != FR_OK)
+	{
+		LOG_ERROR("Cannot mount drive: %s", DRIVE);
+		return;
+	}
+
+	#if SHOW_ROOT_DIRECTORY
+		LOG("Contents of SD card",0);
+		DIR Directory;
+		FILINFO FileInfo;
+		FRESULT Result = f_findfirst (&Directory, &FileInfo, DRIVE "/", "*");
+		for (unsigned i = 0; Result == FR_OK && FileInfo.fname[0]; i++)
+		{
+			if (!(FileInfo.fattrib & (AM_HID | AM_SYS)))
+			{
+				LOG("%-22s %ld", FileInfo.fname, FileInfo.fsize);
+			}
+			Result = f_findnext (&Directory, &FileInfo);
+		}
+	#endif
 }
 
 

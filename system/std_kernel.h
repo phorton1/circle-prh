@@ -43,6 +43,8 @@
 #define USE_USB          	1			// may run with, or without, a mouse
 #define USE_MINI_SERIAL  	0			// can output log to either serial port
 #define USE_MAIN_SERIAL  	1
+#define USE_FILE_SYSTEM     1			// include (and initalize) the addon fatfs
+
 
 // At most, one of the following may be defined/
 // If USE_UI_SYSTEM then USE_SCREEN or one of these MUST be defined.
@@ -57,7 +59,7 @@
 // If one of the below is defined, the CScreen, nor the default
 // touchscreen, nor the mouse will be bound to the UI.
 
-// #define USE_480x320_ILI9486_XPT2046_TOUCHSCREEN 
+// #define WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN 
 	// This define corresponds to the standard cheap resistive
 	// rpi touch screen that I implemented.
 
@@ -86,7 +88,7 @@
 
 #if USE_UI_SYSTEM
 	#include <ws/wsApp.h>
-	#if USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
+	#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
 		#include <devices/ili9486.h>
 		#include <devices/xpt2046.h>
 	#else
@@ -94,13 +96,18 @@
 	#endif
 #endif
 
-
-#ifdef ARM_ALLOW_MULTI_CORE
-#define USE_MULTI_CORE
+#if USE_FILE_SYSTEM
+	#include <SDCard/emmc.h>
+	#include <fatfs/ff.h>
 #endif
 
 
-#ifdef USE_MULTI_CORE
+#ifdef ARM_ALLOW_MULTI_CORE
+#define WITH_MULTI_CORE
+#endif
+
+
+#ifdef WITH_MULTI_CORE
 	#include <circle/multicore.h>
 
 	#define CORE_FOR_AUDIO_SYSTEM    1
@@ -135,7 +142,7 @@
 
 class CKernel;
 class CCoreTask 
-	#ifdef USE_MULTI_CORE
+	#ifdef WITH_MULTI_CORE
 		: public CMultiCoreSupport
 	#endif
 {
@@ -150,6 +157,10 @@ class CCoreTask
 			#if CORE_FOR_AUDIO_SYSTEM != 0
 				void IPIHandler(unsigned nCore, unsigned nIPI);
 			#endif
+		#endif
+		
+		#if USE_FILE_SYSTEM
+			FATFS *GetFileSystem();
 		#endif
 		
 	private:
@@ -222,7 +233,7 @@ private:
 	
 	#if USE_UI_SYSTEM
 		wsApplication 	m_app;
-		#ifdef USE_480x320_ILI9486_XPT2046_TOUCHSCREEN
+		#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
 			CSPIMaster	m_SPI;
 			ILI9846 	m_ili9486;
 			XPT2046 	m_xpt2046;
@@ -230,8 +241,15 @@ private:
 			CTouchScreenDevice	m_TouchScreen;
 		#endif
 	#endif
-	
+
 	CCoreTask 	m_CoreTask;
+	
+	#if USE_FILE_SYSTEM
+		CEMMCDevice			m_EMMC;
+		FATFS				m_FileSystem;
+		void initFileSystem();
+	#endif
+	
 	
 	
 };
