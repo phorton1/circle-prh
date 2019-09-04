@@ -51,6 +51,29 @@
 // wsWindow
 //----------------------------------------------
 
+#include <circle/synchronize.h>
+
+wsWindow::~wsWindow()
+{
+	DisableIRQs();	// in synchronize.h
+	
+	LOG("wsWindow(%X) dtor",(u32)this);
+    while (m_pFirstChild)
+	{
+		printf("deleting child 0x%X\n",(u32) m_pFirstChild);
+		delete m_pFirstChild;
+	}
+	if (m_pParent)
+		m_pParent->deleteChild(this);
+
+	assert(m_pFirstChild == 0);
+	assert(m_pLastChild == 0);
+	assert(m_numChildren == 0);
+
+	EnableIRQs();
+}
+
+
 wsWindow::wsWindow(
 		wsWindow *pParent,
 		u16 id,
@@ -76,6 +99,7 @@ wsWindow::wsWindow(
 	m_pNextSibling = 0;
 	m_pFirstChild  = 0;
 	m_pLastChild   = 0;
+	m_numChildren  = 0;
 
 	if (m_pParent)
 	{
@@ -178,6 +202,8 @@ wsTopLevelWindow *wsWindow::getTopWindow() const
 
 void wsWindow::addChild(wsWindow *pWin)
 {
+	LOG("win(%X)::addChild(%X) numChildren=%d",(u32)this, (u32) pWin, m_numChildren);
+	
 	if (m_pLastChild)
 	{
 		m_pLastChild->m_pNextSibling = pWin;
@@ -190,6 +216,29 @@ void wsWindow::addChild(wsWindow *pWin)
 	m_pLastChild = pWin;
 	m_numChildren++;
 }
+
+
+void wsWindow::deleteChild(wsWindow *pWin)
+{
+	LOG("win(%X)::deleteChild(%X) numChildren=%d",(u32)this, (u32) pWin, m_numChildren);
+	
+	assert(pWin);
+	assert(pWin->m_pParent == this);
+	
+	if (pWin->m_pNextSibling)
+		pWin->m_pNextSibling->m_pPrevSibling = pWin->m_pPrevSibling;
+	if (pWin->m_pPrevSibling)
+		pWin->m_pPrevSibling->m_pNextSibling = pWin->m_pNextSibling;
+	if (pWin == m_pFirstChild)
+		m_pFirstChild = pWin->m_pNextSibling;
+	if (pWin == m_pLastChild)
+		m_pLastChild = pWin->m_pPrevSibling;
+	
+	m_numChildren--;
+	
+	m_pDC->invalidate(pWin->m_rect_abs);	
+}
+
 
 
 wsWindow *wsWindow::findChildByID(u16 id)

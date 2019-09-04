@@ -164,7 +164,7 @@ class wsWindow : public wsEventHandler
 	public:
 	
 		wsWindow(wsWindow *pParent, u16 id, s32 xs, s32 ys, s32 xe, s32 ye, u32 style=0);
-		~wsWindow() {}	
+		virtual ~wsWindow();
 
 		u16 getID() const			{ return m_id; }
 		u32 getStyle() const	   	{ return m_style; };
