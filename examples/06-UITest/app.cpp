@@ -15,6 +15,7 @@
 #include <ws/ws.h>
 #include <circle/logger.h>
 #include <system/std_kernel.h>
+#include <utils/myUtils.h>
 
 #define log_name  "app"
 

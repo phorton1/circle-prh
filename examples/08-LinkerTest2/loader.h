@@ -9,6 +9,7 @@
 
 #include <circle/types.h>
 #include <fatfs/ff.h>
+#include <utils/myUtils.h>
 
 
 class CLoader
