@@ -25,4 +25,4 @@ libws.a: $(OBJS)
 	@rm -f $@
 	@$(AR) cr $@ $(OBJS)
 
-include $(CIRCLEHOME)/sample/Rules.mk
+include ../myRules.mk

@@ -4,7 +4,6 @@
 
 CIRCLEHOME = ../../
 
-
 OBJS	= \
     main.o \
 	std_kernel.o \
@@ -16,4 +15,5 @@ libsystem.a: $(OBJS)
 	@rm -f $@
 	@$(AR) cr $@ $(OBJS)
 
-include $(CIRCLEHOME)/Rules.mk
+include ../myRules.mk
+

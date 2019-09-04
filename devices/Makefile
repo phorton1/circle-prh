@@ -17,4 +17,5 @@ libdevices.a: $(OBJS)
 	@rm -f $@
 	@$(AR) cr $@ $(OBJS)
 
-include $(CIRCLEHOME)/Rules.mk
+include ../myRules.mk
+

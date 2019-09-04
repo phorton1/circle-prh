@@ -2,17 +2,12 @@
 # Makefile
 #
 
-CIRCLEHOME = ../../../../../circle
+CIRCLEHOME = ../../..
 
 OBJS	= main.o kernel.o  touch_pen.o
 
-MAKE_LIBS = \
-	../../liblcd.mark 
+MAKE_LIBS = $(CIRCLEHOME)/_prh/lcd/liblcd.mark
 
-LIBS	= \
-	../../liblcd.a \
-	$(CIRCLEHOME)/lib/libcircle.a \
-	$(CIRCLEHOME)/lib/sched/libsched.a \
+LIBS = $(CIRCLEHOME)/_prh/lcd/liblcd.a 
 	
-
-include $(CIRCLEHOME)/Rules.mk
+include ../../myRules.mk

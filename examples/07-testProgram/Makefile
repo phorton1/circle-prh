@@ -42,4 +42,4 @@ program.img : $(OBJS) program.ld
 	@wc -c < program.img
 
 
-include $(CIRCLEHOME)/Rules.mk
+include ../../myRules.mk

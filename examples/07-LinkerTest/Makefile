@@ -6,13 +6,6 @@ CIRCLEHOME = ../../..
 
 OBJS	= main.o kernel.o loader.o
 
-LIBS	= \
-	$(CIRCLEHOME)/lib/libcircle.a \
-	$(CIRCLEHOME)/lib/fs/libfs.a \
-	$(CIRCLEHOME)/addon/SDCard/libsdcard.a \
-	$(CIRCLEHOME)/addon/fatfs/libfatfs.a \
-	
-
 $(TARGET).$(TARGET_SUFFIX) : $(OBJS) $(LIBS) $(CIRCLEHOME)/circle.ld $(MAKE_LIBS)
 	@echo "  LD    $(TARGET).elf"
 	@$(LD) -o $(TARGET).elf -Map $(TARGET).map --section-start=.init=$(LOADADDR) \
@@ -27,4 +20,4 @@ $(TARGET).$(TARGET_SUFFIX) : $(OBJS) $(LIBS) $(CIRCLEHOME)/circle.ld $(MAKE_LIBS
 	
 
 
-include $(CIRCLEHOME)/Rules.mk
+include ../../myRules.mk

@@ -9,7 +9,8 @@
 #define USE_SCREEN  	 0
 
 #include <circle/memory.h>
-#include <circle/actled.h>
+#include <utils/myActLED.h>
+#include <utils/myUtils.h>
 #include <circle/koptions.h>
 #include <circle/devicenameservice.h>
 #if USE_SCREEN
@@ -45,7 +46,7 @@ public:
 private:
 
 	CMemorySystem		m_Memory;
-	CActLED				m_ActLED;
+	myActLED			m_ActLED;
 	CKernelOptions		m_Options;
 	CDeviceNameService	m_DeviceNameService;
 	#if USE_SCREEN

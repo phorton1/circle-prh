@@ -7,11 +7,6 @@ CIRCLEHOME = ../../..
 OBJS = kernel.o main.o
 
 MAKE_LIBS = \
-	../../devices/libdevices.mark \
-	
-LIBS	= \
-	$(CIRCLEHOME)/lib/libcircle.a \
-	../../devices/libdevices.a \
+	$(CIRCLEHOME)/_prh/devices/lib_devices.mark \
 
-
-include $(CIRCLEHOME)/Rules.mk
+include ../../myRules.mk

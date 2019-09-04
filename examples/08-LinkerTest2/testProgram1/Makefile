@@ -45,4 +45,4 @@ $(PROG_NAME).img : $(OBJS) $(PROG_NAME).ld
 	@wc -c < $(PROG_NAME).img
 
 
-include $(CIRCLEHOME)/Rules.mk
+include ../../../myRules.mk

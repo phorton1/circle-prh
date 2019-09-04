@@ -15,19 +15,6 @@ OBJS	= \
 	tftpbootserver.o \
 
 
-LIBS	= \
-	../utils/lib_my_utils.a \
-	$(CIRCLEHOME)/lib/usb/libusb.a \
-	$(CIRCLEHOME)/lib/input/libinput.a \
-	$(CIRCLEHOME)/lib/fs/libfs.a \
-	$(CIRCLEHOME)/lib/sched/libsched.a \
-	$(CIRCLEHOME)/lib/libcircle.a \
-	$(CIRCLEHOME)/addon/SDCard/libsdcard.a \
-	$(CIRCLEHOME)/addon/fatfs/libfatfs.a \
-	$(CIRCLEHOME)/lib/fs/fat/libfatfs.a \
-	$(CIRCLEHOME)/lib/net/libnet.a \
-
-
 TARGET_ROOT = recovery
 
 CONTENT	= index.h style.h favicon.h
@@ -44,7 +31,7 @@ endif
 all:	$(COPY_IMG)
 
 
-include $(CIRCLEHOME)/Rules.mk
+include ../myRules.mk
 
 
 $(COPY_IMG): $(TARGET).$(TARGET_SUFFIX)

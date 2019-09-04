@@ -6,25 +6,12 @@ CIRCLEHOME = ../../..
 
 OBJS = shell.o loader.o
 
-MAKE_LIBS = \
-	$(CIRCLEHOME)/_prh/ws/libws.mark \
-	$(CIRCLEHOME)/_prh/audio/libaudio.mark \
-	$(CIRCLEHOME)/_prh/system/std_kernel.mark \
-	$(CIRCLEHOME)/_prh/devices/lib_devices.mark \
+# MAKE_LIBS = \
+# 	$(CIRCLEHOME)/_prh/ws/libws.mark \
+# 	$(CIRCLEHOME)/_prh/audio/libaudio.mark \
+# 	$(CIRCLEHOME)/_prh/system/std_kernel.mark \
+# 	$(CIRCLEHOME)/_prh/devices/lib_devices.mark \
 
-LIBS	= \
-	$(CIRCLEHOME)/_prh/ws/libws.a \
-	$(CIRCLEHOME)/_prh/audio/libaudio.a \
-	$(CIRCLEHOME)/_prh/system/libsystem.a \
-	$(CIRCLEHOME)/_prh/devices/libdevices.a \
-	$(CIRCLEHOME)/lib/libcircle.a \
-	$(CIRCLEHOME)/lib/input/libinput.a \
-	$(CIRCLEHOME)/lib/sched/libsched.a \
-	$(CIRCLEHOME)/lib/usb/libusb.a \
-    $(CIRCLEHOME)/lib/fs/libfs.a \
-	$(CIRCLEHOME)/addon/SDCard/libsdcard.a \
-	$(CIRCLEHOME)/addon/fatfs/libfatfs.a \
-	
 
 $(TARGET).$(TARGET_SUFFIX) : $(OBJS) $(LIBS) $(CIRCLEHOME)/circle.ld $(MAKE_LIBS)
 	@echo "  LD    $(TARGET).elf"
@@ -39,4 +26,4 @@ $(TARGET).$(TARGET_SUFFIX) : $(OBJS) $(LIBS) $(CIRCLEHOME)/circle.ld $(MAKE_LIBS
 	@wc -c < $(TARGET).$(TARGET_SUFFIX)
 		
 
-include $(CIRCLEHOME)/Rules.mk
+include ../../myRules.mk
