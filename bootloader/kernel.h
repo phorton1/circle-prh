@@ -33,9 +33,12 @@
 #include <circle/types.h>
 #include <circle/stdarg.h>
 #include <circle/memory.h>
-#include <circle/actled.h>
 #include <circle/koptions.h>
 #include <circle/devicenameservice.h>
+
+#include <utils/myUtils.h>
+#include <utils/myActLED.h>
+
 
 #if WITH_SCREEN
 	#include <circle/screen.h>
@@ -114,7 +117,7 @@ private:
 	// "do not change this order"
 	
 	CMemorySystem		m_Memory;
-	CActLED				m_ActLED;
+	myActLED			m_ActLED;
 	CKernelOptions		m_Options;
 	CDeviceNameService	m_DeviceNameService;
 	CCPUThrottle		m_CPUThrottle;

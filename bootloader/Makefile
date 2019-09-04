@@ -16,6 +16,7 @@ OBJS	= \
 
 
 LIBS	= \
+	../utils/lib_my_utils.a \
 	$(CIRCLEHOME)/lib/usb/libusb.a \
 	$(CIRCLEHOME)/lib/input/libinput.a \
 	$(CIRCLEHOME)/lib/fs/libfs.a \
@@ -43,7 +44,7 @@ endif
 all:	$(COPY_IMG)
 
 
-include $(CIRCLEHOME)/sample/Rules.mk
+include $(CIRCLEHOME)/Rules.mk
 
 
 $(COPY_IMG): $(TARGET).$(TARGET_SUFFIX)
