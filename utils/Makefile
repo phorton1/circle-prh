@@ -6,6 +6,7 @@ CIRCLEHOME ?= ../../
 
 OBJS	= \
     myUtils.o \
+	miniuart.o \
 
 lib_my_utils.a : $(OBJS)
 	@echo "  AR    $@"

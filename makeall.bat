@@ -7,6 +7,11 @@ make %1 %2
 if %errorlevel% neq 0 exit /b %errorlevel%
 cd ..
 
+cd bt
+make %1 %2
+if %errorlevel% neq 0 exit /b %errorlevel%
+cd ..
+
 cd devices
 make %1 %2
 if %errorlevel% neq 0 exit /b %errorlevel%

@@ -1,0 +1,209 @@
+
+00:00:39.89 SDP: sdpLayer::event(LCAP_EVENT_CONNECTED) hci(0x000c) cid(0x0073) len=0
+00:00:39.90 SDP: doSDPInquiry hci_handle(0x000c) lcid(0x0073) rcid(0x0048)
+00:00:39.91 SDP: Could not find sdpRequest for connection 10:D0:7A:84:A2:74:0x000c  lcid(?Ç@ƒ???P:0x227500)
+
+
+>hci dqid     0c 20 18 00 14 00 73 00
+
+06 00 00 00 0f
+    35 03 19 - 01 00
+    02 90
+    35 05 0a
+        00 00
+        ff ff
+    00                ...É5....  .
+
+
+
+
+--> LCAP CLIENT PACKET hci_handle(0x000c) cid(0x0073)
+00:00:39.95 lcap: Sending 20 data bytes to client SDP for psm(0x0001) and lcid(0x0073)
+00:00:39.96 SDP: sdpLayer::event(LCAP_EVENT_DATA) hci(0x000c) cid(0x0073) len=20
+00:00:39.97 SDP: unhandled SDP DATA EVENT(0x06=0x06=SDP_SVC_SEARCH_ATTR_REQ) hci(0x000c) cid(0x0073) len=20
+
+
+
+<-- SDP_SEARCH_REQUEST[170] lcid=0x0070 svc_id=0x1101 begin(0x0000) end(0xffff)
+<lcap         0c 20 00 00 00 00 45 00 06 aa aa 00 0f 35 03 19    ......E..¬¬..5..
+              11 01 ff ff 35 05 0a 00 00 ff ff 00                ..  5....  .
+<hci eqod     0c 20 18 00 14 00 45 00 06 aa aa 00 0f 35 03 19    ......E..¬¬..5..
+              11 01 ff ff 35 05 0a 00 00 ff ff 00                ..  5....  .
+00:00:09.21 hciEvent: NUMBER_OF_COMPLETED_PACKETS num(1) handle[0]=0x000c completed[0]=1
+>hci dqid     0c 20 4b 00 47 00 70 00 07 aa aa 00 42 00 3f 35    ..K.G.p..¬¬.B.?5
+              3d 36 00 3a 09 00 00 0a 00 01 00 09 09 00 01 35    =6.:...........5
+              03 19 11 01 09 00 04 35 0c 35 03 19 01 00 35 05    .......5.5....5.
+              19 00 03 08 02 09 00 05 35 03 19 10 02 09 01 00    ........5.......
+              25 0c 63 6d 4d 61 6e 61 67 65 72 42 54 00 00       %.cmManagerBT..
+--> LCAP CLIENT PACKET hci_handle(0x000c) cid(0x0070)
+00:00:09.31 lcap: Sending 71 data bytes to client SDP for psm(0x0001) and lcid(0x0070)
+00:00:09.32 SDP: sdpLayer::event(LCAP_EVENT_DATA) hci(0x000c) cid(0x0070) len=71
+   SDP_SVC_SEARCH_ATTR_RESP(7)
+      txn_id(0xaaaa)
+      sdp_len(66)
+      attr_len(63)
+ type_byte(0x35) type(6) size_type(5) size(61) list of attributes lists
+record #0
+ type_byte(0x36) type(6) size_type(6) size(58)  attribute list
+ type_byte(0x09) type(1) size_type(1) size(2) attr_id 0x0000 (SrvRecHndl)
+             type_byte(0x0a) type(1) size_type(2) size(4)  uint32 0x00010009
+
+ type_byte(0x09) type(1) size_type(1) size(2) attr_id 0x0001 (SrvClassIDList)
+             type_byte(0x35) type(6) size_type(5) size(3) sequence
+                 type_byte(0x19) type(3) size_type(1) size(2)  uuid-16 0x1101 (SP)
+
+ type_byte(0x09) type(1) size_type(1) size(2) attr_id 0x0004 (ProtocolDescList)
+             type_byte(0x35) type(6) size_type(5) size(12) sequence
+                 type_byte(0x35) type(6) size_type(5) size(3) sequence
+                     type_byte(0x19) type(3) size_type(1) size(2)  uuid-16 0x0100 (L2CAP)
+                 type_byte(0x35) type(6) size_type(5) size(5) sequence
+                     type_byte(0x19) type(3) size_type(1) size(2)  split uuid-16 0x0003 (RFCOMM)
+                     type_byte(0x08) type(1) size_type(0) size(1)  uint8  0x02
+
+ type_byte(0x09) type(1) size_type(1) size(2) attr_id 0x0005 (BrwGrpList)
+             type_byte(0x35) type(6) size_type(5) size(3) sequence
+                 type_byte(0x19) type(3) size_type(1) size(2)  uuid-16 0x1002 (PubBrwsGrp)
+
+ type_byte(0x09) type(1) size_type(1) size(2) attr_id 0x0100 (SrvName)
+             type_byte(0x25) type(4) size_type(5) size(12)  str "cmManagerBT"
+
+
+
+
+}
+
+
+
+
+
+        
+        {
+        // The "rfcomm_channel" associated with the SPP service
+        // for port27 finally comes into play.  We now issue a
+        // 2nd SABM command with the rfcomm_channel 0x03 for SPP
+        // we got from SDP on the lenovo.
+        
+        rfcomm_command cmd;
+        memset(&cmd,0,sizeof(rfcomm_command));
+        cmd.hdr.hci.handle = lcn->device->handle | 0x2000;
+        cmd.hdr.lcap_d.cid = lcn->remote_cid;
+        cmd.frame.address = (SPP_CHANNEL << 3) | 0x03;
+        cmd.frame.control = 0x3f;			    // Control
+        cmd.frame.len = 0x01;			        // length (MSB?)
+        cmd.frame.fcs = FCS((u8*)&cmd.frame,3); // 0xd3;
+        
+        LOG("Sending 2nd SABM packet ...",0);
+        display_bytes("<rfcomm",(u8 *) &cmd,sizeof(cmd));
+        m_pLCAP->sendData(&cmd,sizeof(cmd));
+        }
+        
+        // the rest of it is a state machine
+        // we may receive parameter negotiation packets
+        // for DLC0 or the newly opened SPP channel
+        // and I think we are required to send responses,
+        // possibly even to send parameter requests
+        
+        else if (p_frame->address == 0x1b &&     // 0x03 == DLC0
+            p_frame->control == 0x73)       // rframeUA with, once again, 0x10 added
+        {
+        LOG("Got UA response for SPP!!",0);
+        
+        // try sending some bytes
+        
+        const char *data = "THIS IS A TEST\n\rI HOPE IT WORKS!!!\r\n";
+        u8 slen = strlen(data);
+        
+        u8 buf[255];
+        u8 *p = &buf[sizeof(rfcomm_data_header)];
+        rfcomm_data_header *cmd = (rfcomm_data_header *) buf;
+        
+        cmd->hdr.hci.handle = lcn->device->handle | 0x2000;
+        cmd->hdr.lcap_d.cid = lcn->remote_cid;
+        cmd->address = (SPP_CHANNEL << 3) | 0x03;
+        cmd->control = rframeUIH;			            // 0xEF 
+        cmd->len = (slen << 1) | 0x01;			        // length (MSB?)
+        
+        memcpy(p,data,slen);
+        p += slen;;
+        
+        u8 crc_len = 3 + slen;
+        *p++ = FCS((u8*)&cmd->address,crc_len); // 0xd3;
+        
+        u16 len = ((u32)p) - ((u32)buf);
+        LOG("Sending data packet ...",0);
+        display_bytes("<rfcomm",buf,len);
+        m_pLCAP->sendData(buf,len);
+        }
+        
+        else
+        {
+        // the channel to SPP is open ..
+        // I subsequently get  01 ef 09 e3 05 1b 8d aa
+        //                     01 ef 09 e3 05 1b 8d aa
+        // as I continue to get other lcap connection requests
+        //
+        //    01 = dlc0, EA, response(0) direction(0)
+        //    ef = rframeUIH
+        
+        LOG("GOT SOMETHING DIFFERENT",0);
+        // m_pLCAP->closeConnection(lcn);
+          }
+            
+}   // rfLayyer::rfEventHandler()        
+
+            // try interrpeting that in context of above
+            //
+            //        0x03 = message is on DLC0
+            //        0x73 = UA?!?
+            //        0x01 = no data
+            //        0xd7 = a calculated FCS
+            //
+            // which matches the dummies example:
+            //
+            //      < 02 2a 20 08 00 04 00 41  00
+            //        03 3f 01 1c
+            //          //1-st SABM on channel 0 (byte @ 0x9 == 0x3)
+            //      > 02 2a 20 08 00 04 00 41  00
+            //        03 73 01 d7
+            //          //UA response
+            //
+            // I wonder if I can skip these parameter negotiation steps
+            //
+            //      < 02 2a 20 12 00 0e 00 41  00
+            //        03 ef 15 83 11 20 f0
+            //        07 00 37 00 00 07 70
+            //          //  PM (paramater negotiation) request
+            //      > 02 2a 20 12 00 0e 00 41  00
+            //        01 ef 15 81 11 20 e0
+            //        00 00 37 00 00 07 aa                             
+            //          // PM (parameter negotiation) response
+            //
+            // Here they open a 2nd SABM, on the "rfcomm_channel"
+            // which, for lenovo SPP, is 0x03 (not 0x10 as in the example)
+            //
+            //      < 02 2a 20 08 00 04 00 41  00
+            //        83 3f 01 ca
+            //          // 2nd SABM  on channel 0x10
+            //          // (byte @ 0x9 == 0x83, channel number << 3 = 0x80)
+            //      > 02 2a 20 08 00 04 00 41  00
+            //        83 73 01 01
+            //          // 2nd UA response
+            //      
+            //      < 02 2a 20 0c 00 08 00 41  00
+            //        03 ef 09 e3 05 83 8d 70
+            //          //MSC (modem status) command
+            //      > 02 2a 20 0c 00 08 00 41  00
+            //        01 ef 09 e3 05 83 8d aa
+            //          //MSC (modem status) command
+            //
+            //      < 02 2a 20 0c 00 08 00 41  00
+            //        03 ef 09 e1 05 83 8d 70
+            //          //MSC (modem status) response
+            //      > 02 2a 20 0c 00 08 00 41  00
+            //        01 ef 09 e1 05 83 8d aa
+            //          //MSC (modem status) response
+            //      
+            //      < 02 2a 20 09 00 05 00 41  00
+            //        83 ff 01 21 c4
+            //          //Command with credit on channel 0x10
+             
