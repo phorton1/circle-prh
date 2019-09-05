@@ -8,7 +8,7 @@
 #define log_name "testBT"
 
 #define INQUIRY_SECONDS			12
-#define PRE_POPULATE_DEVICES   	1
+#define PRE_POPULATE_DEVICES   	0
 
 #define STATE_NONE              	0
 #define STATE_SELECT_DEVICE         1
