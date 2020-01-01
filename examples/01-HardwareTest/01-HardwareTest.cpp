@@ -12,7 +12,7 @@
 // audio card, or to interface to a Teensy running the AudioInputI2SQuad
 // device where channels 3/4 are hooked up as I/O channels to the rPi.
 
-#define USE_CS42448             0
+#define USE_CS42448             1
 #define USE_TEENSY_QUAD_SLAVE   0
 
 // These defines let you choose various ways the sound
@@ -27,7 +27,7 @@
 // for my setup.
 
 #if USE_CS42448
-    #define USE_MUSICAL_SCALE   1
+    #define USE_MUSICAL_SCALE   0
     #define USE_MODULATION      0
     #define TOGGLE_SOUND        1
     #define VOLUME_LEVEL        0.5

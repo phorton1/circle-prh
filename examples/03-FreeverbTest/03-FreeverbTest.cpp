@@ -12,11 +12,11 @@
 
 #define USE_REVERB      0
 #define USE_FREEVERB    1
-#define USE_MIXER       1
+#define USE_MIXER       0
 
 
 
-#define USE_CS42448  0
+#define USE_CS42448  1
     // default is AudioInjector Stereo wm8731 running the clocks
 
 #if USE_CS42448
