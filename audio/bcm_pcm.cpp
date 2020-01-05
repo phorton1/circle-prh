@@ -826,6 +826,8 @@ void BCM_PCM::audioInIRQ(void)
 		{
 			in_other_count++;
 			PeripheralExit();
+			// 2020-01-05  YIKES this should be "audioOutIRQ9)" !!!!!!
+			// Now I need to regression test EVERYTHING sheesh.
 			audioInIRQ();
 		}
 		else
