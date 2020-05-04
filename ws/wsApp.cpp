@@ -132,7 +132,7 @@ void wsApplication::Initialize(
 	// Call the client's Create() method
 	
 	Create();
-	print_rect("after create invalid",&m_pDC->getInvalid());
+	// print_rect("after create invalid",&m_pDC->getInvalid());
 }
 
 
@@ -353,20 +353,25 @@ void wsApplication::timeSlice()
 		if (debug_update)
 			debug_update--;
 	#endif
+
+		// always dispatch WIN_EVENT_FRAME to the top level
+		
+	#if 0		
+		if (m_pTopWindow)
+		{
+			wsEvent *frame_event = new wsEvent(
+				EVT_TYPE_WINDOW,
+				WIN_EVENT_FRAME,
+				m_pTopWindow);
+			m_pTopWindow->handleEvent(frame_event);
+			delete frame_event;
+		}
+	#endif
 	
 	// dispatch any pending events to the top level window
 	
 	if (m_pFirstEvent && m_pTopWindow)
 	{
-		// always dispatch WIN_EVENT_FRAME to the top level
-		
-		wsEvent *frame_event = new wsEvent(
-			EVT_TYPE_WINDOW,
-			WIN_EVENT_FRAME,
-			m_pTopWindow);
-		m_pTopWindow->handleEvent(frame_event);
-		delete frame_event;
-		
 		wsEvent *event = m_pFirstEvent;
 		if (event->m_pNext)
 		{

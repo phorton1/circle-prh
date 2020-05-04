@@ -49,7 +49,8 @@ protected:
     AudioControlWM8731(u16 dummy) {}
 	void write(unsigned int reg, unsigned int val);
     
-	virtual u8 handleMidiEvent(midiEvent *event);
+    // old
+	// virtual u8 handleMidiEvent(midiEvent *event);
     
 
 };

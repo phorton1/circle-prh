@@ -233,22 +233,24 @@ void AudioControlWM8731Slave::start(void)
 // event handling
 //----------------------------------
 
-u8 AudioControlWM8731::handleMidiEvent(midiEvent *event)
-{
-	LOG("MIDI_EVENT msg(0x%02x) value1(0x%02x) value2(%d)",
-		event->getMsg(),
-		event->getValue1(),
-		event->getValue2());
-	
-	if (event->getMsg() == MIDI_MSG_CC)
-	{
-		if (event->getValue1() == MIDI_CC_VOL)
-		{
-			float value = event->getValue2() / 127;
-			LOG("MIDI_EVENT alue=%d float=%0.02f",event->getValue2(),value);
-			volume(value);
-		}
-	}
-	return 0;
-}
+// old midi handling
+//
+// u8 AudioControlWM8731::handleMidiEvent(midiEvent *event)
+// {
+// 	LOG("MIDI_EVENT msg(0x%02x) value1(0x%02x) value2(%d)",
+// 		event->getMsg(),
+// 		event->getValue1(),
+// 		event->getValue2());
+// 	
+// 	if (event->getMsg() == MIDI_MSG_CC)
+// 	{
+// 		if (event->getValue1() == MIDI_CC_VOL)
+// 		{
+// 			float value = event->getValue2() / 127;
+// 			LOG("MIDI_EVENT alue=%d float=%0.02f",event->getValue2(),value);
+// 			volume(value);
+// 		}
+// 	}
+// 	return 0;
+// }
 

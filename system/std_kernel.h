@@ -251,6 +251,9 @@ private:
 	#endif
 	
 	
+	#if USE_MIDI_SYSTEM
+		static void midiPacketHandler(unsigned cable, u8 *pPacket, unsigned length);
+	#endif
 	
 };
 

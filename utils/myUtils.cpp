@@ -32,8 +32,10 @@ void printf(const char *pMessage, ...)
             va_start(var, pMessage);
             CString Message;
             Message.FormatV(pMessage, var);
-            pDevice->Write("\x1b[96m",5);		// light cyan
-            pDevice->Write((const char *) Message, Message.GetLength());
+            unsigned int len1 = pDevice->Write("\x1b[96m",5);		// light cyan
+			assert(len1 == 5);
+            unsigned int len2 = pDevice->Write((const char *) Message, Message.GetLength() );
+			assert(len2 == Message.GetLength());
             va_end(var);
         }
     }

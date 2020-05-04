@@ -20,6 +20,7 @@
 #if USE_MIDI_SYSTEM
 	#include <circle/usb/usbmidi.h>
 	#include <circle/usb/usbstring.h>
+	#include "midiEvent.h"
 #endif
 
 #if USE_FILE_SYSTEM
@@ -268,8 +269,13 @@ CKernel::CKernel(void) :
 		m_MiniUart(&m_Interrupt),
 	#endif
 	m_Timer(&m_Interrupt),
+	
+	// prh - 2020-05-03   Logging seems to work WAY better without the interrupt system !
+	// THIS HAS NOT BEEN TESTED WITH THE BOOTLOADER, WHICH *MIGHT* NEED THE INTERRUPTS
+	// but conveniently has it's own Kernel.
+	
 	#if USE_MAIN_SERIAL
-		m_Serial(&m_Interrupt, TRUE),
+		m_Serial(0,FALSE),	// &m_Interrupt, TRUE),
 	#endif
 	m_Logger(LogDebug,&m_Timer)	// m_Options.GetLogLevel(), &m_Timer)
 	#if USE_USB
@@ -437,15 +443,15 @@ TShutdownMode CKernel::Run(void)
 				delete p_str1;
 				delete p_str2;
 
-				
 				dev_num++;
+				pMidiDevice->RegisterPacketHandler(midiPacketHandler);
 			}
 			else
 			{
 				found = 0;
 			}
 		}
-		//		pMIDIDevice->RegisterPacketHandler(midiPacketHandler);
+		
 	#endif	
 
 	m_CoreTask.Run(0);
@@ -454,6 +460,41 @@ TShutdownMode CKernel::Run(void)
 
 }
 
+
+
+#if USE_MIDI_SYSTEM
+	// static
+	void CKernel::midiPacketHandler(unsigned cable, u8 *pPacket, unsigned length)
+	{
+		// The packet contents are just normal MIDI data - see
+		// https://www.midi.org/specifications/item/table-1-summary-of-midi-message
+	
+		// MPD218 note packats have a length of 2
+		// control packets have a length of 3
+		// if (length < 3)
+		// {
+		// 	return;
+		// }
+	
+		u8 status  = pPacket[0];
+		u8 channel = status & 0x0F;
+		u8 type    = status >> 4;
+		u8 param1  = pPacket[1];			// the key for note on and off events
+		u8 param2  = pPacket[2];			// velocity for note on and off events
+		
+		LOG("midPacket(length=%d cable=%d channel=%d type=%d param1=%d param2=%d)",length,cable,channel,type,param1,param2);
+		
+		midiEvent *pEvent = new midiEvent(
+			length,
+			cable,
+			channel,
+			type,
+			param1,
+			param2);
+		midiEventHandler::dispatchMidiEvent(pEvent);
+		delete pEvent;
+	}
+#endif
 
 
 

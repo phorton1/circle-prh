@@ -69,7 +69,11 @@ wsWindow* wsTopLevelWindow::hitTest(s32 x, s32 y)
 
 u32 wsTopLevelWindow::handleEvent(wsEvent *event)
 {
+	#if 0
+	// WS_FRAME_EVENT messes up this debugging
 	LOG("%08x:%d handleEvent(%08x,%04x)",(u32)this,m_id,event->getEventType(),event->getEventID());
+	#endif
+	
 	u32 result_handled = 0;
 	if (event->getEventType() == EVT_TYPE_WINDOW &&
 		event->getEventID() == WIN_EVENT_CLICK_OUTSIDE)
