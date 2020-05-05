@@ -17,9 +17,12 @@
 	#include <audio/AudioStream.h>
 #endif
 
+#if USE_USB
+	#include <circle/usb/usbstring.h>
+#endif
+
 #if USE_MIDI_SYSTEM
 	#include <circle/usb/usbmidi.h>
-	#include <circle/usb/usbstring.h>
 	#include "midiEvent.h"
 #endif
 
@@ -249,7 +252,7 @@ void CCoreTask::Run(unsigned nCore)
 			if (nCore == CORE_FOR_AUDIO_SYSTEM &&
 				nIPI == IPI_AUDIO_UPDATE)
 			{
-				AudioStream::do_update();
+				AudioSystem::doUpdate();
 			}
 		}
 	#endif
@@ -274,8 +277,12 @@ CKernel::CKernel(void) :
 	// THIS HAS NOT BEEN TESTED WITH THE BOOTLOADER, WHICH *MIGHT* NEED THE INTERRUPTS
 	// but conveniently has it's own Kernel.
 	
+	// EXCEPT IT (not using interrupts) CAUSED ALL KINDS OF NOISE IN THE AUDIO SYSTEM
+	// GRR ... and I changed back to multi-core too ..
+	
+	
 	#if USE_MAIN_SERIAL
-		m_Serial(0,FALSE),	// &m_Interrupt, TRUE),
+		m_Serial(&m_Interrupt, TRUE),	// (0,FALSE,
 	#endif
 	m_Logger(LogDebug,&m_Timer)	// m_Options.GetLogLevel(), &m_Timer)
 	#if USE_USB

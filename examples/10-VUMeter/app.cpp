@@ -11,6 +11,13 @@
 #include "awsVuMeter.h"
 #include "awsLoopTrackButton.h"
 
+#define TEST_SOFT_SERIAL 1
+#if TEST_SOFT_SERIAL
+	#include <system/softSerial.h>
+	softSerial *gp_softSerial = 0;
+#endif
+
+
 #define log_name  "app"
 
 	
@@ -211,6 +218,14 @@ class topWindow : public wsTopLevelWindow
 				else if (id == ID_MENU1_OPTION1)
 				{	
 					LOG("ID_MENU1_OPTION1",0);
+
+					#if TEST_SOFT_SERIAL
+						if (!gp_softSerial)
+							gp_softSerial = new softSerial(115200);
+						LOG("writing bytes ...",0);
+						gp_softSerial->write("the lazy red fox",17);
+					#endif
+					
 					result_handled = 1;
 				}
 				else if (id == ID_MENU1_OPTION2)
@@ -279,50 +294,54 @@ void wsApplication::Create()
 	pMenu->addChoice(ID_MENU1_OPTION2,"option2");
 	pMenu->addChoice(ID_MENU1_OPTION3,"option3");
 	
-	s_pVU1 = new awsVuMeter(pTitle,ID_VU1,width-250-1,7,width-130,24,1,12);
-	s_pVU2 = new awsVuMeter(pTitle,ID_VU2,width-250-1,26,width-130,43,1,12);
-	s_pVU1->setAudioDevice("tdmi",0,0);
-	s_pVU2->setAudioDevice("tdmi",0,0);
+	#if 1
+		s_pVU1 = new awsVuMeter(pTitle,ID_VU1,width-250-1,7,width-130,24,1,12);
+		s_pVU2 = new awsVuMeter(pTitle,ID_VU2,width-250-1,26,width-130,43,1,12);
+		s_pVU1->setAudioDevice("tdmi",0,0);
+		s_pVU2->setAudioDevice("tdmi",0,0);
+	#endif
 	
-	// create the loop track buttons
+	#if 1
+		// create the loop track buttons
+		
+		s32 cwidth = pContent->getWidth();
+		s32 cheight= pContent->getHeight();
+		
+		// allow 4 pixels between buttons
+		
+		int space = 4;
+		
+		s32 bwidth = (cwidth - (space * (NUM_LTB_COLS+1))) / NUM_LTB_COLS;
+		s32 bheight = (cheight - (space * (NUM_LTB_ROWS+1))) / NUM_LTB_ROWS;
+		s32 step_width = (cwidth - space) / NUM_LTB_COLS;
+		s32 step_height = (cheight - space) / NUM_LTB_ROWS;
+		
+		int use_id = ID_LOOP_BUTTON_BASE;
+		int use_y = space;
 	
-	s32 cwidth = pContent->getWidth();
-	s32 cheight= pContent->getHeight();
-	
-	// allow 4 pixels between buttons
-	
-	int space = 4;
-	
-	s32 bwidth = (cwidth - (space * (NUM_LTB_COLS+1))) / NUM_LTB_COLS;
-	s32 bheight = (cheight - (space * (NUM_LTB_ROWS+1))) / NUM_LTB_ROWS;
-	s32 step_width = (cwidth - space) / NUM_LTB_COLS;
-	s32 step_height = (cheight - space) / NUM_LTB_ROWS;
-	
-	int use_id = ID_LOOP_BUTTON_BASE;
-	int use_y = space;
-
-	for (u8 row=0; row<NUM_LTB_ROWS; row++)
-	{
-		int use_x = space;
-		for (u8 col=0; col<NUM_LTB_COLS; col++)
+		for (u8 row=0; row<NUM_LTB_ROWS; row++)
 		{
-			LOG("creating row(%d) col(%d)",row,col);
-			new awsLoopTrackButton(
-				row,
-				col,
-				pContent,
-				use_id,
-				use_x,
-				use_y,
-				use_x + bwidth-1,
-				use_y + bheight-1);
-			
-			use_id++;
-			use_x += step_width;
+			int use_x = space;
+			for (u8 col=0; col<NUM_LTB_COLS; col++)
+			{
+				LOG("creating row(%d) col(%d)",row,col);
+				new awsLoopTrackButton(
+					row,
+					col,
+					pContent,
+					use_id,
+					use_x,
+					use_y,
+					use_x + bwidth-1,
+					use_y + bheight-1);
+				
+				use_id++;
+				use_x += step_width;
+			}
+			use_y += step_height;
+			// delay(50);
 		}
-		use_y += step_height;
-		// delay(50);
-	}
+	#endif
 }
 
 

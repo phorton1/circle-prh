@@ -7,7 +7,7 @@ CIRCLEHOME = ../../..
 OBJS = 	app.o \
 		audio.o \
 		awsVuMeter.o \
-		awsLoopTrackButton.o
+		awsLoopTrackButton.o 
 
 MAKE_LIBS = \
 	$(CIRCLEHOME)/_prh/ws/libws.mark \

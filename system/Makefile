@@ -13,7 +13,8 @@ OBJS	= \
 	std_kernel.o \
 	std_empty_ui.o \
 	std_null_audio_system.o \
-	midiEvent.o
+	midiEvent.o \
+	softSerial.o
 	
 # ifeq ($(strip $(USE_MIDI_SYSTEM)),1)
 # endif	
