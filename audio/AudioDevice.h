@@ -20,8 +20,8 @@ public:
     }
     
 	virtual u16 getType() { return 0; } // = 0;
-	// virtual const char *getName() = 0;
-    // virtual u16 getInstance() { return m_instance; }
+	virtual const char *getName() = 0;
+    virtual u16 getInstance() { return m_instance; }
     
 	// controls
 
@@ -30,9 +30,6 @@ public:
 
 protected:
 	
-	// virtual const char *getName() = 0;
-    virtual u16 getInstance() { return m_instance; }
-
     friend class AudioSystem;
     
     virtual void start() {}
