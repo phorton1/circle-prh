@@ -8,7 +8,7 @@
 #include <circle/logger.h>
 #include <system/std_kernel.h>
 #include <utils/myUtils.h>
-#include "awsVuMeter.h"
+#include <ws/awsVuMeter.h>
 #include "awsLoopTrackButton.h"
 
 #define TEST_SOFT_SERIAL 1

@@ -51,9 +51,4 @@ class awsVuMeter : public wsWindow
 };
 
 
-
-
-
-
-
 #endif  // _awsVuMeter_h

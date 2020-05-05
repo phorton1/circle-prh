@@ -6,7 +6,6 @@ CIRCLEHOME = ../../..
 
 OBJS = 	app.o \
 		audio.o \
-		awsVuMeter.o \
 		awsLoopTrackButton.o 
 
 MAKE_LIBS = \

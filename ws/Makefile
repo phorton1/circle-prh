@@ -18,7 +18,7 @@ OBJS = \
 	wsApp.o \
 	wsThemeStandard.o \
 	wsMenu.o \
-	
+	awsVuMeter.o
 
 libws.a: $(OBJS)
 	@echo "  AR    $@"
