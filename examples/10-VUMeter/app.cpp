@@ -15,6 +15,12 @@
 #if TEST_SOFT_SERIAL
 	#include <system/softSerial.h>
 	softSerial *gp_softSerial = 0;
+	
+	#define SOFT_SERIAL_PIN_TX  8
+	#define SOFT_SERIAL_PIN_RX  9
+		// needs to be two GPIO's that are currently
+	// not used for anything
+	
 #endif
 
 
@@ -221,7 +227,10 @@ class topWindow : public wsTopLevelWindow
 
 					#if TEST_SOFT_SERIAL
 						if (!gp_softSerial)
-							gp_softSerial = new softSerial(115200);
+							gp_softSerial = new softSerial(
+								SOFT_SERIAL_PIN_TX,
+								SOFT_SERIAL_PIN_RX,
+								115200);
 						LOG("writing bytes ...",0);
 						gp_softSerial->write("the lazy red fox",17);
 					#endif

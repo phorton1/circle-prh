@@ -6,12 +6,15 @@
 #define _softSerial_h
 
 #include <circle/types.h>
+#include <circle/gpiopin.h>
+#include <circle/timer.h>
+
 
 class softSerial 
 {
 public:
 
-	softSerial(unsigned long baud_rate);
+	softSerial(unsigned tx_pin, unsigned rx_pin, unsigned long baud_rate);
 	~softSerial(void) {}
 
 	int write(const void *buf, int count);
@@ -22,6 +25,11 @@ public:
 private:
     
     unsigned long m_mhz_per_bit;
+    
+    CTimer *m_timer;
+    CGPIOPin *m_pin_tx;
+    CGPIOPin *m_pin_rx;
+    
     
     
 };  // class softSerial
