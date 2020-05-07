@@ -177,8 +177,8 @@ class wsWindow : public wsEventHandler
 		
 		const wsFont *getFont()				{ return m_pFont; }
 		void setFont(const wsFont *pFont) 	{ m_pFont = pFont; }
-		void setForeColor(wsColor color) 	{ m_fore_color = color; }
-		void setBackColor(wsColor color) 	{ m_back_color = color; }
+		void setForeColor(wsColor color) 	{ m_fore_color = color; m_pDC->invalidate(m_rect_abs);}
+		void setBackColor(wsColor color) 	{ m_back_color = color; m_pDC->invalidate(m_rect_abs);}
 		void setAlign(wsAlignType align)	{ m_align = align; }
 		
 		void show();

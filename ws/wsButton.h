@@ -38,25 +38,8 @@ class wsButton : public wsControl
 				s32 xe,
 				s32 ye,
 				u16 bstyle=0,
-				u32 addl_wstyle=0) :
-			wsControl(pParent,id,xs,ys,xe,ye,
-				addl_wstyle |
-				WIN_STYLE_TOUCH |
-				WIN_STYLE_CLICK | (
-				(bstyle & BTN_STYLE_3D) ? WIN_STYLE_3D :
-				(bstyle & BTN_STYLE_2D) ? WIN_STYLE_2D : 0)),
-			m_button_style(bstyle)
-		{
-			m_button_state = 0;
-			m_align = ALIGN_CENTER;
-			m_fore_color = defaultButtonForeColor;
-			m_back_color = defaultButtonReleasedColor;
-			m_alt_back_color = defaultButtonPressedColor;
-			m_alt_fore_color = m_fore_color;
-			if (text)
-				m_text = text;
-		}
- 
+				u32 addl_wstyle=0);
+
 		bool isPressed() const { return m_button_state & BTN_STATE_PRESSED; }
 		void setAltBackColor(wsColor color)  {m_alt_back_color = color;}
 		void setAltForeColor(wsColor color)  {m_alt_fore_color = color;}

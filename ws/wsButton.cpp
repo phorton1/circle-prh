@@ -9,12 +9,42 @@
 #include "wsEvent.h"
 
 #include <circle/logger.h>
-#define log_name  "wscont"
+#define log_name  "button"
 
 
-//-------------------------------------------------------
-// wsButton
-//-------------------------------------------------------
+wsButton::wsButton(
+		wsWindow *pParent,
+		u16 id,
+		const char *text,
+		s32 xs,
+		s32 ys,
+		s32 xe,
+		s32 ye,
+		u16 bstyle,
+		u32 addl_wstyle) :
+	wsControl(pParent,id,xs,ys,xe,ye,
+		addl_wstyle |
+		WIN_STYLE_TOUCH |
+		WIN_STYLE_CLICK | (
+		(bstyle & BTN_STYLE_3D) ? WIN_STYLE_3D :
+		(bstyle & BTN_STYLE_2D) ? WIN_STYLE_2D : 0))
+{
+	// base class
+	
+	m_align = ALIGN_CENTER;
+	m_fore_color = defaultButtonForeColor;
+	m_back_color = defaultButtonReleasedColor;
+	if (text)
+		m_text = text;
+
+	// this class
+	
+	m_button_state = 0;
+	m_button_style = bstyle;
+	m_alt_back_color = defaultButtonPressedColor;
+	m_alt_fore_color = m_fore_color;
+}
+
 
 void wsButton::onUpdateTouch(bool touched)
 {
@@ -23,6 +53,7 @@ void wsButton::onUpdateTouch(bool touched)
 	#endif
 	setBit(m_state,WIN_STATE_DRAW);
 }
+
 
 
 void wsButton::onUpdateClick()

@@ -115,7 +115,8 @@ void wsApplication::Initialize(
 	
 	m_pDC = new wsDC(m_pScreen);
 	m_pDC->setFont(wsFont8x14);
-	print_rect("initial invalid",&m_pDC->getInvalid());
+	
+	// print_rect("initial invalid",&m_pDC->getInvalid());
 	
 	setFont(wsFont8x14);
 	m_pScreen->InitializeUI(m_pDC,wsDC::driverRegisterStub);

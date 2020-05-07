@@ -21,5 +21,7 @@
 #include "wsEvent.h"
 #include "wsApp.h"
 #include "wsMenu.h"
+#include "awsVuMeter.h"
+#include "wsMidiButton.h"
 
 #endif  // !_ws_h

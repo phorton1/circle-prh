@@ -34,7 +34,7 @@ void wsDC::fillFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color )
 	rect.intersect(m_clip);
 	if (rect.isEmpty())
 	{
-		LOG("skipping %d,%d,%d,%d",x0,y0,x1,y1);
+		// LOG("skipping %d,%d,%d,%d",x0,y0,x1,y1);
 		return;
 	}
 	

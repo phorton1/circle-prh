@@ -259,7 +259,7 @@ wsWindow *wsWindow::findChildByID(u16 id)
 
 void wsWindow::onDraw()
 {
-	#if 1
+	#if 0
 		delay(1);
 		printf("draw(%08x:%d) m_state(%08x) ",
 			(u32)this,

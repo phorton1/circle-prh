@@ -100,8 +100,8 @@ CCoreTask::~CCoreTask()
 		{
 			LOG("AudioSystem starting on Core(%d) mem=%dM",nCore,mem_get_size()/1000000);
 			setup();
-			m_bAudioStarted = 1;
 			LOG("after AudioSystem started mem=%dM",mem_get_size()/1000000);
+			m_bAudioStarted = 1;
 		}
 		else
 		{
@@ -139,8 +139,7 @@ CCoreTask::~CCoreTask()
 			#endif
 		
 			m_pKernel->m_app.Initialize(pUseScreen,pTouch,pMouse);
-	
-			LOG("after UI initialization mem=%dM",mem_get_size()/1000000);
+				LOG("after UI initialization mem=%dM",mem_get_size()/1000000);
 			m_bUIStarted = 1;
 		}
 		else
@@ -223,9 +222,10 @@ void CCoreTask::Run(unsigned nCore)
 				#endif
 				)
 			{
+				CScheduler::Get()->MsSleep(200);
 				bCore0StartupReported = 1;
 				printf("ready ...\n");
-				CScheduler::Get()->MsSleep(500);
+				CScheduler::Get()->MsSleep(200);
 					// to give the printf time before we change
 					// the pin, just a minor aesthetic issue ...
 			
@@ -377,25 +377,26 @@ boolean CKernel::Initialize (void)
 
 
 
-
-CString *getDeviceString(CUSBDevice *usb_device, u8 which)
-{
-	const TUSBDeviceDescriptor *pDesc = usb_device->GetDeviceDescriptor();
-	u8 id =
-		which == 0 ? pDesc->iManufacturer	:
-		which == 1 ? pDesc->iProduct		:
-		which == 2 ? pDesc->iSerialNumber	: 0;
-	if (!id) return 0;
-	if (id == 0xff) return 0;
+#if USE_USB
 	
-	CUSBString usb_string(usb_device);
-	if (usb_string.GetFromDescriptor(id, usb_string.GetLanguageID()))
+	CString *getDeviceString(CUSBDevice *usb_device, u8 which)
 	{
-		return new CString(usb_string.Get());
+		const TUSBDeviceDescriptor *pDesc = usb_device->GetDeviceDescriptor();
+		u8 id =
+			which == 0 ? pDesc->iManufacturer	:
+			which == 1 ? pDesc->iProduct		:
+			which == 2 ? pDesc->iSerialNumber	: 0;
+		if (!id) return 0;
+		if (id == 0xff) return 0;
+		
+		CUSBString usb_string(usb_device);
+		if (usb_string.GetFromDescriptor(id, usb_string.GetLanguageID()))
+		{
+			return new CString(usb_string.Get());
+		}
+		return 0;
 	}
-	return 0;
-}
-
+#endif
 
 
 TShutdownMode CKernel::Run(void)
