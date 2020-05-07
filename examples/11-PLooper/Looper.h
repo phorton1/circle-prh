@@ -34,6 +34,9 @@
 
 #include <audio/Audio.h>
 
+class LoopClip;
+class LoopTrack;
+class Looper;
 
 //----------------------------------------------------------
 // LoopBuffer
@@ -101,16 +104,17 @@ class LoopClip
 {
     public:
         
-        LoopClip(LoopBuffer* loop_buffer, u16 num_channels=2)
-        {
-            m_loop_buffer = loop_buffer;
-            m_num_channels = num_channels;
-            init();
-        }
+        LoopClip(u16 clip_num, LoopTrack* pTrack, u16 num_channels=2);
+
         ~LoopClip()
         {
-            m_loop_buffer = 0;
+            m_pLoopTrack = 0;
+            m_pLoopBuffer = 0;
         }
+        
+        u16 getClipNum()            { return m_clip_num; }
+        LoopTrack *getLoopTrack()   { return m_pLoopTrack; }
+        LoopBuffer *getLoopBuffer() { return m_pLoopBuffer; }
         
         void setNumChannels(u16 num_channels);
         
@@ -126,8 +130,8 @@ class LoopClip
         {
             m_cur_block = 0;
             m_num_blocks = 0;
-            m_max_blocks = m_loop_buffer->getFreeBlocks() / m_num_channels;
-            m_buffer = m_loop_buffer->getBuffer();
+            m_max_blocks = m_pLoopBuffer->getFreeBlocks() / m_num_channels;
+            m_buffer = m_pLoopBuffer->getBuffer();
         }
         
         // A clip thinks of itself in terms of full stereo (num_channels) blocks
@@ -155,7 +159,9 @@ class LoopClip
         
     private:
         
-        LoopBuffer *m_loop_buffer;
+        u16        m_clip_num;
+        LoopTrack  *m_pLoopTrack;
+        LoopBuffer *m_pLoopBuffer;
 
         u16  m_num_channels;
         u16  m_state;
@@ -190,8 +196,12 @@ class LoopTrack
 {
     public:
         
-        LoopTrack(LoopBuffer *loop_buffer);
+        LoopTrack(u16 track_num, Looper *pLooper);
         ~LoopTrack();
+
+        u16 getTrackNum()           { return m_track_num; }
+        Looper *getLooper()         { return m_pLooper; }
+        LoopBuffer *getLoopBuffer() { return m_pLoopBuffer; }
         
         void init()
         {
@@ -214,10 +224,14 @@ class LoopTrack
         u16 getNumClips()           { return m_num_clips; }
         LoopClip *getClip(u16 num); // with error checking
         void commit_recording();
-    
+
+        bool isSelected()  { return m_track_num & 1 ? false : true; }
+        
     private:
         
-        LoopBuffer *m_loop_buffer;
+        u16         m_track_num;
+        Looper     *m_pLooper;
+        LoopBuffer *m_pLoopBuffer;
         
         u16 m_num_clips;                // number recorded, clips
         LoopClip *m_clips[LOOPER_NUM_LAYERS];
@@ -262,7 +276,7 @@ class Looper : public AudioStream
         const char *getLooperStateName(u16 state);
         u16   getLooperState()          { return m_state; }
         
-        LoopBuffer *getLoopBuffer()     { return m_loop_buffer; }
+        LoopBuffer *getLoopBuffer()     { return m_pLoopBuffer; }
         LoopTrack  *getTrack(u16 num)   { return m_tracks[num]; }
 
         // All tracks, even empty ones, can be gotten with the API
@@ -271,7 +285,6 @@ class Looper : public AudioStream
         // getNumUsedTracks.  Tracks know if they are empty.
 
         u16 getNumUsedTracks()          { return m_num_used_tracks; }
-        
         
         LoopTrack  *getCurTrack()       { return m_tracks[m_cur_track_num]; }
         
@@ -299,7 +312,7 @@ class Looper : public AudioStream
         u16 m_cur_track_num;
         u16 m_selected_track_num;
         
-        LoopBuffer *m_loop_buffer;
+        LoopBuffer *m_pLoopBuffer;
         LoopTrack *m_tracks[LOOPER_NUM_TRACKS];
       	audio_block_t *inputQueueArray[LOOPER_MAX_NUM_INPUTS];
 

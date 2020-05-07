@@ -31,7 +31,7 @@ class awsVuMeter : public wsWindow
         
 	protected:
 	
-   		virtual void update();
+   		virtual void updateFrame();
         virtual void onDraw();
         
     private:

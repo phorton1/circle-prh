@@ -84,9 +84,10 @@ void awsVuMeter::setAudioDevice(
 
 
 // virtual
-void awsVuMeter::update()
+void awsVuMeter::updateFrame()
 {
-    wsWindow::update();
+    // wsWindow::update();
+    // wsWindow::updateFrame();
     
     if (m_pPeak)
     {
@@ -96,10 +97,11 @@ void awsVuMeter::update()
         {
             // LOG("setting next_value to %d",value);
             m_next_value = value;
-            m_pDC->invalidate(m_rect_abs);
+            // m_pDC->invalidate(m_rect_abs);
+			setBit(m_state,WIN_STATE_DRAW);
+
         }
     }
-    wsWindow::update();
 }
 
 

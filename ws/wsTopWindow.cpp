@@ -47,17 +47,17 @@ wsWindow* wsTopLevelWindow::hitTest(s32 x, s32 y)
 	}
 	
 	// if the click is outside of the object, and it is registered,
-	// directly generate a WIN_EVENT_CLICK_OUTSIDE event, which
+	// directly generate a EVENT_CLICK_OUTSIDE event, which
 	// the window will then use to hide itself.
 	
 	else if (m_style & WIN_STYLE_POPUP)
 	{
-		LOG("%08x:%d WIN_STYLE_POPUP generating WIN_EVENT_CLICK_OUTSIDE",(u32)this,m_id);
+		LOG("%08x:%d WIN_STYLE_POPUP generating EVENT_CLICK_OUTSIDE",(u32)this,m_id);
 		if (!m_rect_abs.intersects(x,y))
 		{
 			getApplication()->addEvent(new wsEvent(
 				EVT_TYPE_WINDOW,
-				WIN_EVENT_CLICK_OUTSIDE,
+				EVENT_CLICK_OUTSIDE,
 				this ));
 		}
 	}
@@ -76,9 +76,9 @@ u32 wsTopLevelWindow::handleEvent(wsEvent *event)
 	
 	u32 result_handled = 0;
 	if (event->getEventType() == EVT_TYPE_WINDOW &&
-		event->getEventID() == WIN_EVENT_CLICK_OUTSIDE)
+		event->getEventID() == EVENT_CLICK_OUTSIDE)
 	{
-		LOG("%08x:%d WIN_EVENT_CLICK_OUTSIDE hiding self",(u32)this,m_id);
+		LOG("%08x:%d EVENT_CLICK_OUTSIDE hiding self",(u32)this,m_id);
 		assert(event->getObject() == this);
 		debugUpdate(1);
 		

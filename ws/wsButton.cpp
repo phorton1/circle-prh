@@ -69,7 +69,7 @@ void wsButton::onUpdateClick()
 	
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_BUTTON,
-		BTN_EVENT_PRESSED,
+		EVENT_CLICK,
 		this ));
 }
 

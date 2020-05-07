@@ -46,6 +46,7 @@ wsApplication::wsApplication() :
 
 	m_pFirstEvent = 0;
 	m_pLastEvent = 0;
+	m_update_frame_time = 0;
 	
 	m_state |= WIN_STATE_PARENT_VISIBLE;
 		// the application is always progenator of
@@ -297,6 +298,22 @@ void wsApplication::timeSlice()
 		}
 	}
 	
+	// call updateFrame 10 times per second
+	// handling wrapping of the 100 mhz clock
+	
+	#define UPDATE_FRAOME_HUNDRETHS_OF_A_SECOND  10
+	
+	unsigned cur_time = CTimer::Get()->GetTicks();		// 100's of a second
+	if (cur_time < m_update_frame_time ||
+		cur_time > m_update_frame_time + UPDATE_FRAOME_HUNDRETHS_OF_A_SECOND)  
+	{
+		m_update_frame_time = cur_time;
+		for (wsTopLevelWindow *p=m_pBottomWindow; p; p=p->m_pNextWindow)
+		{
+			p->updateFrame();
+		}
+	}
+	
 	// we do not call the base class update() method here ...
 	// instead, we call update directly on each top level window
 	// so that they are drawn in the right order (the stack order
@@ -355,20 +372,6 @@ void wsApplication::timeSlice()
 			debug_update--;
 	#endif
 
-		// always dispatch WIN_EVENT_FRAME to the top level
-		
-	#if 0		
-		if (m_pTopWindow)
-		{
-			wsEvent *frame_event = new wsEvent(
-				EVT_TYPE_WINDOW,
-				WIN_EVENT_FRAME,
-				m_pTopWindow);
-			m_pTopWindow->handleEvent(frame_event);
-			delete frame_event;
-		}
-	#endif
-	
 	// dispatch any pending events to the top level window
 	
 	if (m_pFirstEvent && m_pTopWindow)

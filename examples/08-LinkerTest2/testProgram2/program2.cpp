@@ -55,7 +55,7 @@ class myWindow : public wsWindow
 			LOG("handleEvent(%08x,%d,%d)",type,event_id,id);
 			
 			if (type == EVT_TYPE_BUTTON &&
-				event_id == BTN_EVENT_PRESSED && 
+				event_id == EVENT_CLICK && 
 				id == ID_MY_BUTTON)
 			{
 				result_handled = 1;

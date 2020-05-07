@@ -57,7 +57,7 @@ wsWindow::~wsWindow()
 {
 	DisableIRQs();	// in synchronize.h
 	
-	LOG("wsWindow(%X) dtor",(u32)this);
+	// LOG("wsWindow(%X) dtor",(u32)this);
     while (m_pFirstChild)
 	{
 		printf("deleting child 0x%X\n",(u32) m_pFirstChild);
@@ -202,7 +202,7 @@ wsTopLevelWindow *wsWindow::getTopWindow() const
 
 void wsWindow::addChild(wsWindow *pWin)
 {
-	LOG("win(%X)::addChild(%X) numChildren=%d",(u32)this, (u32) pWin, m_numChildren);
+	// LOG("win(%X)::addChild(%X) numChildren=%d",(u32)this, (u32) pWin, m_numChildren);
 	
 	if (m_pLastChild)
 	{
@@ -220,7 +220,7 @@ void wsWindow::addChild(wsWindow *pWin)
 
 void wsWindow::deleteChild(wsWindow *pWin)
 {
-	LOG("win(%X)::deleteChild(%X) numChildren=%d",(u32)this, (u32) pWin, m_numChildren);
+	// LOG("win(%X)::deleteChild(%X) numChildren=%d",(u32)this, (u32) pWin, m_numChildren);
 	
 	assert(pWin);
 	assert(pWin->m_pParent == this);
@@ -625,7 +625,7 @@ void wsWindow::onUpdateClick()
 {
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_WINDOW,
-		WIN_EVENT_CLICK,
+		EVENT_CLICK,
 		this ));
 }
 
@@ -633,7 +633,7 @@ void wsWindow::onUpdateLongClick()
 {
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_WINDOW,
-		WIN_EVENT_LONG_CLICK,
+		EVENT_LONG_CLICK,
 		this ));
 }
 
@@ -860,4 +860,13 @@ void wsWindow::update()
 }
 
 
+// virtual
 
+void wsWindow::updateFrame()
+	// an update call tree that is 10 times per second
+{
+	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
+	{
+		p->updateFrame();
+	}
+}

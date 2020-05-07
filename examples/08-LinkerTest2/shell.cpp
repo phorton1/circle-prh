@@ -94,7 +94,7 @@ class frameWindow : public wsTopLevelWindow
 			
 			if (!result_handled &&
 				type == EVT_TYPE_BUTTON &&
-				event_id == BTN_EVENT_PRESSED)
+				event_id == EVENT_CLICK)
 			{
 				if (id == BUTTON_EXIT)
 				{

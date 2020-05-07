@@ -61,6 +61,7 @@ class wsApplication : public wsWindow
 		
 		wsEvent *m_pFirstEvent;
 		wsEvent *m_pLastEvent;
+		u32 m_update_frame_time;
 		
 		wsWindow *m_pTouchFocus;
 		touchState_t m_touch_state;

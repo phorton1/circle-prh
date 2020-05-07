@@ -28,11 +28,20 @@ LoopBuffer::~LoopBuffer()
 #undef log_name
 #define log_name "loopclip"
 
-
+LoopClip::LoopClip(u16 clip_num, LoopTrack* pTrack, u16 num_channels /* =2 */)
+{
+    m_clip_num = clip_num;
+    m_pLoopTrack = pTrack;
+    m_pLoopBuffer = pTrack->getLoopBuffer();
+    m_num_channels = num_channels;
+    init();
+}
+        
+        
 void LoopClip::commit()
 {
     m_num_blocks = m_cur_block + 1;
-    m_loop_buffer->commitBlocks(m_num_blocks * m_num_channels);
+    m_pLoopBuffer->commitBlocks(m_num_blocks * m_num_channels);
     
     // set first and last samples in block to 0
 
@@ -62,19 +71,22 @@ void LoopClip::commit()
 #define log_name "looptrack"
 
 
-LoopTrack::LoopTrack(LoopBuffer *loop_buffer)
+LoopTrack::LoopTrack(u16 track_num, Looper *pLooper)
 {
-    m_loop_buffer = loop_buffer;
+    m_track_num = track_num;
+    m_pLooper = pLooper;
+    m_pLoopBuffer = pLooper->getLoopBuffer();
     for (int i=0; i<LOOPER_NUM_LAYERS; i++)
     {
-        m_clips[i] = new LoopClip(m_loop_buffer);
+        m_clips[i] = new LoopClip(i,this);
     }
     init();
 }
 
+
 LoopTrack::~LoopTrack()
 {
-    m_loop_buffer = 0;
+    m_pLoopBuffer = 0;
     for (int i=0; i<LOOPER_NUM_LAYERS; i++)
     {
         delete m_clips[i];
@@ -159,10 +171,10 @@ Looper::Looper() :
    AudioStream(LOOPER_MAX_NUM_INPUTS,LOOPER_MAX_NUM_OUTPUTS,inputQueueArray)
 {
     LOG("Looper ctor",0);
-    m_loop_buffer = new LoopBuffer();
+    m_pLoopBuffer = new LoopBuffer();
     for (int i=0; i<LOOPER_NUM_TRACKS; i++)
     {
-        m_tracks[i] = new LoopTrack(m_loop_buffer);
+        m_tracks[i] = new LoopTrack(i,this);
     }
     init();
     LOG("Looper ctor finished",0);
@@ -172,8 +184,8 @@ Looper::Looper() :
 Looper::~Looper()
 {
     LOG("ctor",0);
-    delete m_loop_buffer;
-    m_loop_buffer = 0;
+    delete m_pLoopBuffer;
+    m_pLoopBuffer = 0;
     for (int i=0; i<LOOPER_NUM_TRACKS; i++)
     {
         delete  m_tracks[i];
@@ -193,7 +205,7 @@ void Looper::init()
     m_cur_track_num = 0;
     m_selected_track_num = 0;
     
-    m_loop_buffer->init();
+    m_pLoopBuffer->init();
     for (int i=0; i<LOOPER_NUM_TRACKS; i++)
     {
         m_tracks[i]->init();
@@ -411,17 +423,19 @@ void Looper::update(void)
             // on the first and last blocks of playback
             // ramp the sound in and out ..
             
-            #define FADE_IN_BLOCKS   30     // approx 15 ms
+            #define FADE_IN_BLOCKS   0     // approx 15 ms
             
-            u32 cur_block = pClip->getCurBlock();
-            u32 num_blocks = pClip->getNumBlocks();
-            double scale = FADE_IN_BLOCKS * AUDIO_BLOCK_SAMPLES - 1;
-            u32 inv_block = num_blocks - cur_block - 1;     // FADE_IN_BLOCKS-1..0
-            //if (cur_block >= num_blocks - FADE_IN_BLOCKS)
-            //{
-            //    LOG("%d %d %d",num_blocks,cur_block,inv_block);
-            //}
-
+            #if FADE_IN_BLOCKS
+                u32 cur_block = pClip->getCurBlock();
+                u32 num_blocks = pClip->getNumBlocks();
+                double scale = FADE_IN_BLOCKS * AUDIO_BLOCK_SAMPLES - 1;
+                u32 inv_block = num_blocks - cur_block - 1;     // FADE_IN_BLOCKS-1..0
+                //if (cur_block >= num_blocks - FADE_IN_BLOCKS)
+                //{
+                //    LOG("%d %d %d",num_blocks,cur_block,inv_block);
+                //}
+            #endif
+            
             // mix playing clips into audio buffers
             
             for (u16 j=0; j<LOOPER_MAX_NUM_INPUTS; j++)     // ASSUMED TO BE TWO FOR THE MOMENT
@@ -432,24 +446,26 @@ void Looper::update(void)
                 {
                     s16 val = op[i];
 
-                    if (cur_block < FADE_IN_BLOCKS)                     // 0..FADE_IN_BLOCKS=1
-                    {
-                        double pos = cur_block * AUDIO_BLOCK_SAMPLES + i;
-                        
-                        double fval = val;
-                        fval *= pos/scale;
-                        val = fval;
-                    }
-                    else if (cur_block >= num_blocks - FADE_IN_BLOCKS)
-                    {
-                        u16 inv_i = AUDIO_BLOCK_SAMPLES - i - 1;
-                        double pos = inv_block * AUDIO_BLOCK_SAMPLES + inv_i;
-
-                        double fval = val;
-                        fval *= pos/scale;
-                        val = fval;
-                    }
-
+                    #if FADE_IN_BLOCKS
+                        if (cur_block < FADE_IN_BLOCKS)                     // 0..FADE_IN_BLOCKS=1
+                        {
+                            double pos = cur_block * AUDIO_BLOCK_SAMPLES + i;
+                            
+                            double fval = val;
+                            fval *= pos/scale;
+                            val = fval;
+                        }
+                        else if (cur_block >= num_blocks - FADE_IN_BLOCKS)
+                        {
+                            u16 inv_i = AUDIO_BLOCK_SAMPLES - i - 1;
+                            double pos = inv_block * AUDIO_BLOCK_SAMPLES + inv_i;
+    
+                            double fval = val;
+                            fval *= pos/scale;
+                            val = fval;
+                        }
+                    #endif
+                    
                     *tp++ += val;
                 }
                 op += AUDIO_BLOCK_SAMPLES;

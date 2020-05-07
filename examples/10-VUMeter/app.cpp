@@ -122,7 +122,7 @@ class dialogWindow : public wsTopLevelWindow
 			#endif
 			
 			if (type == EVT_TYPE_BUTTON &&
-				event_id == BTN_EVENT_PRESSED)
+				event_id == EVENT_CLICK)
 			{
 				if (id == ID_BUTTON_CLOSE)
 				{
@@ -176,23 +176,8 @@ class topWindow : public wsTopLevelWindow
 				LOG("handleEvent(%08x,%d,%d)",type,event_id,id);
 			#endif
 			
-			#if 0
-				if (event_id == WIN_EVENT_FRAME)
-				{
-					static int count = 0;
-					if (count++ % 30 == 0)
-					{
-						// LOG("frame count %d",count);
-						s_pVU1->updateOnFrameEvent();
-						s_pVU2->updateOnFrameEvent();
-					}
-					result_handled = 1;
-				}
-				else
-			#endif
-			
 			if (type == EVT_TYPE_BUTTON &&
-				event_id == BTN_EVENT_PRESSED)
+				event_id == EVENT_CLICK)
 			{
 				if (id == ID_BUTTON1)
 				{

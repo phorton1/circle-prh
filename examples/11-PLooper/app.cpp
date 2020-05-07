@@ -5,7 +5,7 @@
 // which is then "run" via calls to wsApplication::Initialize()
 // and wsApplication::timeSlice()
 
-#include "LooperWindow.h"
+#include "LoopWindow.h"
 #include <circle/logger.h>
 #include <utils/myUtils.h>
 
@@ -18,6 +18,6 @@
 void wsApplication::Create()
 {
 	LOG("wsApplication::Create(%08x)",this);
-	new LooperWindow(this,ID_WIN_LOOPER,0,0,getWidth()-1,getHeight()-1);
+	new LoopWindow(this,ID_WIN_LOOPER,0,0,getWidth()-1,getHeight()-1);
 }
 

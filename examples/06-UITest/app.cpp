@@ -132,7 +132,7 @@ class dialogWindow : public wsTopLevelWindow
 			#endif
 			
 			if (type == EVT_TYPE_BUTTON &&
-				event_id == BTN_EVENT_PRESSED)
+				event_id == EVENT_CLICK)
 			{
 				if (id == ID_BUTTON_CLOSE)
 				{
@@ -210,7 +210,7 @@ class topWindow : public wsTopLevelWindow
 			#endif
 			
 			if (type == EVT_TYPE_BUTTON &&
-				event_id == BTN_EVENT_PRESSED)
+				event_id == EVENT_CLICK)
 			{
 				if (id == ID_BUTTON1)
 				{
@@ -292,7 +292,7 @@ class topWindow : public wsTopLevelWindow
 				}
 			}
 			else if (type == EVT_TYPE_CHECKBOX &&
-					 event_id == CHB_EVENT_VALUE_CHANGED)
+					 event_id == EVENT_VALUE_CHANGED)
 			{
 				if (id == ID_CHECKBOX2)
 				{
@@ -302,7 +302,7 @@ class topWindow : public wsTopLevelWindow
 				}
 			}
 			else if (type == EVT_TYPE_WINDOW &&
-					 event_id == WIN_EVENT_LONG_CLICK)
+					 event_id == EVENT_LONG_CLICK)
 			{
 				if (id == ID_BUTTON4)
 				{

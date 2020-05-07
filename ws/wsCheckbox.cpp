@@ -41,7 +41,7 @@ void wsCheckbox::onUpdateClick()
 	
 	getApplication()->addEvent(new wsEvent(
 		EVT_TYPE_CHECKBOX,
-		CHB_EVENT_VALUE_CHANGED,
+		EVENT_VALUE_CHANGED,
 		this ));
 }
 

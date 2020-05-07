@@ -38,7 +38,7 @@ void midiEventHandler::registerMidiHandler(
 	s8 value1,
 	s8 value2)
 {
-	LOG("registerMidiHandler(0x%08X,0x%08X,%d,%d,%d,%d,%d)",(u32)pObject,(u32)pMethod,cable,channel,msg,value1,value2);
+	// LOG("registerMidiHandler(0x%08X,0x%08X,%d,%d,%d,%d,%d)",(u32)pObject,(u32)pMethod,cable,channel,msg,value1,value2);
 
 	midiEventHandler *handler = new midiEventHandler(pObject,pMethod,cable,channel,msg,value1,value2);
 	
@@ -60,7 +60,7 @@ void midiEventHandler::registerMidiHandler(
 		count++;
 		cur = cur->m_pNextHandler;
 	}
-	LOG("    numHandlers=%d",count);
+	// LOG("    numHandlers=%d",count);
 }
 
 
@@ -73,7 +73,7 @@ void midiEventHandler::unRegisterMidiHandler(
 	s8 value1,
 	s8 value2)
 {
-	LOG("unRegisterMidiHandler(0x%08X,0x%08X,%d,%d,%d,%d,$d)",(u32)pObject,(u32)pMethod,cable,channel,msg,value1,value2);
+	// LOG("unRegisterMidiHandler(0x%08X,0x%08X,%d,%d,%d,%d,$d)",(u32)pObject,(u32)pMethod,cable,channel,msg,value1,value2);
 
 	midiEventHandler *found = 0;
 	midiEventHandler *cur = m_sFirstHandler;
