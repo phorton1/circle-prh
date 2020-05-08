@@ -19,20 +19,25 @@
 #define TRACK_VSPACE  	5
 #define TRACK_HSPACE  	5
 		
-
-
-
-#define ID_LOOPER_STATUS_WINDOW  101
-
 #define ID_RECORD_BUTTON    201
 #define ID_PLAY_BUTTON      202
 #define ID_NEXT_BUTTON      203
 #define ID_STOP_BUTTON      204
 
+#define ID_LOOPER_STATUS_WINDOW  101
+
 #define ID_VU1      		301
 #define ID_VU2      		302
 
 #define	ID_TRACK_CONTROL_BASE 400 	// ..411
+
+
+
+
+#define ID_LOOP_BUTTON1    201		// RECORD - RECORD_NEXT
+#define ID_LOOP_BUTTON2    202		// PLAY_IMMEDIATE/PLAY_NEXT - PLAY_IMMEDIATE - STOP_IMMEDIATE
+#define ID_LOOP_BUTTON3    203		// NEXT
+#define ID_LOOP_BUTTON4    204		// STOP(ZERO) - CLEAR_ALL
 
 
 class LooperStatusBar : public wsWindow
@@ -152,7 +157,7 @@ LoopWindow::LoopWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 
 	#endif
 	
 	int cheight = height-TOP_MARGIN-BOTTOM_MARGIN-TRACK_VSPACE*2;
-	int cwidth = (width-LEFT_MARGIN-1-TRACK_HSPACE*(LOOPER_NUM_TRACKS+1)) / 4;
+	int cwidth = (width-LEFT_MARGIN-1-TRACK_HSPACE*(LOOPER_NUM_TRACKS+1)) / LOOPER_NUM_TRACKS;
 	int step = LEFT_MARGIN + TRACK_HSPACE;
 	
 	for (int i=0; i<LOOPER_NUM_TRACKS; i++)

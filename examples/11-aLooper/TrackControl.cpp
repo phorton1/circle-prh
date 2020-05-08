@@ -34,7 +34,7 @@ TrackControl::TrackControl(
 	int width = xe-xs+1;
 	int height = ye-ys+1;
 	int cwidth = width - CLIP_OUTER_SPACE*2;
-	int cheight = (height - CLIP_OUTER_SPACE*2 - CLIP_BUTTON_SPACE*2) / LOOPER_NUM_LAYERS;
+	int cheight = (height - CLIP_OUTER_SPACE*2 - CLIP_BUTTON_SPACE*(LOOPER_NUM_LAYERS-1)) / LOOPER_NUM_LAYERS;
 	int offset = CLIP_OUTER_SPACE;
 	
 	LOG("width=%d height=%d cwidth=%d cheight=%d offset=%d",width,height,cwidth,cheight,offset);

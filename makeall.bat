@@ -156,6 +156,11 @@ cd examples
     if %errorlevel% neq 0 exit /b %errorlevel%
     cd ..
 
+    cd 11-aLooper
+    make %DO_CLEAN%
+    if %errorlevel% neq 0 exit /b %errorlevel%
+    cd ..
+
 cd ..
     
 :END_MACRO

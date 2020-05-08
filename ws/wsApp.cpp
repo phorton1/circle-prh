@@ -298,14 +298,12 @@ void wsApplication::timeSlice()
 		}
 	}
 	
-	// call updateFrame 10 times per second
-	// handling wrapping of the 100 mhz clock
 	
-	#define UPDATE_FRAOME_HUNDRETHS_OF_A_SECOND  10
+	#define UPDATE_FRAOME_DELAY   3333  	// GetClockTicks() = 1Mhz
 	
-	unsigned cur_time = CTimer::Get()->GetTicks();		// 100's of a second
+	unsigned cur_time = CTimer::Get()->GetClockTicks();		// GetClock() == 100's of a second
 	if (cur_time < m_update_frame_time ||
-		cur_time > m_update_frame_time + UPDATE_FRAOME_HUNDRETHS_OF_A_SECOND)  
+		cur_time > m_update_frame_time + UPDATE_FRAOME_DELAY)  
 	{
 		m_update_frame_time = cur_time;
 		for (wsTopLevelWindow *p=m_pBottomWindow; p; p=p->m_pNextWindow)

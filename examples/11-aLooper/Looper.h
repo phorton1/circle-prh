@@ -225,7 +225,7 @@ class LoopTrack
         LoopClip *getClip(u16 num); // with error checking
         void commit_recording();
 
-        bool isSelected()  { return m_track_num & 1 ? false : true; }
+        bool isSelected();
         
     private:
         
@@ -284,15 +284,16 @@ class Looper : public AudioStream
         // once the 1st is record.  This is encapsulated in
         // getNumUsedTracks.  Tracks know if they are empty.
 
-        u16 getNumUsedTracks()          { return m_num_used_tracks; }
         
-        LoopTrack  *getCurTrack()       { return m_tracks[m_cur_track_num]; }
+        u16         getCurTrackNum()        { return m_cur_track_num; }
+        LoopTrack  *getCurTrack()           { return m_tracks[m_cur_track_num]; }
         
         // Selection not implemented yet
         
-        LoopTrack  *getSelectedTrack()      { return m_tracks[m_selected_track_num]; }
-        u16         getCurTrackNum()        { return m_cur_track_num; }
+        u16         getNumUsedTracks()      { return m_num_used_tracks; }
+        void        selectTrack(u16 num)    { m_selected_track_num = num; }
         u16         getSelectedTrackNum()   { return m_selected_track_num; }
+        LoopTrack  *getSelectedTrack()      { return m_tracks[m_selected_track_num]; }
         
         // state machine API
         

@@ -6,7 +6,7 @@
 #define NUM_STATES  4
 
 
-int state_colors[NUM_STATES] = {wsBLACK,wsDARK_RED,wsBROWN,wsDARK_GREEN};
+// int state_colors[NUM_STATES] = {wsBLACK,wsDARK_RED,wsBROWN,wsDARK_GREEN};
 
 
 ClipButton::ClipButton(
@@ -78,19 +78,52 @@ ClipButton::ClipButton(
 // virtual
 void ClipButton::onDraw()
 {
-	LOG("onDraw(%d,%d)",m_track_num,m_clip_num);
-	wsColor bc  = state_colors[m_clip_state];
+	wsColor bc  = wsBLACK;
+	s32 xs = m_rect_client.xs;
+	s32 ys = m_rect_client.ys;
+	s32 xe = m_rect_client.xe;
+	s32 ye = m_rect_client.ye;
+
+	float pct = 0;
+	float width = xe - xs + 1;
+	float f_cur_block = m_cur_block;
+	
 	m_pDC->setClip(m_clip_abs,m_state & WIN_STATE_INVALID);
 
-	m_pDC->fillFrame(
-		m_rect_client.xs,
-		m_rect_client.ys,
-		m_rect_client.xe,
-		m_rect_client.ye,
-		bc);
+	if (m_cur_block)
+	{
+		wsColor bar_color = wsDARK_RED;
+		if (m_num_blocks)	// tracks that are playing are fairly simple
+		{
+			bar_color = wsDARK_GREEN;
+			pct = f_cur_block / m_num_blocks;
+		}
+		else if (m_clip_num)	// subsequent recording tracks depend on the base track length
+		{
+			u32 base_blocks = pLooper->getTrack(m_track_num)->getClip(0)->getNumBlocks();
+			u32 num_bases = (m_cur_block / base_blocks) + 1;
+			u32 use_base_blocks = num_bases * base_blocks;
+			pct = f_cur_block / use_base_blocks;
+		}
+		else	// the zeroth clip scales in terms of 20 second units
+		{
+			u32 base_blocks = (10 * AUDIO_SAMPLE_RATE) / AUDIO_BLOCK_SAMPLES;
+			u32 num_bases = (m_cur_block / base_blocks) + 1;
+			u32 use_base_blocks = num_bases * base_blocks;
+			pct = f_cur_block / use_base_blocks;
+		}
+		
+		s32 pix = width * pct;
+		// 	LOG("num=%d cur=%d pix=%d  width=%0.4f  pct=%0.4f",m_num_blocks,m_cur_block,pix,width,pct);
+		m_pDC->fillFrame(xs,ys,xs + pix - 1,ye,bar_color);
+		xs += pix;
+	}
+
+	m_pDC->fillFrame(xs,ys,xe,ye,bc);
 	
+		
 	CString msg;
-	msg.Format("%8d/%-8d",
+	msg.Format("%5d/%-5d",
 		m_cur_block,
 		m_num_blocks);
 

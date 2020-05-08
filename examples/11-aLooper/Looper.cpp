@@ -95,6 +95,12 @@ LoopTrack::~LoopTrack()
 }
 
 
+bool LoopTrack::isSelected()
+{
+    return m_track_num == m_pLooper->getSelectedTrackNum() ? true : false;
+}
+
+
 LoopClip *LoopTrack::getClip(u16 num)
 {
     if (num >= LOOPER_NUM_LAYERS)
