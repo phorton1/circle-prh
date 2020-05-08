@@ -4,7 +4,7 @@ rem on circle that is not already built by the outer makeall.bat
 rem
 rem Does not bulid the bootloader
 rem
-rem makeall - by default builds the libraries 
+rem makeall - by default builds just the libraries 
 rem makeall clean - cleans all libraries and examples
 rem makeall examples - make the libraries and examples
 rem makeall clean examples - just clean the examples
@@ -76,8 +76,13 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 cd ..
 
 rem falling through on build, may be examples, or not
+rem if examples or clean we build the examples
+rem but if clean and examples, we only clean the examples
 
-if "%DO_EXAMPLES%" equ "0" goto END_MACRO
+if "%DO_EXAMPLES%" equ "1" goto DO_EXAMPLES
+if "%DO_CLEAN%" equ "clean" goto DO_EXAMPLES
+goto END_MACRO
+
 
 rem if we are cleaning just the examples we will land here
 
