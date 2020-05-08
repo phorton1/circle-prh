@@ -44,34 +44,5 @@ loopClip *loopTrack::getClip(u16 num)
     return m_clips[num];
 }
 
-
-void loopTrack::commit_recording()
-{
-    if (m_num_clips >= LOOPER_NUM_LAYERS)
-    {
-        LOG_ERROR("Attempt to commit a recording with m_num_clips(%d)",m_num_clips);
-        return;
-    }
-    loopClip *pClip = m_clips[m_num_clips];
-    u32 blocks = pClip->getCurBlock();
-    if (!blocks)
-    {
-        LOG_ERROR("Attempt to commit an empty recording",0);
-        return;
-    }
-    if (pClip->getNumBlocks())
-    {
-        LOG_ERROR("Attempt to commit over an already recorded track",0);
-        return;
-    }
-    // LOG("committing recording",0);
-    pClip->commit();
-    #if 0
-        m_base_block_length ||= blocks;
-        if (blocks > m_max_block_length)
-            m_max_block_length = blocks;
-    #endif
-    m_num_clips++;
-}
-        
+   
 

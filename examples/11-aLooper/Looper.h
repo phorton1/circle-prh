@@ -98,13 +98,16 @@ class loopBuffer
 
 #define LOOP_CLIP_CHANNELS   2
 
+#define LOOP_CLIP_STATE_EMPTY       0
+#define LOOP_CLIP_STATE_RECORDING   1
+#define LOOP_CLIP_STATE_RECORDED    2
+
 
 class loopClip
 {
     public:
         
         loopClip(u16 clip_num, loopTrack* pTrack, u16 num_channels=2);
-
         ~loopClip()
         {
             m_pLoopTrack = 0;
@@ -118,6 +121,7 @@ class loopClip
         void setNumChannels(u16 num_channels);
         
         void init()
+            // init() MUST must be called on abort of recording
         {
             m_cur_block = 0;
             m_num_blocks = 0;
@@ -126,6 +130,7 @@ class loopClip
         }   
         
         void start()
+            // start() MUST be called before recording
         {
             m_cur_block = 0;
             m_num_blocks = 0;
@@ -137,8 +142,6 @@ class loopClip
         // This is the only conversion and it is up to the client to know the
         // mapping within the buffer. It is up to the client to make sure that
         // getCurBlock() < getMaxBlocks() before incrementing.
-        //
-        // note also that start() must be called: assert(m_buffer);
         
         s16 *getBlockBuffer()  { return m_cur_block < m_max_blocks ? &m_buffer[m_cur_block * AUDIO_BLOCK_BYTES * m_num_channels] : 0; }
 
@@ -155,6 +158,12 @@ class loopClip
         }
 
         void commit();
+        u16 getClipState()
+        {
+            if (m_num_blocks) return LOOP_CLIP_STATE_RECORDED;
+            if (m_buffer) return LOOP_CLIP_STATE_RECORDING;
+            return LOOP_CLIP_STATE_EMPTY;
+        }
         
     private:
         
@@ -163,7 +172,6 @@ class loopClip
         loopBuffer *m_pLoopBuffer;
 
         u16  m_num_channels;
-        u16  m_state;
         
         u32  m_cur_block;
         u32  m_max_blocks;
@@ -204,12 +212,6 @@ class loopTrack
         
         void init()
         {
-            m_num_clips = 0;            // number already recorded
-            
-                // recording always takes place on the next available clip
-                // this is connoted by the getClip(getNumClips()), which
-                // MAY OVERFLOW ... you have to check before recording!
-            
             for (int i=0; i<LOOPER_NUM_LAYERS; i++)
                 m_clips[i]->init();
         }
@@ -220,7 +222,33 @@ class loopTrack
                 m_clips[i]->zeroCurBlock();
         }
         
-        u16 getNumClips()           { return m_num_clips; }
+        u16 getNumClips()   // includes the currently recording clip, if any
+        {
+            int count = 0;
+            for (int i=0; i<LOOPER_NUM_LAYERS; i++)
+            {
+                if (m_clips[i]->getClipState() > LOOP_CLIP_STATE_EMPTY)
+                    count++;
+                else
+                    break;
+            }
+            return count;
+        }
+        u16 getNumRecordedClips()   // only includes recorded clips
+        {
+            int count = 0;
+            for (int i=0; i<LOOPER_NUM_LAYERS; i++)
+            {
+                if (m_clips[i]->getClipState() >= LOOP_CLIP_STATE_RECORDED)
+                    count++;
+                else
+                    break;
+            }
+            return count;
+        }
+        
+        
+        
         loopClip *getClip(u16 num); // with error checking
         void commit_recording();
 
@@ -232,7 +260,6 @@ class loopTrack
         loopMachine *m_pLooper;
         loopBuffer  *m_pLoopBuffer;
         
-        u16 m_num_clips;                // number recorded, clips
         loopClip *m_clips[LOOPER_NUM_LAYERS];
 
 };
@@ -272,7 +299,9 @@ class loopMachine : public AudioStream
         virtual const char *getName() 	{ return "looper"; }
         virtual u16   getType()  		{ return AUDIO_DEVICE_OTHER; }
         
-        const char *getLoopStateName(u16 state);
+        static const char *getLoopStateName(u16 state);
+        static const char *getCommandName(u16 name);
+
         u16   getLoopState()          { return m_state; }
         
         loopBuffer *getLoopBuffer()     { return m_pLoopBuffer; }
@@ -287,12 +316,19 @@ class loopMachine : public AudioStream
         u16         getCurTrackNum()        { return m_cur_track_num; }
         loopTrack  *getCurTrack()           { return m_tracks[m_cur_track_num]; }
         
-        // Selection not implemented yet
+        // Track Selection ...
+        //
+        // The selected track can be different than the current track.
+        // The current track is the one playing or recording at the moment.
+        //
+        // The user can select one more track than has content, or is
+        // being recorded. If a 0th clip is being recorded, and is
+        // aborted (so the subsequent track can no longer be reached),
+        // the selected track is automatically set back to the current
+        // track. 
         
-        u16         getNumUsedTracks()      { return m_num_used_tracks; }
-        void        selectTrack(u16 num)    { m_selected_track_num = num; }
+        u16         getNumUsedTracks();
         u16         getSelectedTrackNum()   { return m_selected_track_num; }
-        loopTrack  *getSelectedTrack()      { return m_tracks[m_selected_track_num]; }
         
         // state machine API
         
@@ -300,15 +336,19 @@ class loopMachine : public AudioStream
 
     protected:
 
-            void setLooperState(u16 state);
             void setPendingState(u16 state);
 
+            void selectTrack(u16 num);
+            loopTrack  *getSelectedTrack()
+            {
+                return m_tracks[m_selected_track_num];
+            }
+            
     private:
         
         volatile u16 m_state;
         u16 m_pending_state;
         
-        u16 m_num_used_tracks;        // number with content
         u16 m_cur_track_num;
         u16 m_selected_track_num;
         
@@ -317,6 +357,9 @@ class loopMachine : public AudioStream
       	audio_block_t *inputQueueArray[LOOPER_MAX_NUM_INPUTS];
 
         virtual void update(void);
+        
+        loopClip *m_pRecordClip;
+            // set at start of recording
         
 };
 
@@ -332,24 +375,26 @@ extern loopMachine *pLooper;
 // state machine commands
 //------------------------------------------
 
-#define LOOP_COMMAND_NONE           0
-#define LOOP_COMMAND_CLEAR_ALL      1
-#define LOOP_COMMAND_STOP           2
-#define LOOP_COMMAND_PLAY           3
-#define LOOP_COMMAND_RECORD         4
+#define LOOP_COMMAND_NONE               0
+#define LOOP_COMMAND_CLEAR_ALL          10
+#define LOOP_COMMAND_STOP               20
+#define LOOP_COMMAND_PLAY               30
+#define LOOP_COMMAND_RECORD             40
+#define LOOP_COMMAND_SELECT_NEXT_TRACK  50
 
-#define LOOP_COMMAND_DISABLE_CLIP   5
-#define LOOP_COMMAND_ENABLE_CLIP   5
 
-#define LOOP_OOMMAND_SELECT_TRACK   10
-#define LOOP_COMMAND_SELECT_LAYER   11
+// ideas:
+// #define LOOP_COMMAND_STOP_IMMEDIATE     21
+// #define LOOP_COMMAND_PLAY_IMMEDIATE     31
+// #define LOOP_COMMAND_DISABLE_CLIP   5
+// #define LOOP_COMMAND_ENABLE_CLIP    5
+// #define LOOP_OOMMAND_SELECT_TRACK   10
+// #define LOOP_COMMAND_SELECT_LAYER   11
 
-#define LOOP_COMMAND_SELECT_NEXT_TRACK  100
-#define LOOP_COMMAND_SELECT_PREV_TRACK  101
-#define LOOP_COMMAND_SELECT_NEXT_LAYER  102
-#define LOOP_COMMAND_SELECT_PREV_LAYER  103
-
-#define LOOP_COMMAND_RESTART_TRACK  1000
+// #define LOOP_COMMAND_SELECT_PREV_TRACK  101
+// #define LOOP_COMMAND_SELECT_NEXT_LAYER  102
+// #define LOOP_COMMAND_SELECT_PREV_LAYER  103
+// #define LOOP_COMMAND_RESTART_TRACK  1000
 
 
     

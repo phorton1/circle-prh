@@ -69,6 +69,13 @@
 
 loopMachine *pLooper = 0;
 
+// #define TEST_SINE_INPUT
+
+#ifdef TEST_SINE_INPUT
+    AudioSynthWaveformSine sine1;
+    AudioSynthWaveformSine sine2;
+#endif
+
 
 void setup()
 {
@@ -110,12 +117,24 @@ void setup()
         #endif
         
         pLooper = new loopMachine();
+        
+        #ifdef TEST_SINE_INPUT
+            sine1.frequency(440);
+            sine2.frequency(440);
+        #endif
 
-        #if 1    
-            new AudioConnection(input,      0,      *pLooper,       0);
-            new AudioConnection(input,      1,      *pLooper,       1);
-            new AudioConnection(*pLooper,   0,      output,         0);
-            new AudioConnection(*pLooper,   1,      output,         1);
+        #if 1
+            #ifdef TEST_SINE_INPUT
+                new AudioConnection(sine1,      0,      *pLooper,       0);
+                new AudioConnection(sine2,      1,      *pLooper,       1);
+                new AudioConnection(sine1,      0,      output,         0);
+                new AudioConnection(sine2,      1,      output,         1);
+            #else
+                new AudioConnection(input,      0,      *pLooper,       0);
+                new AudioConnection(input,      1,      *pLooper,       1);
+                new AudioConnection(*pLooper,   0,      output,         0);
+                new AudioConnection(*pLooper,   1,      output,         1);
+            #endif
         #endif
         
         // this code should ONLY be included if the Looper object

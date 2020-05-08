@@ -1,30 +1,8 @@
 #include "looper.h"
 #include <circle/logger.h>
+#include <circle/synchronize.h>
 
 #define log_name "lmachine"
-
-
-const char *loopMachine::getLoopStateName(u16 state)
-{
-    if (state == LOOP_STATE_NONE)         return "NONE";
-    if (state == LOOP_STATE_RECORDING)    return "RECORDING";
-    if (state == LOOP_STATE_PLAYING)      return "PLAYING";
-    if (state == LOOP_STATE_STOPPED)      return "STOPPED";
-    return "UNKNOWN_STATE";
-}
-
-
-void  loopMachine::setLooperState(u16 state)
-{
-    m_state = state;
-    LOG("setLooperState(%s)",getLoopStateName(state));
-}
-
-void  loopMachine::setPendingState(u16 state)
-{
-    m_pending_state = state;
-    LOG("setPendingState(%s)",getLoopStateName(state));
-}
 
 
 
@@ -58,13 +36,11 @@ loopMachine::~loopMachine()
 
 void loopMachine::init()
 {
-    setLooperState(LOOP_STATE_NONE); 
-
+    m_state = 0;
     m_pending_state = 0;
-    
-    m_num_used_tracks = 0;
     m_cur_track_num = 0;
     m_selected_track_num = 0;
+    m_pRecordClip = 0;
     
     m_pLoopBuffer->init();
     for (int i=0; i<LOOPER_NUM_TRACKS; i++)
@@ -74,13 +50,100 @@ void loopMachine::init()
 }
 
 
+// static
+const char *loopMachine::getLoopStateName(u16 state)
+{
+    if (state == LOOP_STATE_NONE)         return "NONE";
+    if (state == LOOP_STATE_RECORDING)    return "RECORDING";
+    if (state == LOOP_STATE_PLAYING)      return "PLAYING";
+    if (state == LOOP_STATE_STOPPED)      return "STOPPED";
+    return "UNKNOWN_STATE";
+}
+
+#define LOOP_COMMAND_NONE               0
+#define LOOP_COMMAND_CLEAR_ALL          10
+#define LOOP_COMMAND_STOP               20
+#define LOOP_COMMAND_STOP_IMMEDIATE     21
+#define LOOP_COMMAND_PLAY               30
+#define LOOP_COMMAND_PLAY_IMMEDIATE     31
+#define LOOP_COMMAND_RECORD             40
+#define LOOP_COMMAND_SELECT_NEXT_TRACK  50
+
+
+// static
+const char *loopMachine::getCommandName(u16 state)
+{
+    if (state == LOOP_COMMAND_NONE)                 return "";                // function is disabled
+    if (state == LOOP_COMMAND_CLEAR_ALL)            return "CLEAR";
+    if (state == LOOP_COMMAND_STOP)                 return "STOP";
+    if (state == LOOP_COMMAND_PLAY)                 return "PLAY";
+    if (state == LOOP_COMMAND_RECORD)               return "REC";
+    if (state == LOOP_COMMAND_SELECT_NEXT_TRACK)    return "NEXT";
+
+    return "UNKNOWN_STATE";
+}
+
+
+
+// ONLY THE update() method (interrupt handler) sets the state,
+// and duh, you cannot call LOG() from it and expect it to work
+// correctly.  Took 3 hours to find the source of the "noise"
+// in the program this time, so I am commenting this method out
+// as a precaution
+//
+// void  loopMachine::setLooperState(u16 state)
+// {
+//     m_state = state;
+//     // LOG("setLooperState(%s)",getLoopStateName(state));
+// }
+
+
+void  loopMachine::setPendingState(u16 state)
+    // WHEREAS, it's ok to LOG the pending state change
+    // because this is NOT called from update()
+{
+    m_pending_state = state;
+    LOG("setPendingState(%s)",getLoopStateName(state));
+}
+
+
+u16 loopMachine::getNumUsedTracks()
+    // tracks are 'used' if the 0th clip
+    // has any recorded content, or is recording
+{
+    u16 i = 0;
+    u16 retval = 0;
+    while (i < LOOPER_NUM_TRACKS &&
+           m_tracks[i]->getClip(0)->getClipState() > LOOP_CLIP_STATE_EMPTY)
+    {
+        retval++;
+        i++;
+    }
+    return retval;
+}
+
+
+void loopMachine::selectTrack(u16 num)
+    // will do nothing if the track number is not valid
+    // in context of the current state of the machine
+{
+    // bool select_it = false;
+    // u16 sel = m_selected_track_num + 1;
+    // u16 num_used = getNumUsedTracks();
+    // if (sel < num_used)
+    //     select_it = true;
+    // else if (sel < LOOPER_NUM_TRACKS &&
+    //          sel == num_used &&
+    //          
+    
+    m_selected_track_num = num;
+}
+
+
 
 
 void loopMachine::command(u16 command, u16 param /*=0*/)
 {
-    loopTrack *pCurTrack = getCurTrack();
-    u16 clip_num = pCurTrack->getNumClips();
-    
     switch (command)
     {
         case LOOP_COMMAND_CLEAR_ALL :
@@ -90,32 +153,10 @@ void loopMachine::command(u16 command, u16 param /*=0*/)
             }
         case LOOP_COMMAND_STOP :
             {
-                if (m_state == LOOP_STATE_PLAYING)
+                if (m_state == LOOP_STATE_PLAYING ||
+                    m_state == LOOP_STATE_RECORDING)
                 {
-                    setLooperState(LOOP_STATE_STOPPED);
-                    pCurTrack->zeroClips();                 // move all clips back to zero
-                }
-                else if (m_state == LOOP_STATE_RECORDING)
-                {
-                    if (!clip_num)                      // base track finishes recording
-                    {
-                        setLooperState(LOOP_STATE_STOPPED);
-                        LOG("Committing recording",0);
-                        pCurTrack->commit_recording();
-                        pCurTrack->zeroClips();                 // move all clips back to zero
-                    }
-                    else if (0)                               // subsequent tracks abort recording on STOP
-                    {
-                        setLooperState(LOOP_STATE_STOPPED);
-                        LOG("Aborting recording",0);
-                        pCurTrack->getClip(clip_num)->init();
-                        pCurTrack->zeroClips();                 // move all clips back to zero
-                    }
-                    else
-                    {
-                        LOG("STOP Finishing pending recording",0);
-                        setPendingState(LOOP_STATE_STOPPED);
-                    }
+                    setPendingState(LOOP_STATE_STOPPED);
                 }
                 else
                 {
@@ -125,80 +166,43 @@ void loopMachine::command(u16 command, u16 param /*=0*/)
             }
         case LOOP_COMMAND_RECORD  :
             {
-                if (clip_num >= LOOPER_NUM_LAYERS)
+                loopTrack *pSelTrack = getSelectedTrack();
+                u16 record_clip_num = pSelTrack->getNumClips();
+                if (record_clip_num >= LOOPER_NUM_LAYERS)
                 {
-                    LOG_ERROR("No more clips available on this track (record should be disabled)",0);
+                    LOG_ERROR("No more clips available on track %d (record should be disabled)",pSelTrack->getTrackNum());
                     return;
                 }
-                if (m_state == LOOP_STATE_NONE ||
-                    m_state == LOOP_STATE_STOPPED)
-                {
-                    LOG("recording onto clip %d",clip_num);
-                    pCurTrack->getClip(clip_num)->start();
-                    setLooperState(LOOP_STATE_RECORDING);
-                }
-                else if (m_state == LOOP_STATE_PLAYING)
-                {
-                    pCurTrack->getClip(clip_num)->start();
-                    setPendingState(LOOP_STATE_RECORDING);
-                }
-                else if (m_state == LOOP_STATE_RECORDING)
-                {
-                    // on the 0th clip, we finish the recording, then start recording another
-                    // on subsequent clips, we do this in a pending manner
-
-                    if (!clip_num)                      // base track finishes recording
-                    {
-                        setLooperState(LOOP_STATE_STOPPED);
-                        pCurTrack->commit_recording();
-                        clip_num = pCurTrack->getNumClips();
-                        pCurTrack->getClip(clip_num)->start();
-                        setLooperState(LOOP_STATE_RECORDING);
-                    }
-                    else                                // subsequent tracks abort recording
-                    {
-                        if (clip_num >= LOOPER_NUM_LAYERS-1)
-                        {
-                            LOG_ERROR("No more pending clips available on this track (record should be disabled)",0);
-                            return;
-                        }
-                        setPendingState(LOOP_STATE_RECORDING);
-                    }
-                }
+                setPendingState(LOOP_STATE_RECORDING);
                 break;
             }
         case LOOP_COMMAND_PLAY    :
             {
-                if (m_state == LOOP_STATE_RECORDING)
+                loopTrack *pSelTrack = getSelectedTrack();
+                u16 num_clips = pSelTrack->getNumClips();
+                if (!num_clips)
                 {
-                    // on the 0th clip, we finish the recording, then start playing
-                    // on subsequent clips, we do this in a pending manner
-
-                    if (!clip_num)                      // base track finishes recording
-                    {
-                        setLooperState(LOOP_STATE_STOPPED);
-                        pCurTrack->commit_recording();
-                        setLooperState(LOOP_STATE_PLAYING);
-                    }
-                    else                                // subsequent tracks abort recording
-                    {
-                        setPendingState(LOOP_STATE_PLAYING);
-                    }
+                    LOG_ERROR("No clips available on track %d (play should be disabled)",pSelTrack->getTrackNum());
+                    return;
                 }
+                setPendingState(LOOP_STATE_PLAYING);
+                break;
+            }
+        case LOOP_COMMAND_SELECT_NEXT_TRACK :
+            {
+                m_selected_track_num++;
+                if (m_selected_track_num > getNumUsedTracks() + 1 ||
+                    m_selected_track_num == LOOPER_NUM_TRACKS)
+                    m_selected_track_num = 0;
+                    
+                LOG("SELECT_NEXT_TRACK(%d)",m_selected_track_num);
                 
-                // othrwise, the play button is a toggle, stopping and starting at the given position
-
-                else if (m_state == LOOP_STATE_PLAYING)
+                if (m_selected_track_num != m_cur_track_num &&
+                    m_state != LOOP_STATE_PLAYING &&
+                    m_state != LOOP_STATE_RECORDING)
                 {
-                    setLooperState(LOOP_STATE_STOPPED);
-                }
-                else if (pCurTrack->getNumClips())
-                {
-                    setLooperState(LOOP_STATE_PLAYING);
-                }
-                else
-                {
-                    LOG_ERROR("NO CLIPS TO PLAY",0);
+                    LOG("changing cur_track_num to %d",m_selected_track_num);
+                    m_cur_track_num = m_selected_track_num;
                 }
                 break;
             }
@@ -210,16 +214,24 @@ void loopMachine::command(u16 command, u16 param /*=0*/)
 }
 
 
+volatile int in_interrupt = 0;
 
 
 // virtual
 void loopMachine::update(void)
 {
-    loopTrack *pCurTrack = getCurTrack();
-    u16 num_clips = pCurTrack->getNumClips();
+    if (in_interrupt)
+    {
+        LOG("interrupt re-entered!",0);
+    }
+    in_interrupt = 1;
+    
     
     // always receive any input blocks
     // which in our case will always have content
+    
+    // DisableIRQs();
+    // EnterCritical();
     
     s16 *ip[LOOPER_MAX_NUM_INPUTS];
 	audio_block_t *in[LOOPER_MAX_NUM_INPUTS];
@@ -229,32 +241,75 @@ void loopMachine::update(void)
         ip[j] = in[j] ? in[j]->data : 0;
         // assert(ip[j]);   FUCKING CRASHES IF YOU ASSERT HERE, FFS
     }
-
     
+    loopTrack *pCurTrack = getCurTrack();
+
     if (m_pending_state)
     {
-        loopClip *pBaseClip = pCurTrack->getClip(0);
-        if (!pBaseClip->getCurBlock())          // it just wrapped
+        // determine if we should keep rolling ...
+        // ALL are immediate if we are stopped or none
+        // STOPS are are immediate if we are not recording,
+        // everything else is immediate if we are recording the 0th clip
+        // otherwise, finally, we wait till the base track is at zero
+        
+        bool doit = false;
+        if (m_state == LOOP_STATE_NONE || m_state == LOOP_STATE_STOPPED)
+            doit = true;
+        else if (m_state == LOOP_STATE_PLAYING && m_pending_state == LOOP_STATE_STOPPED)
+            doit = true;
+        else if (m_pRecordClip && !m_pRecordClip->getClipNum())
+            doit = true;
+        else if (!pCurTrack->getClip(0)->getCurBlock())
+            doit = true;
+        
+        
+        if (doit)
         {
-            if (m_state == LOOP_STATE_RECORDING)
+            // DO NOT USE LOG in an interrupt routine and expect it to work correctly!
+            // LOG("handling pending change to %d",m_pending_state);
+        
+            // if we are recording, commit it ...
+            
+            if (m_pRecordClip)
             {
-                pCurTrack->commit_recording();
+                m_pRecordClip->commit();
+                m_pRecordClip = 0;
             }
-            setLooperState(m_pending_state);
+        
+            // if the selected track is not the same as the current track,
+            // change it
+            
+            if (m_selected_track_num != m_cur_track_num)
+            {
+                m_cur_track_num = m_selected_track_num;
+                pCurTrack = getCurTrack();
+            }
+            
+            // if switching to recording, get the next available clip
+            // and start it. It is assumed nobody has told us to do
+            // anything illegal, like record on an unavailable clip
+            // or track!
+            
+            if (m_pending_state == LOOP_STATE_RECORDING)
+            {
+                u16 record_clip_num = pCurTrack->getNumClips();
+                m_pRecordClip = pCurTrack->getClip(record_clip_num);
+                m_pRecordClip->start();
+            }
+            
+            // change to the new state
+            // DO NOT WRITE TO THE SERIAL PORT, duh!
+            
+            m_state = m_pending_state;
             m_pending_state = 0;
-            num_clips = pCurTrack->getNumClips();
-            if (m_state == LOOP_STATE_RECORDING)
-            {
-                pCurTrack->getClip(num_clips)->start();
-            }
         }
     }
     
             
     if (m_state == LOOP_STATE_RECORDING)
     {
-        loopClip *pClip = pCurTrack->getClip(num_clips);    // get the recording clip
-        s16 *op = pClip->getBlockBuffer();
+        s16 *op = m_pRecordClip->getBlockBuffer();
+        
         if (!op)
         {
             LOG_ERROR("LOOPER BUFFER OVERFLOW",0);
@@ -268,7 +323,7 @@ void loopMachine::update(void)
             op += AUDIO_BLOCK_SAMPLES;
         }
         
-        pClip->incCurBlock();
+        m_pRecordClip->incCurBlock();
     }
     
     // mix the existing clips into the output
@@ -276,6 +331,7 @@ void loopMachine::update(void)
     if (m_state == LOOP_STATE_PLAYING ||
         m_state == LOOP_STATE_RECORDING)
     {
+        u16 num_clips = pCurTrack->getNumRecordedClips();
         for (int i=0; i<num_clips; i++)
         {
             loopClip *pClip = pCurTrack->getClip(i);    // get the playback clip
@@ -346,6 +402,11 @@ void loopMachine::update(void)
             AudioSystem::release(in[j]);
         }
     }
+
+    // LeaveCritical(); doesn't help
+    // doesn't work EnableIRQs();
+    in_interrupt = 0;
+    
 }
 
 
