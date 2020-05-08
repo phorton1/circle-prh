@@ -409,35 +409,47 @@ void AudioSystem::startUpdate()
 
 void AudioSystem::doUpdate()
 {
-	uint32_t totalcycles = CTimer::GetClockTicks();
-		// GetClockTicks() is in millionths of a second
-		// based on the 1Mhz physical counter, so we don't
-		// divide it any further.
+	#define WITH_TIMING
+
+	#ifdef WITH_TIMING
+		uint32_t totalcycles = CTimer::GetClockTicks();
+			// GetClockTicks() is in millionths of a second
+			// based on the 1Mhz physical counter, so we don't
+			// divide it any further.
+	#endif
 	
 	for (AudioStream *p = s_pFirstStream; p; p = p->m_pNextStream)
 	{
 		if (p->m_numConnections)
 		{
-			uint32_t cycles =  CTimer::GetClockTicks();
+			#ifdef WITH_TIMING
+				uint32_t cycles =  CTimer::GetClockTicks();
+			#endif
+			
 			p->update();
 
 			// TODO: traverse inputQueueArray and release
 			// any input blocks that weren't consumed?
 
-			cycles = (CTimer::GetClockTicks() - cycles);
-			p->m_cpuCycles = cycles;
-			if (cycles > p->m_cpuCyclesMax)
-				p->m_cpuCyclesMax = cycles;
+			#ifdef WITH_TIMING
+				cycles = (CTimer::GetClockTicks() - cycles);
+				p->m_cpuCycles = cycles;
+				if (cycles > p->m_cpuCyclesMax)
+					p->m_cpuCyclesMax = cycles;
+			#endif
 		}
 	}
-	totalcycles = (CTimer::GetClockTicks() - totalcycles);
-	s_cpuCycles = totalcycles;
-	if (totalcycles > s_cpuCyclesMax)
-		s_cpuCyclesMax = totalcycles;
-		
-	__disable_irq();
+	
+	#ifdef WITH_TIMING
+		totalcycles = (CTimer::GetClockTicks() - totalcycles);
+		s_cpuCycles = totalcycles;
+		if (totalcycles > s_cpuCyclesMax)
+			s_cpuCyclesMax = totalcycles;
+	#endif
+	
+	// __disable_irq();
 	s_nInUpdate--;
-	__enable_irq();    
+	// __enable_irq();    
 }
 
 	
