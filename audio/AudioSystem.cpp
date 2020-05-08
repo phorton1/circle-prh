@@ -447,9 +447,9 @@ void AudioSystem::doUpdate()
 			s_cpuCyclesMax = totalcycles;
 	#endif
 	
-	// __disable_irq();
+	__disable_irq();
 	s_nInUpdate--;
-	// __enable_irq();    
+	__enable_irq();    
 }
 
 	
