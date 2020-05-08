@@ -1,23 +1,23 @@
 
-#ifndef _ClipButton_h
-#define _ClipButton_h
+#ifndef _uiClip_h
+#define _uiClip_h
 
 #include <ws/ws.h>
 #include <system/midiEvent.h>
-#include "Looper.h"
+#include "looper.h"
 
 
 #define NUM_LTB_ROWS   3
 #define NUM_LTB_COLS   4
 
 
-class ClipButton : public wsWindow
+class uiClip : public wsWindow
 {
 	public:
 	
-		~ClipButton() {}
+		~uiClip() {}
 		
-		ClipButton(
+		uiClip(
 				u8 track_num,
 				u8 clip_num,
 				wsWindow *pParent,
@@ -31,7 +31,7 @@ class ClipButton : public wsWindow
 		
 		u8 m_track_num;
 		u8 m_clip_num;
-		LoopClip *m_pLoopClip;
+		loopClip *m_pLoopClip;
 		
 		u8 m_pressed;
 
@@ -47,7 +47,7 @@ class ClipButton : public wsWindow
 		void handleMidiEvent(midiEvent *event);
 		
 		
-};	// ClipButton
+};	// uiClip
 
 
-#endif  // !_ClipButton_h
+#endif  // !_uiClip_h

@@ -1,6 +1,6 @@
 
-#include "TrackControl.h"
-#include "ClipButton.h"
+#include "uiTrack.h"
+#include "uiClip.h"
 #include <circle/logger.h>
 #define log_name  "track_ctl"
 
@@ -10,7 +10,7 @@
 #define ID_CLIP_BUTTON_BASE 500
 
 
-TrackControl::TrackControl(
+uiTrack::uiTrack(
 		u8 track_num,
 		wsWindow *pParent,
 		u16 id,
@@ -41,7 +41,7 @@ TrackControl::TrackControl(
 
 	for (int i=0; i<LOOPER_NUM_LAYERS; i++)
 	{
-		new ClipButton(
+		new uiClip(
 			m_track_num,
 			i,
 			this,
@@ -57,7 +57,7 @@ TrackControl::TrackControl(
 
 
 
-void TrackControl::onDraw()
+void uiTrack::onDraw()
 {
 	wsColor color = m_selected ? m_fore_color : m_back_color;
 	m_pDC->setClip(m_clip_abs,m_state & WIN_STATE_INVALID);
@@ -71,7 +71,7 @@ void TrackControl::onDraw()
 }
 
 
-void TrackControl::updateFrame()
+void uiTrack::updateFrame()
 {
 	bool sel = m_pLoopTrack->isSelected();
 	if (sel != m_selected)

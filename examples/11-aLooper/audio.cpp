@@ -1,7 +1,7 @@
 // 11-pLooper
 
 #include <audio\Audio.h>
-#include "Looper.h"
+#include "looper.h"
 
 // You may define zero or one of the following.
 // The default is wm8731.  You can also connect
@@ -65,12 +65,14 @@
 #endif
 
 
-Looper *pLooper = 0;
+// SINGLE GLOBAL STATIC INSTANCE
+
+loopMachine *pLooper = 0;
 
 
 void setup()
 {
-    // printf("11-pLooper::audio.cpp setup()\n");
+    printf("11-aLooper::audio.cpp setup()\n");
 
     // The audio memory system can now be instantiated
     // with very large buffers ..
@@ -101,15 +103,13 @@ void setup()
 
     #if 1
     
-        #if 0
-            printf("allocating %dx%d looper with %d inputs and %d output\n",
+        #if 1
+            printf("allocating %dx%d looper\n",
                LOOPER_NUM_TRACKS,
-               LOOPER_NUM_LAYERS,
-               LOOPER_MAX_NUM_INPUTS,
-               LOOPER_MAX_NUM_INPUTS);
+               LOOPER_NUM_LAYERS);
         #endif
         
-        pLooper = new Looper();
+        pLooper = new loopMachine();
 
         #if 1    
             new AudioConnection(input,      0,      *pLooper,       0);
@@ -140,7 +140,7 @@ void setup()
     
     AudioSystem::sortStreams();
     
-    // printf("11-pLooper::audio.cpp setup() finished\n");
+    printf("11-aLooper::audio.cpp setup() finished\n");
     
 }
 

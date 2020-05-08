@@ -1,7 +1,7 @@
 
-#include "ClipButton.h"
+#include "uiClip.h"
 #include <circle/logger.h>
-#define log_name  "clip_button"
+#define log_name  "ui_clip"
 
 #define NUM_STATES  4
 
@@ -9,7 +9,7 @@
 // int state_colors[NUM_STATES] = {wsBLACK,wsDARK_RED,wsBROWN,wsDARK_GREEN};
 
 
-ClipButton::ClipButton(
+uiClip::uiClip(
 		u8 track_num,
 		u8 clip_num,
 		wsWindow *pParent,
@@ -27,7 +27,7 @@ ClipButton::ClipButton(
 
 	LOG("ctor(%d,%d) %d,%d,%d,%d",m_track_num,m_clip_num,xs,ys,xe,ye);
 	
-	LoopTrack *pTrack = pLooper->getTrack(m_track_num);
+	loopTrack *pTrack = pLooper->getTrack(m_track_num);
 	m_pLoopClip = pTrack->getClip(m_clip_num);
 
 	m_pressed = 0;
@@ -76,7 +76,7 @@ ClipButton::ClipButton(
 
 
 // virtual
-void ClipButton::onDraw()
+void uiClip::onDraw()
 {
 	wsColor bc  = wsBLACK;
 	s32 xs = m_rect_client.xs;
@@ -123,7 +123,7 @@ void ClipButton::onDraw()
 	
 		
 	CString msg;
-	msg.Format("%5d/%-5d",
+	msg.Format("%8d/%-8d",
 		m_cur_block,
 		m_num_blocks);
 
@@ -140,7 +140,7 @@ void ClipButton::onDraw()
 
 
 // virtual
-void ClipButton::updateFrame()
+void uiClip::updateFrame()
 {
 	u32 cur = m_pLoopClip->getCurBlock();
 	u32 num = m_pLoopClip->getNumBlocks();
@@ -156,7 +156,7 @@ void ClipButton::updateFrame()
 
 
 // virtual
-void ClipButton::onUpdateTouch(bool touched)
+void uiClip::onUpdateTouch(bool touched)
 {
 	m_pressed = touched ? 1 : 0;
 	
@@ -174,12 +174,12 @@ void ClipButton::onUpdateTouch(bool touched)
 
 
 // static
-void ClipButton::staticHandleMidiEvent(void *pObj, midiEvent *event)
+void uiClip::staticHandleMidiEvent(void *pObj, midiEvent *event)
 {
-	((ClipButton *)pObj)->handleMidiEvent(event);
+	((uiClip *)pObj)->handleMidiEvent(event);
 }
 
-void ClipButton::handleMidiEvent(midiEvent *event)
+void uiClip::handleMidiEvent(midiEvent *event)
 {
 	s8 msg = event->getMsg();
 	

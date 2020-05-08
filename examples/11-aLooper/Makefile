@@ -6,10 +6,14 @@ CIRCLEHOME = ../../..
 
 OBJS = 	app.o \
 		audio.o \
-		Looper.o \
-		ClipButton.o \
-		TrackControl.o \
-		LoopWindow.o 
+		loopBuffer.o \
+		loopClip.o \
+		loopTrack.o \
+		loopMachine.o \
+		uiClip.o \
+		uiTrack.o \
+		uiStatusBar.o \
+		uiWindow.o 
 
 MAKE_LIBS = \
 	$(CIRCLEHOME)/_prh/ws/libws.mark \

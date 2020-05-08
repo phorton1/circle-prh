@@ -1,155 +1,10 @@
-#include "Looper.h"
+#include "looper.h"
 #include <circle/logger.h>
-#include <circle/alloc.h>
 
-#define log_name "loopbuf"
-
+#define log_name "lmachine"
 
 
-LoopBuffer::LoopBuffer(u32 size)
-{
-    m_top = 0;
-    m_size = size;
-    LOG("LoopBuffer allocating %ld bytes",m_size);
-    m_buffer = (int16_t *) malloc(m_size);
-    assert(m_buffer);
-}
-
-LoopBuffer::~LoopBuffer()
-{
-    free(m_buffer);
-    m_size = 0;
-    m_top = 0;
-}
-
-
-//----------------------------------------------
-
-#undef log_name
-#define log_name "loopclip"
-
-LoopClip::LoopClip(u16 clip_num, LoopTrack* pTrack, u16 num_channels /* =2 */)
-{
-    m_clip_num = clip_num;
-    m_pLoopTrack = pTrack;
-    m_pLoopBuffer = pTrack->getLoopBuffer();
-    m_num_channels = num_channels;
-    init();
-}
-        
-        
-void LoopClip::commit()
-{
-    m_num_blocks = m_cur_block + 1;
-    m_pLoopBuffer->commitBlocks(m_num_blocks * m_num_channels);
-    
-    // set first and last samples in block to 0
-
-    #if 9
-        s16 *p = getBlockBuffer();
-        p += AUDIO_BLOCK_SAMPLES - 1;
-        *p = 0;
-        p += AUDIO_BLOCK_SAMPLES;
-        *p = 0;
-    #endif
-    
-    m_cur_block = 0;
-
-    #if 0
-        p = getBlockBuffer();
-        *p = 0;
-        p += AUDIO_BLOCK_SAMPLES;
-        *p = 0;
-    #endif
-    
-}        
-
-
-//----------------------------------------------
-
-#undef log_name
-#define log_name "looptrack"
-
-
-LoopTrack::LoopTrack(u16 track_num, Looper *pLooper)
-{
-    m_track_num = track_num;
-    m_pLooper = pLooper;
-    m_pLoopBuffer = pLooper->getLoopBuffer();
-    for (int i=0; i<LOOPER_NUM_LAYERS; i++)
-    {
-        m_clips[i] = new LoopClip(i,this);
-    }
-    init();
-}
-
-
-LoopTrack::~LoopTrack()
-{
-    m_pLoopBuffer = 0;
-    for (int i=0; i<LOOPER_NUM_LAYERS; i++)
-    {
-        delete m_clips[i];
-        m_clips[i] = 0;
-    }
-}
-
-
-bool LoopTrack::isSelected()
-{
-    return m_track_num == m_pLooper->getSelectedTrackNum() ? true : false;
-}
-
-
-LoopClip *LoopTrack::getClip(u16 num)
-{
-    if (num >= LOOPER_NUM_LAYERS)
-    {
-        LOG_ERROR("Attempt to getClip(%d)",num);
-        return m_clips[0];  // maybe no crash
-    }
-    return m_clips[num];
-}
-
-
-void LoopTrack::commit_recording()
-{
-    if (m_num_clips >= LOOPER_NUM_LAYERS)
-    {
-        LOG_ERROR("Attempt to commit a recording with m_num_clips(%d)",m_num_clips);
-        return;
-    }
-    LoopClip *pClip = m_clips[m_num_clips];
-    u32 blocks = pClip->getCurBlock();
-    if (!blocks)
-    {
-        LOG_ERROR("Attempt to commit an empty recording",0);
-        return;
-    }
-    if (pClip->getNumBlocks())
-    {
-        LOG_ERROR("Attempt to commit over an already recorded track",0);
-        return;
-    }
-    // LOG("committing recording",0);
-    pClip->commit();
-    #if 0
-        m_base_block_length ||= blocks;
-        if (blocks > m_max_block_length)
-            m_max_block_length = blocks;
-    #endif
-    m_num_clips++;
-}
-        
-
-
-//----------------------------------------------
-
-#undef log_name
-#define log_name "looper"
-
-
-const char *Looper::getLooperStateName(u16 state)
+const char *loopMachine::getLoopStateName(u16 state)
 {
     if (state == LOOP_STATE_NONE)         return "NONE";
     if (state == LOOP_STATE_RECORDING)    return "RECORDING";
@@ -159,35 +14,35 @@ const char *Looper::getLooperStateName(u16 state)
 }
 
 
-void  Looper::setLooperState(u16 state)
+void  loopMachine::setLooperState(u16 state)
 {
     m_state = state;
-    LOG("setLooperState(%s)",getLooperStateName(state));
+    LOG("setLooperState(%s)",getLoopStateName(state));
 }
 
-void  Looper::setPendingState(u16 state)
+void  loopMachine::setPendingState(u16 state)
 {
     m_pending_state = state;
-    LOG("setPendingState(%s)",getLooperStateName(state));
+    LOG("setPendingState(%s)",getLoopStateName(state));
 }
 
 
 
-Looper::Looper() :
+loopMachine::loopMachine() :
    AudioStream(LOOPER_MAX_NUM_INPUTS,LOOPER_MAX_NUM_OUTPUTS,inputQueueArray)
 {
-    LOG("Looper ctor",0);
-    m_pLoopBuffer = new LoopBuffer();
+    LOG("ctor",0);
+    m_pLoopBuffer = new loopBuffer();
     for (int i=0; i<LOOPER_NUM_TRACKS; i++)
     {
-        m_tracks[i] = new LoopTrack(i,this);
+        m_tracks[i] = new loopTrack(i,this);
     }
     init();
-    LOG("Looper ctor finished",0);
+    LOG("looper ctor finished",0);
 }
 
 
-Looper::~Looper()
+loopMachine::~loopMachine()
 {
     LOG("ctor",0);
     delete m_pLoopBuffer;
@@ -201,7 +56,7 @@ Looper::~Looper()
 }
 
 
-void Looper::init()
+void loopMachine::init()
 {
     setLooperState(LOOP_STATE_NONE); 
 
@@ -221,9 +76,9 @@ void Looper::init()
 
 
 
-void Looper::command(u16 command, u16 param /*=0*/)
+void loopMachine::command(u16 command, u16 param /*=0*/)
 {
-    LoopTrack *pCurTrack = getCurTrack();
+    loopTrack *pCurTrack = getCurTrack();
     u16 clip_num = pCurTrack->getNumClips();
     
     switch (command)
@@ -358,9 +213,9 @@ void Looper::command(u16 command, u16 param /*=0*/)
 
 
 // virtual
-void Looper::update(void)
+void loopMachine::update(void)
 {
-    LoopTrack *pCurTrack = getCurTrack();
+    loopTrack *pCurTrack = getCurTrack();
     u16 num_clips = pCurTrack->getNumClips();
     
     // always receive any input blocks
@@ -378,7 +233,7 @@ void Looper::update(void)
     
     if (m_pending_state)
     {
-        LoopClip *pBaseClip = pCurTrack->getClip(0);
+        loopClip *pBaseClip = pCurTrack->getClip(0);
         if (!pBaseClip->getCurBlock())          // it just wrapped
         {
             if (m_state == LOOP_STATE_RECORDING)
@@ -398,7 +253,7 @@ void Looper::update(void)
             
     if (m_state == LOOP_STATE_RECORDING)
     {
-        LoopClip *pClip = pCurTrack->getClip(num_clips);    // get the recording clip
+        loopClip *pClip = pCurTrack->getClip(num_clips);    // get the recording clip
         s16 *op = pClip->getBlockBuffer();
         if (!op)
         {
@@ -423,7 +278,7 @@ void Looper::update(void)
     {
         for (int i=0; i<num_clips; i++)
         {
-            LoopClip *pClip = pCurTrack->getClip(i);    // get the playback clip
+            loopClip *pClip = pCurTrack->getClip(i);    // get the playback clip
             s16 *op = pClip->getBlockBuffer();
 
             // on the first and last blocks of playback

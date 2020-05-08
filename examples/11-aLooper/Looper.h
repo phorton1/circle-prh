@@ -29,19 +29,19 @@
 // initially implemented.
 
 
-#ifndef _Looper_h_
-#define _Looper_h_
+#ifndef _loopMachine_h_
+#define _loopMachine_h_
 
 #include <audio/Audio.h>
 
-class LoopClip;
-class LoopTrack;
-class Looper;
+class loopClip;
+class loopTrack;
+class loopMachine;
 
 //----------------------------------------------------------
-// LoopBuffer
+// loopBuffer
 //----------------------------------------------------------
-// The LoopBuffer is a big contiguous piece of memory that
+// The loopBuffer is a big contiguous piece of memory that
 // contains clips. It is implemented as a simple heap with
 // the general idea that chunks will be recorded once, and
 // typically not re-allocated.  There is no "free" mechanism,
@@ -56,12 +56,12 @@ class Looper;
     // 60 seconds of 4 tracks of 3 layers of 128 sample audio
     // blocks (16 bits per sample) in stereo.
 
-class LoopBuffer
+class loopBuffer
 {
     public:
         
-        LoopBuffer(u32 size=LOOP_HEAP_BYTES);
-        ~LoopBuffer();
+        loopBuffer(u32 size=LOOP_HEAP_BYTES);
+        ~loopBuffer();
         
         void init()          { m_top = 0; }
         s16 *getBuffer()     { return &m_buffer[m_top]; }
@@ -81,9 +81,10 @@ class LoopBuffer
         s16 *m_buffer;
 };
 
+
     
 //----------------------------------------------------------
-// LoopClip
+// loopClip
 //----------------------------------------------------------
 // A loop clip is a lightweight object, essentially a buffer,
 // representing one "take" within a synchronized track.
@@ -93,28 +94,26 @@ class LoopBuffer
 // been established, all other clips in the track must be
 // an integer multiple of it in length, in terms of audio
 // blocks.
-//
-// 
 
 
 #define LOOP_CLIP_CHANNELS   2
 
 
-class LoopClip
+class loopClip
 {
     public:
         
-        LoopClip(u16 clip_num, LoopTrack* pTrack, u16 num_channels=2);
+        loopClip(u16 clip_num, loopTrack* pTrack, u16 num_channels=2);
 
-        ~LoopClip()
+        ~loopClip()
         {
             m_pLoopTrack = 0;
             m_pLoopBuffer = 0;
         }
         
         u16 getClipNum()            { return m_clip_num; }
-        LoopTrack *getLoopTrack()   { return m_pLoopTrack; }
-        LoopBuffer *getLoopBuffer() { return m_pLoopBuffer; }
+        loopTrack *getLoopTrack()   { return m_pLoopTrack; }
+        loopBuffer *getLoopBuffer() { return m_pLoopBuffer; }
         
         void setNumChannels(u16 num_channels);
         
@@ -160,8 +159,8 @@ class LoopClip
     private:
         
         u16        m_clip_num;
-        LoopTrack  *m_pLoopTrack;
-        LoopBuffer *m_pLoopBuffer;
+        loopTrack  *m_pLoopTrack;
+        loopBuffer *m_pLoopBuffer;
 
         u16  m_num_channels;
         u16  m_state;
@@ -176,13 +175,13 @@ class LoopClip
 
 
 //-------------------------------------------
-// LoopTrack
+// loopTrack
 //-------------------------------------------
-// a LoopTrack consists of a number of
+// a loopTrack consists of a number of
 // layers of clips. Only one of them can be "active"
-// at a time within the Looper.
+// at a time within the looper.
 //
-// Like the LoopClip, this is mostly a memory object
+// Like the loopClip, this is mostly a memory object
 //
 // For the time being, the clips within it are pre-alocated,
 // and are recorded in sequential order.
@@ -192,16 +191,16 @@ class LoopClip
 #define LOOPER_NUM_LAYERS     3
 
 
-class LoopTrack
+class loopTrack
 {
     public:
         
-        LoopTrack(u16 track_num, Looper *pLooper);
-        ~LoopTrack();
+        loopTrack(u16 track_num, loopMachine *pLooper);
+        ~loopTrack();
 
         u16 getTrackNum()           { return m_track_num; }
-        Looper *getLooper()         { return m_pLooper; }
-        LoopBuffer *getLoopBuffer() { return m_pLoopBuffer; }
+        loopMachine *getLooper()    { return m_pLooper; }
+        loopBuffer *getLoopBuffer() { return m_pLoopBuffer; }
         
         void init()
         {
@@ -222,26 +221,26 @@ class LoopTrack
         }
         
         u16 getNumClips()           { return m_num_clips; }
-        LoopClip *getClip(u16 num); // with error checking
+        loopClip *getClip(u16 num); // with error checking
         void commit_recording();
 
         bool isSelected();
         
     private:
         
-        u16         m_track_num;
-        Looper     *m_pLooper;
-        LoopBuffer *m_pLoopBuffer;
+        u16          m_track_num;
+        loopMachine *m_pLooper;
+        loopBuffer  *m_pLoopBuffer;
         
         u16 m_num_clips;                // number recorded, clips
-        LoopClip *m_clips[LOOPER_NUM_LAYERS];
+        loopClip *m_clips[LOOPER_NUM_LAYERS];
 
 };
 
 
 
 //-----------------------------------------
-// Looper
+// looper
 //-----------------------------------------
 // THIS MUST BE LARGER THAN OR EQUAL TO THE NUMBER
 // OF CONNECTIONS THAT ARE ALLOCATED IN audio.cpp
@@ -261,23 +260,23 @@ class LoopTrack
 #define LOOP_STATE_STOPPED          4
 
 
-class Looper : public AudioStream
+class loopMachine : public AudioStream
 {
     public:
         
-        Looper();
-        ~Looper();
+        loopMachine();
+        ~loopMachine();
         
         void init();
         
         virtual const char *getName() 	{ return "looper"; }
         virtual u16   getType()  		{ return AUDIO_DEVICE_OTHER; }
         
-        const char *getLooperStateName(u16 state);
-        u16   getLooperState()          { return m_state; }
+        const char *getLoopStateName(u16 state);
+        u16   getLoopState()          { return m_state; }
         
-        LoopBuffer *getLoopBuffer()     { return m_pLoopBuffer; }
-        LoopTrack  *getTrack(u16 num)   { return m_tracks[num]; }
+        loopBuffer *getLoopBuffer()     { return m_pLoopBuffer; }
+        loopTrack  *getTrack(u16 num)   { return m_tracks[num]; }
 
         // All tracks, even empty ones, can be gotten with the API
         // The semantic is that you can only select the 2nd track
@@ -286,14 +285,14 @@ class Looper : public AudioStream
 
         
         u16         getCurTrackNum()        { return m_cur_track_num; }
-        LoopTrack  *getCurTrack()           { return m_tracks[m_cur_track_num]; }
+        loopTrack  *getCurTrack()           { return m_tracks[m_cur_track_num]; }
         
         // Selection not implemented yet
         
         u16         getNumUsedTracks()      { return m_num_used_tracks; }
         void        selectTrack(u16 num)    { m_selected_track_num = num; }
         u16         getSelectedTrackNum()   { return m_selected_track_num; }
-        LoopTrack  *getSelectedTrack()      { return m_tracks[m_selected_track_num]; }
+        loopTrack  *getSelectedTrack()      { return m_tracks[m_selected_track_num]; }
         
         // state machine API
         
@@ -313,8 +312,8 @@ class Looper : public AudioStream
         u16 m_cur_track_num;
         u16 m_selected_track_num;
         
-        LoopBuffer *m_pLoopBuffer;
-        LoopTrack *m_tracks[LOOPER_NUM_TRACKS];
+        loopBuffer *m_pLoopBuffer;
+        loopTrack *m_tracks[LOOPER_NUM_TRACKS];
       	audio_block_t *inputQueueArray[LOOPER_MAX_NUM_INPUTS];
 
         virtual void update(void);
@@ -326,7 +325,7 @@ class Looper : public AudioStream
 ////////// STATIC GLOBAL ACCESSOR ////////////////////
 //////////////////////////////////////////////////////
 
-extern Looper *pLooper;
+extern loopMachine *pLooper;
 
 
 //------------------------------------------
@@ -354,6 +353,6 @@ extern Looper *pLooper;
 
 
     
-#endif  //!_Looper_h_
+#endif  //!_loopMachine_h_
 
 

@@ -1,23 +1,23 @@
 
-#ifndef _TrackControl_h
-#define _TrackControl_h
+#ifndef _uiTrack_h
+#define _uiTrack_h
 
 #include <ws/wsControl.h>
 #include <system/midiEvent.h>
-#include "Looper.h"
+#include "looper.h"
 
 
 #define NUM_LTB_ROWS   3
 #define NUM_LTB_COLS   4
 
 
-class TrackControl : public wsWindow
+class uiTrack : public wsWindow
 {
 	public:
 	
-		~TrackControl() {}
+		~uiTrack() {}
 		
-		TrackControl(
+		uiTrack(
 				u8 track_num,
 				wsWindow *pParent,
 				u16 id,
@@ -29,14 +29,14 @@ class TrackControl : public wsWindow
 	protected:
 		
 		u8 m_track_num;
-		LoopTrack *m_pLoopTrack;
+		loopTrack *m_pLoopTrack;
 
 		bool m_selected;
 		
 		virtual void onDraw();
 		virtual void updateFrame();
 		
-};	// _TrackControl_h
+};	// _uiTrack_h
 
 
-#endif  // !_ClipButton_h
+#endif  // !_uiClip_h

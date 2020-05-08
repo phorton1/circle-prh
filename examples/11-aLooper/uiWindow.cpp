@@ -1,11 +1,11 @@
 
-#include "LoopWindow.h"
+#include "uiWindow.h"
 #include <circle/logger.h>
-#include <circle/timer.h>
 #include <utils/myUtils.h>
 
-#include "Looper.h"
-#include "TrackControl.h"
+#include "looper.h"
+#include "uiStatusBar.h"
+#include "uiTrack.h"
 
 
 #define log_name  "loopwin"
@@ -18,21 +18,20 @@
 #define BUTTON_SPACING 	20
 #define TRACK_VSPACE  	5
 #define TRACK_HSPACE  	5
+
+
 		
 #define ID_RECORD_BUTTON    201
 #define ID_PLAY_BUTTON      202
 #define ID_NEXT_BUTTON      203
 #define ID_STOP_BUTTON      204
 
-#define ID_LOOPER_STATUS_WINDOW  101
+#define ID_LOOP_STATUS_BAR  101
 
 #define ID_VU1      		301
 #define ID_VU2      		302
 
 #define	ID_TRACK_CONTROL_BASE 400 	// ..411
-
-
-
 
 #define ID_LOOP_BUTTON1    201		// RECORD - RECORD_NEXT
 #define ID_LOOP_BUTTON2    202		// PLAY_IMMEDIATE/PLAY_NEXT - PLAY_IMMEDIATE - STOP_IMMEDIATE
@@ -40,90 +39,7 @@
 #define ID_LOOP_BUTTON4    204		// STOP(ZERO) - CLEAR_ALL
 
 
-class LooperStatusBar : public wsWindow
-{
-	public:	
-
-		LooperStatusBar(wsWindow *pParent,s32 xs, s32 ys, s32 xe, s32 ye) :
-			wsWindow(pParent,ID_LOOPER_STATUS_WINDOW,xs,ys,xe,ye)
-		{
-			setBackColor(wsDARK_GREEN);
-			
-			m_blocks_used = 0;			
-			m_blocks_free = 0;			
-			m_num_tracks = 0;		
-			m_num_clips = 0;
-		}
-		
-		
-		virtual void updateFrame()
-			// called 10 times per second
-		{
-			LoopBuffer *pLoopBuffer = pLooper ? pLooper->getLoopBuffer() : 0;
-			if (pLooper && pLoopBuffer)
-			{
-				u32 blocks_used 	= pLoopBuffer->getUsedBlocks();
-				u32 blocks_free 	= pLoopBuffer->getFreeBlocks();
-				u16 num_tracks 		= pLooper->getNumUsedTracks();
-				LoopTrack *pTrack   = pLooper->getCurTrack();
-				u16 num_clips		= pTrack->getNumClips();
-				
-				if (blocks_used		!= m_blocks_used	||
-					blocks_free 	!= m_blocks_free 	||
-					num_tracks 		!= m_num_tracks 	||
-					num_clips       != m_num_clips      )
-				{
-					m_blocks_used    = blocks_used;
-					m_blocks_free 	 = blocks_free;
-					m_num_tracks 	 = num_tracks;
-					m_num_clips      = num_clips;
-					setBit(m_state,WIN_STATE_DRAW);
-				}
-			}
-			
-			wsWindow::updateFrame();
-		}
-		
-		
-		
-		void onDraw()
-		{
-			// printf("LooperStatusBar::onDraw()\n",0);
-			
-			wsWindow::onDraw();
-			
-			CString msg;
-			msg.Format("%8d/%-8d  tracks:%d  clips:%d",
-				m_blocks_used,
-				m_blocks_free,   
-				m_num_tracks,	   
-				m_num_clips);
-
-			m_pDC->setClip(m_clip_client,m_state & WIN_STATE_INVALID);
-			m_pDC->putText(
-				m_back_color,
-				m_fore_color,
-				m_rect_client,
-				m_align,
-				1,2,
-				(const char *)msg);
-		}
-
-	private:
-		
-		unsigned m_update_time;
-		
-		u32 m_blocks_used;
-		u32 m_blocks_free;
-		u16 m_num_tracks;
-		u16 m_num_clips;
-	
-};
-
-
-
-
-LoopWindow::LoopWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) :
+uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) :
 	wsTopLevelWindow(pApp,id,xs,ys,xe,ye)
 {
 	setBackColor(wsDARK_BLUE);
@@ -142,7 +58,7 @@ LoopWindow::LoopWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 
     offset += bwidth + BUTTON_SPACING;
     new wsMidiButton(this,ID_STOP_BUTTON,"STOP",offset,btop+10,offset+bwidth,btop+39);
 	
-	new LooperStatusBar(this,0,0,width-165,TOP_MARGIN-1);
+	new uiStatusBar(this,ID_LOOP_STATUS_BAR,0,0,width-165,TOP_MARGIN-1);
 	
 	#if 1
 		awsVuMeter *pInputVU1 = new awsVuMeter(this,ID_VU1,width-150-1,2,width-6,14,1,12);
@@ -162,7 +78,7 @@ LoopWindow::LoopWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 
 	
 	for (int i=0; i<LOOPER_NUM_TRACKS; i++)
 	{
-		new TrackControl(
+		new uiTrack(
 			i,
 			this,
 			ID_TRACK_CONTROL_BASE + i,
@@ -174,12 +90,12 @@ LoopWindow::LoopWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 
 		step += cwidth + TRACK_HSPACE;
 	}
 	
-}	// LooperWidnow::LoopWindow()
+}	// LooperWidnow::uiWindow()
 
 
 		
 // virtual
-u32 LoopWindow::handleEvent(wsEvent *event)
+u32 uiWindow::handleEvent(wsEvent *event)
 {
 	u32 result_handled = 0;
 	u32 type = event->getEventType();
