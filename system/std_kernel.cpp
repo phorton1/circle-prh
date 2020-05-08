@@ -505,29 +505,29 @@ TShutdownMode CKernel::Run(void)
 #endif
 
 
-
-void CKernel::initFileSystem()
-{
-	if (f_mount(&m_FileSystem, DRIVE, 1) != FR_OK)
+#if USE_FILE_SYSTEM
+	void CKernel::initFileSystem()
 	{
-		LOG_ERROR("Cannot mount drive: %s", DRIVE);
-		return;
-	}
-
-	#if SHOW_ROOT_DIRECTORY
-		LOG("Contents of SD card",0);
-		DIR Directory;
-		FILINFO FileInfo;
-		FRESULT Result = f_findfirst (&Directory, &FileInfo, DRIVE "/", "*");
-		for (unsigned i = 0; Result == FR_OK && FileInfo.fname[0]; i++)
+		if (f_mount(&m_FileSystem, DRIVE, 1) != FR_OK)
 		{
-			if (!(FileInfo.fattrib & (AM_HID | AM_SYS)))
-			{
-				LOG("%-22s %ld", FileInfo.fname, FileInfo.fsize);
-			}
-			Result = f_findnext (&Directory, &FileInfo);
+			LOG_ERROR("Cannot mount drive: %s", DRIVE);
+			return;
 		}
-	#endif
-}
-
+	
+		#if SHOW_ROOT_DIRECTORY
+			LOG("Contents of SD card",0);
+			DIR Directory;
+			FILINFO FileInfo;
+			FRESULT Result = f_findfirst (&Directory, &FileInfo, DRIVE "/", "*");
+			for (unsigned i = 0; Result == FR_OK && FileInfo.fname[0]; i++)
+			{
+				if (!(FileInfo.fattrib & (AM_HID | AM_SYS)))
+				{
+					LOG("%-22s %ld", FileInfo.fname, FileInfo.fsize);
+				}
+				Result = f_findnext (&Directory, &FileInfo);
+			}
+		#endif
+	}
+#endif
 
