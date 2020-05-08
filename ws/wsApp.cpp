@@ -299,7 +299,7 @@ void wsApplication::timeSlice()
 	}
 	
 	
-	#define UPDATE_FRAOME_DELAY   3333  	// GetClockTicks() = 1Mhz
+	#define UPDATE_FRAOME_DELAY   33333  	// 33333 = 30 frames a second - GetClockTicks() = 1Mhz
 	
 	unsigned cur_time = CTimer::Get()->GetClockTicks();		// GetClock() == 100's of a second
 	if (cur_time < m_update_frame_time ||
