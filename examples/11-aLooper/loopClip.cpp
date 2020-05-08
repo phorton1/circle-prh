@@ -21,7 +21,7 @@ void loopClip::commit()
     
     // set first and last samples in block to 0
 
-    #if 9
+    #if 0
         s16 *p = getBlockBuffer();
         p += AUDIO_BLOCK_SAMPLES - 1;
         *p = 0;
