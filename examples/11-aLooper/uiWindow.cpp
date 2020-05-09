@@ -33,15 +33,34 @@ u16 uiWindow::getButtonFunction(u16 num)
 
 	if (num == 0)
 	{
-		// loopTrack *pSelTrack = pLooper->getSelectedTrack();
+		u16 cur_track_num = pLooper->getCurTrackNum();
+		u16 sel_track_num = pLooper->getSelectedTrackNum();
+		loopClip *pClip = pLooper->getSelectedTrack()->getSelectedClip();
 		
-		return LOOP_COMMAND_RECORD;
+		if (!pClip->getNumBlocks())
+		{
+			if (pClip->getClipState() == LOOP_CLIP_STATE_RECORDING)
+				return LOOP_COMMAND_PLAY;
+			else
+				return LOOP_COMMAND_RECORD;
+		}
+		
+		if ((state == LOOP_STATE_PLAYING ||
+			 state == LOOP_STATE_RECORDING) &&
+			 cur_track_num == sel_track_num)
+			return LOOP_COMMAND_STOP;
+		
+		return LOOP_COMMAND_PLAY;
 	}
 	if (num == 1)
 	{
-		if (state == LOOP_STATE_RECORDING ||
-			pLooper->getNumUsedTracks())
-			return LOOP_COMMAND_PLAY;
+		loopTrack *pTrack = pLooper->getSelectedTrack();
+		if (pTrack->getNumClips())
+			return LOOP_COMMAND_SELECT_NEXT_CLIP;
+		
+		// if (state == LOOP_STATE_RECORDING ||
+		// 	pLooper->getNumUsedTracks())
+		// 	return LOOP_COMMAND_PLAY;
 	}
 	if (num == 2)
 	{
@@ -52,7 +71,7 @@ u16 uiWindow::getButtonFunction(u16 num)
 	{
 		if (state == LOOP_STATE_RECORDING ||
 			state == LOOP_STATE_PLAYING)
-			return LOOP_COMMAND_STOP;
+			return LOOP_COMMAND_STOP_IMMEDIATE;
 		if (num != 0)
 			return LOOP_COMMAND_CLEAR_ALL;
 	}
@@ -131,26 +150,28 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 // virtual
 void uiWindow::updateFrame()
 {
-	u16 state = pLooper->getLoopState();
-	u16 num = pLooper->getNumUsedTracks();
-	
-	if (state != last_loop_state ||
-		num   != last_num_used_tracks)
+	for (int i=0; i<NUM_LOOP_BUTTONS; i++)
 	{
-		last_loop_state = state;
-		last_num_used_tracks = num;
-		
-		for (int i=0; i<NUM_LOOP_BUTTONS; i++)
+		u16 fxn = getButtonFunction(i);
+		if (fxn != last_button_fxn[i])
 		{
-			u16 fxn = getButtonFunction(i);
-			if (fxn != last_button_fxn[i])
-			{
-				pLoopButton[i]->setText(pLooper->getCommandName(fxn));
-				last_button_fxn[i] = fxn;
-			}
+			pLoopButton[i]->setText(pLooper->getCommandName(fxn));
+			last_button_fxn[i] = fxn;
 		}
 	}
-
+	
+	#if 0
+		u16 state = pLooper->getLoopState();
+		u16 num = pLooper->getNumUsedTracks();
+		if (state != last_loop_state ||
+			num   != last_num_used_tracks)
+		{
+			last_loop_state = state;
+			last_num_used_tracks = num;
+			setBit(m_state,WIN_STATE_DRAW);
+		}
+	#endif
+	
 	wsWindow::updateFrame();
 }
 

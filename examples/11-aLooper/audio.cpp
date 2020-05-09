@@ -1,4 +1,4 @@
-// 11-pLooper
+// 11-aLooper
 
 #include <audio\Audio.h>
 #include "looper.h"
@@ -69,11 +69,11 @@
 
 loopMachine *pLooper = 0;
 
-// #define TEST_SINE_INPUT
-
-#ifdef TEST_SINE_INPUT
-    AudioSynthWaveformSine sine1;
-    AudioSynthWaveformSine sine2;
+#if USE_MIXER
+    AudioAmplifier inputAmp1;
+    AudioAmplifier inputAmp2;
+    AudioMixer4 outputMixer1;
+    AudioMixer4 outputMixer2;
 #endif
 
 
@@ -95,15 +95,6 @@ void setup()
         control.inputLevel(1.0);
     #endif
     
-    #if !USE_TEENSY_QUAD_SLAVE
-        // ramp up the master volume over 1 second
-        for (u16 i=0; i<=50; i++)
-        {
-            control.volume(((float)i) / 50.0);
-            delay(20);
-        }
-    #endif
-    
     // allocate and connect the looper here
     // it will be available to the public through an extern
 
@@ -118,23 +109,23 @@ void setup()
         
         pLooper = new loopMachine();
         
-        #ifdef TEST_SINE_INPUT
-            sine1.frequency(440);
-            sine2.frequency(440);
-        #endif
 
         #if 1
-            #ifdef TEST_SINE_INPUT
-                new AudioConnection(sine1,      0,      *pLooper,       0);
-                new AudioConnection(sine2,      1,      *pLooper,       1);
-                new AudioConnection(sine1,      0,      output,         0);
-                new AudioConnection(sine2,      1,      output,         1);
+            #if USE_MIXER
+                new AudioConnection(input,      0,      inputAmp1,      0);
+                new AudioConnection(input,      1,      inputAmp2,      0);
+                new AudioConnection(inputAmp1,  0,      *pLooper,       0);
+                new AudioConnection(inputAmp2,  0,      *pLooper,       1);
+                new AudioConnection(inputAmp1,  0,      outputMixer1,   0);
+                new AudioConnection(inputAmp2,  0,      outputMixer2,   0);
+                new AudioConnection(*pLooper,   0,      outputMixer1,   1);
+                new AudioConnection(*pLooper,   1,      outputMixer2,   1);
             #else
                 new AudioConnection(input,      0,      *pLooper,       0);
                 new AudioConnection(input,      1,      *pLooper,       1);
                 new AudioConnection(*pLooper,   0,      output,         0);
                 new AudioConnection(*pLooper,   1,      output,         1);
-            #endif
+            #endif            
         #endif
         
         // this code should ONLY be included if the Looper object
@@ -158,6 +149,25 @@ void setup()
     // resort the streams in topological order
     
     AudioSystem::sortStreams();
+
+    #if USE_MIXER
+        inputAmp1.gain(1.0);
+        inputAmp2.gain(1.0);
+        outputMixer1.gain(0,1.0);
+        outputMixer1.gain(1,1.0);
+        outputMixer2.gain(0,1.0);
+        outputMixer2.gain(1,1.0);
+    #endif
+
+    
+    #if !USE_TEENSY_QUAD_SLAVE
+        // ramp up the master volume over 1 second
+        for (u16 i=0; i<=50; i++)
+        {
+            control.volume(((float)i) / 50.0);
+            delay(20);
+        }
+    #endif
     
     printf("11-aLooper::audio.cpp setup() finished\n");
     

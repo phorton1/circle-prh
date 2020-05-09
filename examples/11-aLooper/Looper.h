@@ -34,6 +34,15 @@
 
 #include <audio/Audio.h>
 
+#define USE_MIXER   0
+    // If 0 the audio inputs will be connected directly to the looper and 
+    //    the looper outputs will be connected directly to the audio outputs
+    // if 1, there will inputs will be routed through a pair of mixers
+    //    before going to the looper, and the audio inputs, and the looper
+    //    outputs will be connected to a separate mixer for output, in which
+    //    and the looper does not echo the inputs.
+    
+    
 class loopClip;
 class loopTrack;
 class loopMachine;
@@ -165,6 +174,8 @@ class loopClip
             return LOOP_CLIP_STATE_EMPTY;
         }
         
+        bool isSelected();
+        
     private:
         
         u16        m_clip_num;
@@ -212,6 +223,7 @@ class loopTrack
         
         void init()
         {
+            m_selected_clip_num = 0;
             for (int i=0; i<LOOPER_NUM_LAYERS; i++)
                 m_clips[i]->init();
         }
@@ -250,9 +262,17 @@ class loopTrack
         
         
         loopClip *getClip(u16 num); // with error checking
-        void commit_recording();
 
         bool isSelected();
+        
+        void setSelectedClipNum(u16 num)
+        {
+            if (num < LOOPER_NUM_LAYERS)
+                m_selected_clip_num = num;
+        }
+        u16 getSelectedClipNum()     { return m_selected_clip_num; }
+        loopClip *getSelectedClip()  { return m_clips[m_selected_clip_num]; }
+        
         
     private:
         
@@ -261,6 +281,8 @@ class loopTrack
         loopBuffer  *m_pLoopBuffer;
         
         loopClip *m_clips[LOOPER_NUM_LAYERS];
+        
+        u16 m_selected_clip_num;
 
 };
 
@@ -302,7 +324,8 @@ class loopMachine : public AudioStream
         static const char *getLoopStateName(u16 state);
         static const char *getCommandName(u16 name);
 
-        u16   getLoopState()          { return m_state; }
+        u16 getLoopState()     { return m_state; }
+        u16 getPendingState()  { return m_pending_state; }  
         
         loopBuffer *getLoopBuffer()     { return m_pLoopBuffer; }
         loopTrack  *getTrack(u16 num)   { return m_tracks[num]; }
@@ -329,6 +352,7 @@ class loopMachine : public AudioStream
         
         u16         getNumUsedTracks();
         u16         getSelectedTrackNum()   { return m_selected_track_num; }
+        loopTrack  *getSelectedTrack()      { return m_tracks[m_selected_track_num]; }
         
         // state machine API
         
@@ -339,10 +363,6 @@ class loopMachine : public AudioStream
             void setPendingState(u16 state);
 
             void selectTrack(u16 num);
-            loopTrack  *getSelectedTrack()
-            {
-                return m_tracks[m_selected_track_num];
-            }
             
     private:
         
@@ -381,6 +401,8 @@ extern loopMachine *pLooper;
 #define LOOP_COMMAND_PLAY               30
 #define LOOP_COMMAND_RECORD             40
 #define LOOP_COMMAND_SELECT_NEXT_TRACK  50
+#define LOOP_COMMAND_SELECT_NEXT_CLIP   60
+#define LOOP_COMMAND_STOP_IMMEDIATE     70
 
 
 // ideas:

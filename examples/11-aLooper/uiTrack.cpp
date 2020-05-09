@@ -4,7 +4,6 @@
 #include <circle/logger.h>
 #define log_name  "track_ctl"
 
-#define CLIP_OUTER_SPACE 2
 #define CLIP_BUTTON_SPACE 10
 
 #define ID_CLIP_BUTTON_BASE 500
@@ -18,26 +17,24 @@ uiTrack::uiTrack(
 		s32 ys,
 		s32 xe,
 		s32 ye) :
-	wsWindow(pParent,id,xs,ys,xe,ye)
-		// WIN_STYLE_TRANSPARENT,
-		// WIN_STYLE_TOUCH),	// |
-		//WIN_STYLE_CLICK | 
-		// WIN_STYLE_3D),
+	wsWindow(pParent,id,xs,ys,xe,ye,WIN_STYLE_2D)
+		// WIN_STYLE_TRANSPARENT
+		// WIN_STYLE_TOUCH
+		// WIN_STYLE_CLICK
 {
 	m_selected = false;
 	m_track_num = track_num;
 	m_pLoopTrack = pLooper->getTrack(m_track_num);
 	setForeColor(wsWHITE);
+    setFrameWidth(2);
 	
 	// create the clip controls
 	
-	int width = xe-xs+1;
-	int height = ye-ys+1;
-	int cwidth = width - CLIP_OUTER_SPACE*2;
-	int cheight = (height - CLIP_OUTER_SPACE*2 - CLIP_BUTTON_SPACE*(LOOPER_NUM_LAYERS-1)) / LOOPER_NUM_LAYERS;
-	int offset = CLIP_OUTER_SPACE;
+	int height = m_rect_client.ye-m_rect_client.ys+1;
+	int cheight = (height - CLIP_BUTTON_SPACE*(LOOPER_NUM_LAYERS-1)) / LOOPER_NUM_LAYERS;
+	int offset = 0;
 	
-	LOG("width=%d height=%d cwidth=%d cheight=%d offset=%d",width,height,cwidth,cheight,offset);
+	LOG("ctor height=%d cheight=%d",height,cheight);
 
 	for (int i=0; i<LOOPER_NUM_LAYERS; i++)
 	{
@@ -46,9 +43,9 @@ uiTrack::uiTrack(
 			i,
 			this,
 			ID_CLIP_BUTTON_BASE + i,
-			CLIP_OUTER_SPACE,
+			0,
 			offset,
-			CLIP_OUTER_SPACE + cwidth-1,
+			m_rect_client.xe-m_rect_client.xs+1,
 			offset + cheight-1);
 		offset += cheight + CLIP_BUTTON_SPACE;
 	}
@@ -59,7 +56,7 @@ uiTrack::uiTrack(
 
 void uiTrack::onDraw()
 {
-	wsColor color = m_selected ? m_fore_color : m_back_color;
+	wsColor color = m_selected ? wsGRAY : m_back_color;
 	m_pDC->setClip(m_clip_abs,m_state & WIN_STATE_INVALID);
 
 	m_pDC->drawFrame(
@@ -67,7 +64,8 @@ void uiTrack::onDraw()
 		m_rect_abs.ys,
 		m_rect_abs.xe,
 		m_rect_abs.ye,
-		color);
+		color,
+		m_frame_width );
 }
 
 

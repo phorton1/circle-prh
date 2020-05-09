@@ -44,5 +44,5 @@ loopClip *loopTrack::getClip(u16 num)
     return m_clips[num];
 }
 
-   
+
 

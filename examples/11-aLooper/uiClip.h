@@ -35,9 +35,13 @@ class uiClip : public wsWindow
 		
 		u8 m_pressed;
 
-		u8  m_clip_state;
 		u32 m_cur_block;
 		u32 m_num_blocks;
+		bool m_selected;
+
+		u16  m_pending_state;
+		bool m_pending_flash;
+		u32  m_pending_flash_time;
 		
 		virtual void onDraw();
 		virtual void updateFrame();

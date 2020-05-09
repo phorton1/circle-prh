@@ -60,14 +60,6 @@ const char *loopMachine::getLoopStateName(u16 state)
     return "UNKNOWN_STATE";
 }
 
-#define LOOP_COMMAND_NONE               0
-#define LOOP_COMMAND_CLEAR_ALL          10
-#define LOOP_COMMAND_STOP               20
-#define LOOP_COMMAND_STOP_IMMEDIATE     21
-#define LOOP_COMMAND_PLAY               30
-#define LOOP_COMMAND_PLAY_IMMEDIATE     31
-#define LOOP_COMMAND_RECORD             40
-#define LOOP_COMMAND_SELECT_NEXT_TRACK  50
 
 
 // static
@@ -78,7 +70,9 @@ const char *loopMachine::getCommandName(u16 state)
     if (state == LOOP_COMMAND_STOP)                 return "STOP";
     if (state == LOOP_COMMAND_PLAY)                 return "PLAY";
     if (state == LOOP_COMMAND_RECORD)               return "REC";
-    if (state == LOOP_COMMAND_SELECT_NEXT_TRACK)    return "NEXT";
+    if (state == LOOP_COMMAND_SELECT_NEXT_TRACK)    return "TRACK";
+    if (state == LOOP_COMMAND_SELECT_NEXT_CLIP)     return "CLIP";
+    if (state == LOOP_COMMAND_STOP_IMMEDIATE)       return "STOP!";
 
     return "UNKNOWN_STATE";
 }
@@ -164,6 +158,29 @@ void loopMachine::command(u16 command, u16 param /*=0*/)
                 }
                 break;
             }
+        case LOOP_COMMAND_STOP_IMMEDIATE :
+            {
+                if (m_state == LOOP_STATE_PLAYING ||
+                    m_state == LOOP_STATE_RECORDING)
+                {
+                    m_state = LOOP_STATE_STOPPED;
+                    m_pending_state = 0;
+                    if (m_pRecordClip)
+                    {
+                        if (!m_pRecordClip->getClipNum())
+                            m_pRecordClip->commit();
+                        else
+                            m_pRecordClip->init();
+                        m_pRecordClip = 0;
+                    }
+                    getCurTrack()->zeroClips();
+                }
+                else
+                {
+                    LOG_WARNING("NO NEED TO STOP_IMMEDIATE (should be different function)",0);
+                }
+                break;
+            }
         case LOOP_COMMAND_RECORD  :
             {
                 loopTrack *pSelTrack = getSelectedTrack();
@@ -190,13 +207,15 @@ void loopMachine::command(u16 command, u16 param /*=0*/)
             }
         case LOOP_COMMAND_SELECT_NEXT_TRACK :
             {
+                LOG("SELECT_NEXT_TRACK(%d)",m_selected_track_num);
+                
+                setPendingState(LOOP_STATE_NONE);
+
                 m_selected_track_num++;
-                if (m_selected_track_num > getNumUsedTracks() + 1 ||
+                if (m_selected_track_num > getNumUsedTracks() ||
                     m_selected_track_num == LOOPER_NUM_TRACKS)
                     m_selected_track_num = 0;
                     
-                LOG("SELECT_NEXT_TRACK(%d)",m_selected_track_num);
-                
                 if (m_selected_track_num != m_cur_track_num &&
                     m_state != LOOP_STATE_PLAYING &&
                     m_state != LOOP_STATE_RECORDING)
@@ -206,6 +225,18 @@ void loopMachine::command(u16 command, u16 param /*=0*/)
                 }
                 break;
             }
+        case LOOP_COMMAND_SELECT_NEXT_CLIP :
+            {
+                loopTrack *pTrack = getTrack(getSelectedTrackNum());
+                u16 clip_num = pTrack->getSelectedClipNum();
+                LOG("SELECT_NEXT_CLIP(%d)",clip_num);
+                
+                clip_num++;
+                if (clip_num > pTrack->getNumClips() ||
+                    clip_num == LOOPER_NUM_LAYERS)
+                    clip_num = 0;
+                pTrack->setSelectedClipNum(clip_num);
+            }
         default:
             LOG_ERROR("unimplemented command(%d)",command);
             break;
@@ -214,25 +245,14 @@ void loopMachine::command(u16 command, u16 param /*=0*/)
 }
 
 
-volatile int in_interrupt = 0;
 
 
 // virtual
 void loopMachine::update(void)
 {
-    if (in_interrupt)
-    {
-        LOG("interrupt re-entered!",0);
-    }
-    in_interrupt = 1;
-    
-    
     // always receive any input blocks
     // which in our case will always have content
-    
-    // DisableIRQs();
-    // EnterCritical();
-    
+
     s16 *ip[LOOPER_MAX_NUM_INPUTS];
 	audio_block_t *in[LOOPER_MAX_NUM_INPUTS];
 	for (u16 j=0; j<LOOPER_MAX_NUM_INPUTS; j++)
@@ -240,6 +260,9 @@ void loopMachine::update(void)
         in[j] = receiveWritable(j);
         ip[j] = in[j] ? in[j]->data : 0;
         // assert(ip[j]);   FUCKING CRASHES IF YOU ASSERT HERE, FFS
+        #if USE_MIXER
+            memset(ip[j],0,AUDIO_BLOCK_BYTES);
+        #endif
     }
     
     loopTrack *pCurTrack = getCurTrack();
@@ -255,8 +278,8 @@ void loopMachine::update(void)
         bool doit = false;
         if (m_state == LOOP_STATE_NONE || m_state == LOOP_STATE_STOPPED)
             doit = true;
-        else if (m_state == LOOP_STATE_PLAYING && m_pending_state == LOOP_STATE_STOPPED)
-            doit = true;
+        // else if (m_state == LOOP_STATE_PLAYING && m_pending_state == LOOP_STATE_STOPPED)
+        //     doit = true;
         else if (m_pRecordClip && !m_pRecordClip->getClipNum())
             doit = true;
         else if (!pCurTrack->getClip(0)->getCurBlock())
@@ -281,6 +304,7 @@ void loopMachine::update(void)
             
             if (m_selected_track_num != m_cur_track_num)
             {
+                pCurTrack->zeroClips();
                 m_cur_track_num = m_selected_track_num;
                 pCurTrack = getCurTrack();
             }
@@ -403,10 +427,6 @@ void loopMachine::update(void)
         }
     }
 
-    // LeaveCritical(); doesn't help
-    // doesn't work EnableIRQs();
-    in_interrupt = 0;
-    
 }
 
 

@@ -12,8 +12,12 @@ loopClip::loopClip(u16 clip_num, loopTrack* pTrack, u16 num_channels /* =2 */)
     m_num_channels = num_channels;
     init();
 }
-        
-        
+
+bool loopClip::isSelected()
+{
+    return m_pLoopTrack->getSelectedClipNum() == m_clip_num ? true : false;
+}
+
 void loopClip::commit()
 {
     // NO NO NO!!
