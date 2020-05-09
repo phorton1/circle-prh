@@ -56,7 +56,7 @@ class wsDC
 		void fillScreen( wsColor color );
 		void fillFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
 		void drawLine( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
-		void drawFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color );
+		void drawFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color, u16 frame_width );
 		void draw3DFrame( s32 xs, s32 ys, s32 xe, s32 ye, const wsColor *pColor );
 
 		void fillRoundFrame( s32 x0, s32 y0, s32 x1, s32 y1, u16 r, wsColor color );

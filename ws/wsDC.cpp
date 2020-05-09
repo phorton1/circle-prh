@@ -120,12 +120,25 @@ void wsDC::drawLine( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color )
 
 
 
-void wsDC::drawFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color )
+void wsDC::drawFrame( s32 x0, s32 y0, s32 x1, s32 y1, wsColor color, u16 frame_width )
 {
-   drawLine(x0,y0,x1,y0,color);
-   drawLine(x0,y1,x1,y1,color);
-   drawLine(x0,y0,x0,y1,color);
-   drawLine(x1,y0,x1,y1,color);	
+	if (!frame_width) frame_width = 1;
+
+	if (frame_width == 1)	
+	{
+		drawLine(x0,y0,x1,y0,color);
+		drawLine(x0,y1,x1,y1,color);
+		drawLine(x0,y0,x0,y1,color);
+		drawLine(x1,y0,x1,y1,color);
+	}
+	else
+	{
+		fillFrame(x0,y0,x1,y0+frame_width-1,color);
+		fillFrame(x0,y1,x1,y1-frame_width+1,color);
+		
+		fillFrame(x0,y0,x0+frame_width-1,y1,color);
+		fillFrame(x1-frame_width+1,y0,x1,y1,color);
+	}
 }
 
 

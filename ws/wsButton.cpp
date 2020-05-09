@@ -147,7 +147,8 @@ void wsButton::onDraw()
 			m_rect_abs.ye,
 			pressed ? 
 				m_alt_back_color :
-				m_alt_fore_color);
+				m_alt_fore_color,
+			m_frame_width );
 	}
 }
 

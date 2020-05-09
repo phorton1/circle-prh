@@ -100,6 +100,7 @@ wsWindow::wsWindow(
 	m_pFirstChild  = 0;
 	m_pLastChild   = 0;
 	m_numChildren  = 0;
+	m_frame_width  = 1;
 
 	if (m_pParent)
 	{
@@ -123,7 +124,11 @@ wsWindow::wsWindow(
 		DRAG_CONSTRAINT_SHOW;
 }
 
-
+void wsWindow::setFrameWidth(u16 width)
+{
+	m_frame_width = width;
+	onSize();
+}
 
 void wsWindow::onSize()
 {
@@ -134,10 +139,10 @@ void wsWindow::onSize()
 	
 	if (m_style & WIN_STYLE_2D)
 	{
-		m_rect_client.xs++;
-		m_rect_client.ys++;
-		m_rect_client.xe--;
-		m_rect_client.ye--;
+		m_rect_client.xs += m_frame_width;
+		m_rect_client.ys += m_frame_width;
+		m_rect_client.xe -= m_frame_width;
+		m_rect_client.ye -= m_frame_width;
 	}
 	else if (m_style & WIN_STYLE_3D)
 	{
@@ -314,7 +319,8 @@ void wsWindow::onDraw()
 			m_rect_abs.ys,
 			m_rect_abs.xe,
 			m_rect_abs.ye,
-			m_fore_color );
+			m_fore_color,
+			m_frame_width );
 	}
 	
 	if (!(m_style & WIN_STYLE_TRANSPARENT))

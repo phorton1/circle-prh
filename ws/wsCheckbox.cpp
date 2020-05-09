@@ -110,7 +110,8 @@ void wsCheckbox::onDraw()
 			m_rect_abs.xs + CHECKBOX_SIZE - 1,
 			m_rect_abs.ys + CHECKBOX_SIZE - 1,
 			(m_checkbox_state & CHB_STATE_PRESSED) ?
-				m_alt_back_color : m_alt_fore_color);
+				m_alt_back_color : m_alt_fore_color,
+			m_frame_width);
 	}
 }
 

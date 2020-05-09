@@ -180,6 +180,7 @@ class wsWindow : public wsEventHandler
 		void setForeColor(wsColor color) 	{ m_fore_color = color; m_pDC->invalidate(m_rect_abs);}
 		void setBackColor(wsColor color) 	{ m_back_color = color; m_pDC->invalidate(m_rect_abs);}
 		void setAlign(wsAlignType align)	{ m_align = align; }
+		void setFrameWidth(u16 width);	
 		
 		void show();
 		void hide();
@@ -278,6 +279,7 @@ class wsWindow : public wsEventHandler
 		wsColor m_fore_color;
 		wsColor m_back_color;
 		wsAlignType m_align;
+		u16 m_frame_width;
 
 		CString m_text;
 		u8 m_drag_constraint;
