@@ -1,4 +1,4 @@
-#include "looper.h"
+#include "Looper.h"
 #include <circle/logger.h>
 
 #define log_name "lclip"

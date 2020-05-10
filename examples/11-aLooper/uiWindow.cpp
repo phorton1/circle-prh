@@ -3,7 +3,7 @@
 #include <circle/logger.h>
 #include <utils/myUtils.h>
 
-#include "looper.h"
+#include "Looper.h"
 #include "uiStatusBar.h"
 #include "uiTrack.h"
 
@@ -20,8 +20,17 @@
 #define TRACK_HSPACE  	5
 
 #define ID_LOOP_STATUS_BAR     101
-#define ID_VU1                 201
-#define ID_VU2                 202
+#define ID_VUI1                201	// codec input
+#define ID_VUI2                202
+#define ID_VUO1                203	// final output (looper or output mixer)
+#define ID_VUO2                204
+#define ID_VUAI1               205	// input amp if present
+#define ID_VUAI2               206
+#define ID_VUOM1               207	// looper output
+#define ID_VUOM2               208
+#define ID_VUT1 	           207	// thru output (if NO_LOOPER_THRU)
+#define ID_VUT2                208  // copy of input amp or input
+
 #define ID_TRACK_CONTROL_BASE  300  // ..311
 #define ID_LOOP_BUTTON_BASE    400  // ..403  
 
@@ -95,18 +104,76 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
     int offset = LEFT_MARGIN + BUTTON_SPACING;
     int btop = height-BOTTOM_MARGIN;
 
-	new uiStatusBar(this,ID_LOOP_STATUS_BAR,0,0,width-165,TOP_MARGIN-1);
+	new uiStatusBar(this,ID_LOOP_STATUS_BAR,165,0,width-165,TOP_MARGIN-1);
 	
 	#if 1
-		awsVuMeter *pInputVU1 = new awsVuMeter(this,ID_VU1,width-150-1,2,width-6,14,1,12);
-		awsVuMeter *pInputVU2 = new awsVuMeter(this,ID_VU2,width-150-1,16,width-6,28,1,12);
-		pInputVU1->setAudioDevice("tdmi",0,0);
-		pInputVU2->setAudioDevice("tdmi",0,1);
+		// We use find() to located the codec (input device)
+		// with any name (0) and any instance (-1)
+
+		// TOP LEFT INPUT VU METER - CODEC audio input, period
 		
-		awsVuMeter *pOutputVU1 = new awsVuMeter(this,ID_VU1,40,TOP_MARGIN+40,58,TOP_MARGIN+40+240+1,0,12);
-		awsVuMeter *pOutputVU2 = new awsVuMeter(this,ID_VU1,60,TOP_MARGIN+40,78,TOP_MARGIN+40+240+1,0,12);
-		pOutputVU1->setAudioDevice("looper",0,0);
-		pOutputVU2->setAudioDevice("looper",0,1);
+		AudioStream *pInputDevice = AudioSystem::find(AUDIO_DEVICE_INPUT,0,-1);
+		awsVuMeter *pInputVU1 = new awsVuMeter(this,ID_VUI1,6, 2,151,14,1,12);
+		awsVuMeter *pInputVU2 = new awsVuMeter(this,ID_VUI2,6,16,151,28,1,12);
+		pInputVU1->setAudioDevice(pInputDevice->getName(),0,0);
+		pInputVU2->setAudioDevice(pInputDevice->getName(),0,1);
+
+		// TOP RIGHT OUTPUT VU METER - final mixer or looper output
+		
+		awsVuMeter *pOutputVU1 = new awsVuMeter(this,ID_VUO1,width-150-1, 2,width-6,14,1,12);
+		awsVuMeter *pOutputVU2 = new awsVuMeter(this,ID_VUO2,width-150-1,16,width-6,28,1,12);
+		#if USE_OUTPUT_MIXER
+			pOutputVU1->setAudioDevice("mixer",0,0);
+			pOutputVU2->setAudioDevice("mixer",1,0);
+		#else
+			pOutputVU1->setAudioDevice("looper",0,0);
+			pOutputVU2->setAudioDevice("looper",0,1);
+		#endif
+		
+		
+		#define VU_TOP  	TOP_MARGIN+40
+		#define VU_BOTTOM   VU_TOP + 180
+
+		// LEFT BAR - INPUT vu if using INPUT_AMP
+		
+		#if USE_INPUT_AMP
+			wsStaticText *pt1 = new wsStaticText(this,0,"IN",6,TOP_MARGIN+23,44,TOP_MARGIN+39);
+			pt1->setAlign(ALIGN_CENTER);
+			pt1->setForeColor(wsWHITE);
+			pt1->setFont(wsFont7x12);
+			
+			awsVuMeter *pAmpVU1 = new awsVuMeter(this,ID_VUAI1,  8, VU_TOP, 23, VU_BOTTOM, 0, 12);
+			awsVuMeter *pAmpVU2 = new awsVuMeter(this,ID_VUAI2, 25, VU_TOP, 40, VU_BOTTOM, 0, 12);
+			pAmpVU1->setAudioDevice("amp",0,0);
+			pAmpVU2->setAudioDevice("amp",1,0);
+		#endif
+
+		// A general issue is that you have to connect a VU meter to an output
+		//
+		// So you can't see what's going on INSIDE a mixer or final output device.
+		// Likewise, you cannot see "before" the codec input gain stage,
+		// you can only show the signal AFTER it has gone through the input stage,
+		// or BEFORE it has gone through the final output stage.
+
+		#if USE_OUTPUT_MIXER
+			// main output vu
+			pOutputVU1->setAudioDevice("mixer",0,0);
+			pOutputVU2->setAudioDevice("mixer",1,0);
+
+			// loop output vu
+			
+			wsStaticText *pt2 = new wsStaticText(this,0,"LOOP",46,TOP_MARGIN+23,86,TOP_MARGIN+39);
+			pt2->setAlign(ALIGN_CENTER);
+			pt2->setForeColor(wsWHITE);
+			pt2->setFont(wsFont7x12);
+			
+			awsVuMeter *pLoopVU1 = new awsVuMeter(this,ID_VUOM1, 50, VU_TOP, 65, VU_BOTTOM, 0, 12);
+			awsVuMeter *pLoopVU2 = new awsVuMeter(this,ID_VUOM2, 67, VU_TOP, 82, VU_BOTTOM, 0, 12);
+			pLoopVU1->setAudioDevice("looper",0,0);
+			pLoopVU2->setAudioDevice("looper",0,1);
+			
+		#endif
+		
 	#endif
 	
 	int cheight = height-TOP_MARGIN-BOTTOM_MARGIN-TRACK_VSPACE*2;

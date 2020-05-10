@@ -4,7 +4,7 @@
 
 #include <ws/ws.h>
 #include <system/midiEvent.h>
-#include "looper.h"
+#include "Looper.h"
 
 
 #define NUM_LTB_ROWS   3

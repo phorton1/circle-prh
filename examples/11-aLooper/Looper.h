@@ -34,14 +34,22 @@
 
 #include <audio/Audio.h>
 
-#define USE_MIXER   0
+
+#define USE_INPUT_AMP          1
+
+#define USE_OUTPUT_MIXER       1
     // If 0 the audio inputs will be connected directly to the looper and 
     //    the looper outputs will be connected directly to the audio outputs
     // if 1, there will inputs will be routed through a pair of mixers
     //    before going to the looper, and the audio inputs, and the looper
     //    outputs will be connected to a separate mixer for output, in which
     //    and the looper does not echo the inputs.
-    
+
+#define NO_THRU_LOOPER          1
+    // requires USE_OUTPUT_MIXER
+
+
+
     
 class loopClip;
 class loopTrack;

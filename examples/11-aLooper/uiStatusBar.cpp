@@ -1,5 +1,5 @@
 
-#include "looper.h"
+#include "Looper.h"
 #include "uiStatusBar.h"
 #include <circle/logger.h>
 #include <utils/myUtils.h>

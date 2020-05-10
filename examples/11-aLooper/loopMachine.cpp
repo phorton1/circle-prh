@@ -1,4 +1,4 @@
-#include "looper.h"
+#include "Looper.h"
 #include <circle/logger.h>
 #include <circle/synchronize.h>
 
@@ -22,15 +22,17 @@ loopMachine::loopMachine() :
 
 loopMachine::~loopMachine()
 {
-    LOG("ctor",0);
-    delete m_pLoopBuffer;
+    LOG("dtor",0);
+    if (m_pLoopBuffer)
+        delete m_pLoopBuffer;
     m_pLoopBuffer = 0;
     for (int i=0; i<LOOPER_NUM_TRACKS; i++)
     {
-        delete  m_tracks[i];
+        if (m_tracks[i])
+            delete  m_tracks[i];
         m_tracks[i] = 0;
     }
-    LOG("ctor finished",0);
+    LOG("dtor finished",0);
 }
 
 
@@ -260,9 +262,6 @@ void loopMachine::update(void)
         in[j] = receiveWritable(j);
         ip[j] = in[j] ? in[j]->data : 0;
         // assert(ip[j]);   FUCKING CRASHES IF YOU ASSERT HERE, FFS
-        #if USE_MIXER
-            memset(ip[j],0,AUDIO_BLOCK_BYTES);
-        #endif
     }
     
     loopTrack *pCurTrack = getCurTrack();
@@ -329,7 +328,7 @@ void loopMachine::update(void)
         }
     }
     
-            
+
     if (m_state == LOOP_STATE_RECORDING)
     {
         s16 *op = m_pRecordClip->getBlockBuffer();
@@ -349,6 +348,15 @@ void loopMachine::update(void)
         
         m_pRecordClip->incCurBlock();
     }
+
+    // clear the input if NO_THRU_LOOPER
+    #if NO_THRU_LOOPER
+        for (u16 j=0; j<LOOPER_MAX_NUM_INPUTS; j++)     // ASSUMED TO BE TWO FOR THE MOMENT
+        {
+            memset(ip[j],0,AUDIO_BLOCK_BYTES);
+        }
+    #endif
+    
     
     // mix the existing clips into the output
     
@@ -382,11 +390,16 @@ void loopMachine::update(void)
             for (u16 j=0; j<LOOPER_MAX_NUM_INPUTS; j++)     // ASSUMED TO BE TWO FOR THE MOMENT
             {
                 s16 *tp = ip[j];
+
+                #if NO_THRU_LOOPER
+                    if (!i)
+                        memset(tp,0,AUDIO_BLOCK_BYTES);
+                #endif
                 
                 for (u16 i=0; i<AUDIO_BLOCK_SAMPLES; i++)
                 {
                     s16 val = op[i];
-
+                    
                     #if FADE_IN_BLOCKS
                         if (cur_block < FADE_IN_BLOCKS)                     // 0..FADE_IN_BLOCKS=1
                         {
