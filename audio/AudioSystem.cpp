@@ -310,6 +310,14 @@ void AudioSystem::sortStreams()
         LOG_ERROR("No AudioStreams found!!",0);
         return;
     }
+
+	// initialize pUpdateDepth
+    for (AudioStream *p = s_pFirstStream; p; p = p->m_pNextStream)
+    {
+		p->m_updateDepth = 0;
+	}
+	
+	// traverse output only audio devices
     
     u16 obj_num = 0;
     AudioStream *objs[s_numStreams];
@@ -320,6 +328,7 @@ void AudioSystem::sortStreams()
         {
             if (p->m_pFirstConnection)
             {
+				// LOG("    traversing %s:%d start=%d",p->getName(),p->getInstance(),p->m_updateDepth);
                 traverse_update(1,p);
             }
             else
@@ -367,6 +376,13 @@ void AudioSystem::sortStreams()
     AudioStream *prev = objs[0];
     for (i=1; i<s_numStreams; i++)
     {
+		#if 1
+			LOG("%d    %s:%d --> %s:%d",
+				prev->m_updateDepth,
+				prev->getName(),prev->getInstance(),
+				objs[i]->getName(),objs[i]->getInstance());
+		#endif
+		
         prev->m_pNextStream = objs[i];
         prev = objs[i];
     }
