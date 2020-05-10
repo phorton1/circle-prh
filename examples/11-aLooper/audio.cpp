@@ -130,6 +130,10 @@ void setup()
         control.inputSelect(AUDIO_INPUT_LINEIN);
         control.inputLevel(1.0);
     #endif
+    
+    #if USE_CS42448
+        control.inputLevel(0);   // -64 to +24 db, default = 0
+    #endif
 
     #if USE_INPUT_AMP
         inputAmp1.gain(1.27);

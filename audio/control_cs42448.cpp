@@ -268,6 +268,29 @@ uint32_t volumebyte(float level)
 	if (level <= 0.0000003981) return 128;
 	return roundf(log10f(level) * -20.0);
 }
+int32_t inputlevelbyte(float level)
+	// convert level to input gain, section 6.11.1, page 51
+	// from +24 to -64 db
+	//
+	// 0x30+  0011 0000 +24 dB          decimal 48
+	//        ··· ···
+	//        0000 0000 0 dB            0 == 0 db = default
+	//        1111 1111 -0.5 dB         -1
+	//        1111 1110 -1 dB           -2
+	//        ··· ···
+	//        1000 0000 -64 dB	        -128
+{
+	// pauls algorithm
+	// 
+	// if (level > 15.8489) return 48;
+	// if (level < 0.00063095734) return -128;
+	// return roundf(log10f(level) * 40.0);
+	
+	int i = roundf(level * 2.0);
+	LOG("inputlevelbyte %0.2f==%d",level,i);
+	return i;
+}
+
 
 
 void AudioControlCS42448::volume(float level)
@@ -295,6 +318,20 @@ void AudioControlCS42448::volume(int channel, float level)
 	write(CS42448_DAC_Channel_Mute+channel+1, n);
 }
 
+
+void AudioControlCS42448::inputLevel(float level)
+{
+	u32 n = inputlevelbyte(level);
+	for (int i=0; i<6; i++)
+		write(CS42448_AIN1_Volume_Control+i,n);
+		
+}
+void AudioControlCS42448::inputLevel(int channel, float level)
+{
+	if (channel < 1 || channel > 6) return;
+	u32 n = inputlevelbyte(level);
+	write(CS42448_AIN1_Volume_Control+channel,n);
+}
 
 
 
