@@ -53,25 +53,27 @@ uiClip::uiClip(
 	// notes numbered 0x20 .. 0x2f (32 thru 47) from the top
 	// left corner.
 	
-	int reg_note = 0x20 + (m_track_num * LOOPER_NUM_TRACKS) + m_clip_num;
+	#if 0
+		int reg_note = 0x20 + (m_track_num * LOOPER_NUM_TRACKS) + m_clip_num;
+		
+		midiEventHandler::registerMidiHandler(
+			(void *)this,
+			staticHandleMidiEvent,
+			-1,			// any cable
+			6,			// channel = 7
+			9,			// note on
+			reg_note,	// inverted rows
+			-1);		// ignore the last paramter
 	
-	midiEventHandler::registerMidiHandler(
-		(void *)this,
-		staticHandleMidiEvent,
-		-1,			// any cable
-		6,			// channel = 7
-		9,			// note on
-		reg_note,	// inverted rows
-		-1);		// ignore the last paramter
-
-	midiEventHandler::registerMidiHandler(
-		(void *)this,
-		staticHandleMidiEvent,
-		-1,			// any cable
-		6,			// channel = 7
-		8,			// note off
-		reg_note,	// inverted rows
-		-1);		// ignore the last paramter
+		midiEventHandler::registerMidiHandler(
+			(void *)this,
+			staticHandleMidiEvent,
+			-1,			// any cable
+			6,			// channel = 7
+			8,			// note off
+			reg_note,	// inverted rows
+			-1);		// ignore the last paramter
+	#endif
 	
 	setForeColor(wsWHITE);
 	// setBackColor(wsBLACK);
