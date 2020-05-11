@@ -172,15 +172,17 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			pt2->setForeColor(wsWHITE);
 			pt2->setFont(wsFont7x12);
 		#endif
-		#if 0
-			// wsStaticText *pWin = new wsStaticText(this,ID_VU_SLIDER,"blah", 5, VU_BOTTOM+10, 100, VU_BOTTOM+30);
-			// pWin->setBackColor(wsCYAN);
-			// LOG("pWin=%08x",(u32)pWin);
-			
-			/// vuSlider *pSlider =
-			new vuSlider(this,ID_VU_SLIDER,8, VU_TOP, 140, VU_BOTTOM,
-				0,		// channel 1, 0 based, as programmed on MPD21
-				0x0D);	// 0x0D = the middle right knob on MPD218
+		#if 1
+			#if 0
+				wsStaticText *pWin = new wsStaticText(this,ID_VU_SLIDER,"blah", 5, VU_BOTTOM+10, 100, VU_BOTTOM+30);
+				pWin->setBackColor(wsCYAN);
+				LOG("pWin=%08x",(u32)pWin);
+			#else
+				/// vuSlider *pSlider =
+				new vuSlider(this,ID_VU_SLIDER,50, VU_TOP, 140, VU_BOTTOM,
+					0,		// channel 1, 0 based, as programmed on MPD21
+					0x0D);	// 0x0D = the middle right knob on MPD218
+			#endif
 		#endif
 			
 			awsVuMeter *pLoopVU1 = new awsVuMeter(this,ID_VUOM1, 50, VU_TOP, 65, VU_BOTTOM, 0, 12);

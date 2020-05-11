@@ -62,11 +62,21 @@ void vuSlider::onDraw()
 	
 	// printf("onDraw(%d) fval=%3.2f height=%3.2f pos=%3.2f ipos=%d\n",m_last_val,fval,height,pos,ipos);
 	
+    // m_pDC->fillFrame(
+	// 	m_rect_client.xs,
+	// 	m_rect_client.ys,
+	// 	m_rect_client.xe,
+	// 	m_rect_client.ye,
+	// 	m_back_color);
+	
     m_pDC->fillFrame(
 		m_rect_client.xs,
 		m_rect_client.ys + ipos,
 		m_rect_client.xe,
 		m_rect_client.ys + ipos+BAR_HEIGHT-1,wsWHITE);
+	
+	// if (ipos == 0)
+	//	LOG("0123456789 %4f",0);
 }
 
 

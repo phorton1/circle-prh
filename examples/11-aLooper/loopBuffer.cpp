@@ -12,14 +12,14 @@ loopBuffer::loopBuffer(u32 size)
     #if ALLOCATE_LOOPBUFFER_ON_FIRST_USE
         m_buffer = 0;
     #else
-        #if 0
-            extern unsigned long prhFreePtr;
-            LOG("loopBuffer using prhFreePtr=%08X  mem=%dM",prhFreePtr,mem_get_size()/1000000);
-            m_buffer = (int16_t *) prhFreePtr + 4 * MEGABYTE;
-        #else
+        #if 1
             LOG("loopBuffer allocating %ld bytes",m_size);
             m_buffer = (int16_t *) malloc(m_size);
             LOG("loopBuffer=0x%08X  mem=%dM",(u32) m_buffer,mem_get_size()/1000000);
+        #else
+            extern unsigned long prhFreePtr;
+            LOG("loopBuffer using prhFreePtr=%08X  mem=%dM",prhFreePtr,mem_get_size()/1000000);
+            m_buffer = (int16_t *) prhFreePtr + 4 * MEGABYTE;
         #endif
     #endif
 }

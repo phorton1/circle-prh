@@ -346,10 +346,12 @@ boolean CKernel::Initialize (void)
 			bOK = m_DWHCI.Initialize ();
 	#endif
 
-	// #ifdef WITH_MULTI_CORE
-	// 	if (bOK)
-	// 		bOK = m_CoreTask.Initialize();
-	// #endif
+	#if 0
+		#ifdef WITH_MULTI_CORE
+			if (bOK)
+				bOK = m_CoreTask.Initialize();
+		#endif
+	#endif
 	
 	#if USE_UI_SYSTEM
 		if (bOK)
@@ -372,9 +374,11 @@ boolean CKernel::Initialize (void)
 	#endif
 
 	
-	#ifdef WITH_MULTI_CORE
-		if (bOK)
-			bOK = m_CoreTask.Initialize();
+	#if 1
+		#ifdef WITH_MULTI_CORE
+			if (bOK)
+				bOK = m_CoreTask.Initialize();
+		#endif
 	#endif
 	
 	return bOK;
