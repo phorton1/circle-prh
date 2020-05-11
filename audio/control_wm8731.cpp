@@ -233,6 +233,10 @@ void AudioControlWM8731Slave::start(void)
 // event handling
 //----------------------------------
 
+// #define MIDI_MSG_CC   0xb9
+// #define MIDI_CC_VOL   0x07
+	// wrong but I need something
+
 // old midi handling
 //
 // u8 AudioControlWM8731::handleMidiEvent(midiEvent *event)
