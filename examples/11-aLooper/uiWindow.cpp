@@ -172,7 +172,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			pt2->setForeColor(wsWHITE);
 			pt2->setFont(wsFont7x12);
 		#endif
-		#if 1
+		#if 0
 			// wsStaticText *pWin = new wsStaticText(this,ID_VU_SLIDER,"blah", 5, VU_BOTTOM+10, 100, VU_BOTTOM+30);
 			// pWin->setBackColor(wsCYAN);
 			// LOG("pWin=%08x",(u32)pWin);
