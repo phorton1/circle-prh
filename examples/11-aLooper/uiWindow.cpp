@@ -98,11 +98,39 @@ u16 uiWindow::getButtonFunction(u16 num)
 
 //----------------------------------------------------------------
 
+u32 last_sp = 0;
+
+class testWindow : public wsWindow
+{
+	public:	
+
+		testWindow(wsWindow *pParent) :
+			wsWindow(pParent,999,10,VU_BOTTOM+10,LEFT_MARGIN-10,pParent->getHeight()-10)
+		{
+			setBackColor(wsCYAN);
+		}
+		
+		virtual void updateFrame()
+		{
+			volatile int i = 0;
+			if (i==0) i++;
+			
+			u32 sp = (u32) &i;
+			if (sp != last_sp)
+			{
+				last_sp = sp;
+				LOG("sp=0x%08x",sp);
+			}
+		}
+};
 
 
 uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) :
 	wsTopLevelWindow(pApp,id,xs,ys,xe,ye)
 {
+	last_loop_state = 0;				// NONE = 0
+	last_num_used_tracks = 0;
+
 	setBackColor(wsDARK_BLUE);
 	
 	int height = ye-ys+1;
@@ -113,20 +141,19 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 
 	new uiStatusBar(this,ID_LOOP_STATUS_BAR,165,0,width-165,TOP_MARGIN-1);
 	
-	#if 1
-		// We use find() to located the codec (input device)
-		// with any name (0) and any instance (-1)
+	// TOP LEFT INPUT VU METER - CODEC audio input, period
 
-		// TOP LEFT INPUT VU METER - CODEC audio input, period
-		
+	#if 0
 		AudioStream *pInputDevice = AudioSystem::find(AUDIO_DEVICE_INPUT,0,-1);
 		awsVuMeter *pInputVU1 = new awsVuMeter(this,ID_VUI1,6, 2,151,14,1,12);
 		awsVuMeter *pInputVU2 = new awsVuMeter(this,ID_VUI2,6,16,151,28,1,12);
 		pInputVU1->setAudioDevice(pInputDevice->getName(),0,0);
 		pInputVU2->setAudioDevice(pInputDevice->getName(),0,1);
-
-		// TOP RIGHT OUTPUT VU METER - final mixer or looper output
-		
+	#endif
+	
+	// TOP RIGHT OUTPUT VU METER - final mixer or looper output
+	
+	#if 1
 		awsVuMeter *pOutputVU1 = new awsVuMeter(this,ID_VUO1,width-150-1, 2,width-6,14,1,12);
 		awsVuMeter *pOutputVU2 = new awsVuMeter(this,ID_VUO2,width-150-1,16,width-6,28,1,12);
 		#if USE_OUTPUT_MIXER
@@ -136,98 +163,110 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			pOutputVU1->setAudioDevice("looper",0,0);
 			pOutputVU2->setAudioDevice("looper",0,1);
 		#endif
-		
-		// LEFT BAR - INPUT vu if using INPUT_AMP
-		
-		#if USE_INPUT_AMP
-			wsStaticText *pt1 = new wsStaticText(this,0,"IN",6,TOP_MARGIN+23,44,TOP_MARGIN+39);
-			pt1->setAlign(ALIGN_CENTER);
-			pt1->setForeColor(wsWHITE);
-			pt1->setFont(wsFont7x12);
-			
-			awsVuMeter *pAmpVU1 = new awsVuMeter(this,ID_VUAI1,  8, VU_TOP, 23, VU_BOTTOM, 0, 12);
-			awsVuMeter *pAmpVU2 = new awsVuMeter(this,ID_VUAI2, 25, VU_TOP, 40, VU_BOTTOM, 0, 12);
-			pAmpVU1->setAudioDevice("amp",0,0);
-			pAmpVU2->setAudioDevice("amp",1,0);
-		#endif
-
-		// A general issue is that you have to connect a VU meter to an output
-		//
-		// So you can't see what's going on INSIDE a mixer or final output device.
-		// Likewise, you cannot see "before" the codec input gain stage,
-		// you can only show the signal AFTER it has gone through the input stage,
-		// or BEFORE it has gone through the final output stage.
-
-		#if USE_OUTPUT_MIXER
-			// main output vu
-			pOutputVU1->setAudioDevice("mixer",0,0);
-			pOutputVU2->setAudioDevice("mixer",1,0);
-
-			// loop output vu
-			
-		#if 1
-			wsStaticText *pt2 = new wsStaticText(this,0,"LOOP",46,TOP_MARGIN+23,86,TOP_MARGIN+39);
-			// LOG("pt2=%08x",(u32)pt2);
-			pt2->setAlign(ALIGN_CENTER);
-			pt2->setForeColor(wsWHITE);
-			pt2->setFont(wsFont7x12);
-		#endif
-		#if 1
-			#if 0
-				wsStaticText *pWin = new wsStaticText(this,ID_VU_SLIDER,"blah", 5, VU_BOTTOM+10, 100, VU_BOTTOM+30);
-				pWin->setBackColor(wsCYAN);
-				LOG("pWin=%08x",(u32)pWin);
-			#else
-				/// vuSlider *pSlider =
-				new vuSlider(this,ID_VU_SLIDER,50, VU_TOP, 140, VU_BOTTOM,
-					0,		// channel 1, 0 based, as programmed on MPD21
-					0x0D);	// 0x0D = the middle right knob on MPD218
-			#endif
-		#endif
-			
-			awsVuMeter *pLoopVU1 = new awsVuMeter(this,ID_VUOM1, 50, VU_TOP, 65, VU_BOTTOM, 0, 12);
-			awsVuMeter *pLoopVU2 = new awsVuMeter(this,ID_VUOM2, 67, VU_TOP, 82, VU_BOTTOM, 0, 12);
-			pLoopVU1->setAudioDevice("looper",0,0);
-			pLoopVU2->setAudioDevice("looper",0,1);
-			
-			
-		#endif
-		
 	#endif
 	
-	int cheight = height-TOP_MARGIN-BOTTOM_MARGIN-TRACK_VSPACE*2;
-	int cwidth = (width-LEFT_MARGIN-1-TRACK_HSPACE*(LOOPER_NUM_TRACKS+1)) / LOOPER_NUM_TRACKS;
-	int step = LEFT_MARGIN + TRACK_HSPACE;
+	// LEFT BAR - INPUT vu if using INPUT_AMP
 	
-	for (int i=0; i<LOOPER_NUM_TRACKS; i++)
-	{
-		new uiTrack(
-			i,
-			this,
-			ID_TRACK_CONTROL_BASE + i,
-			step,
-			TOP_MARGIN + TRACK_VSPACE,
-			step + cwidth -1,
-			TOP_MARGIN + TRACK_VSPACE + cheight - 1);
+	#if 1
+		#if USE_INPUT_AMP
+			#if 0
+				wsStaticText *pt1 = new wsStaticText(this,0,"IN",6,TOP_MARGIN+23,44,TOP_MARGIN+39);
+				pt1->setAlign(ALIGN_CENTER);
+				pt1->setForeColor(wsWHITE);
+				pt1->setFont(wsFont7x12);
+			#endif
+			
+			#if 1
+				new vuSlider(this,ID_VUOM1, 8, VU_TOP, 40, VU_BOTTOM, 0, 12,
+					"amp",0,0,		 
+					"amp",1,0,
+					0,		// channel 1, 0 based, as programmed on MPD21
+					0x0C);	// 0x0D = the middle right knob on MPD218
+			#else
+				awsVuMeter *pAmpVU1 = new awsVuMeter(this,ID_VUAI1,  8, VU_TOP, 23, VU_BOTTOM, 0, 12);
+				awsVuMeter *pAmpVU2 = new awsVuMeter(this,ID_VUAI2, 25, VU_TOP, 40, VU_BOTTOM, 0, 12);
+				pAmpVU1->setAudioDevice("amp",0,0);
+				pAmpVU2->setAudioDevice("amp",1,0);
+			#endif
+		#endif
+	#endif
 
-		step += cwidth + TRACK_HSPACE;
-	}
+	// LEFT BAR - LOOP vu if USE_OUTPUT_MIXER
 
-	last_loop_state = pLooper->getLoopState();				// NONE = 0
-	last_num_used_tracks = pLooper->getNumUsedTracks();		// 0
-	for (int i=0; i<NUM_LOOP_BUTTONS; i++)
-	{
-		u16 fxn = last_button_fxn[i] = getButtonFunction(i);
-		pLoopButton[i] = new wsMidiButton(
-			this,
-			ID_LOOP_BUTTON_BASE + i,
-			pLooper->getCommandName(fxn),
-			offset,
-			btop+10,
-			offset+bwidth,
-			btop+39);
-		offset += bwidth + BUTTON_SPACING;
-	}
+	#if 1
+		#if USE_OUTPUT_MIXER
+			#if 0
+				wsStaticText *pt2 = new wsStaticText(this,0,"LOOP",46,TOP_MARGIN+23,86,TOP_MARGIN+39);
+				pt2->setAlign(ALIGN_CENTER);
+				pt2->setForeColor(wsWHITE);
+				pt2->setFont(wsFont7x12);
+			#endif
+	
+			#if 1
+				new vuSlider(this,ID_VUOM1, 50, VU_TOP, 82, VU_BOTTOM, 0, 12,
+					"looper",0,0,		 
+					"looper",0,1,
+					0,		// channel 1, 0 based, as programmed on MPD21
+					0x0D);	// 0x0D = the middle right knob on MPD218
+			#else
+				awsVuMeter *pLoopVU1 = new awsVuMeter(this,ID_VUOM1, 50, VU_TOP, 65, VU_BOTTOM, 0, 12);
+				awsVuMeter *pLoopVU2 = new awsVuMeter(this,ID_VUOM2, 67, VU_TOP, 82, VU_BOTTOM, 0, 12);
+				pLoopVU1->setAudioDevice("looper",0,0);
+				pLoopVU2->setAudioDevice("looper",0,1);
+			#endif
+			
+		#endif
+	#endif
+	
+		
+	// A test wsStaticText
+	#if 0
+		wsStaticText *pWin = new wsStaticText(this,ID_VU_SLIDER,"blah", 5, VU_BOTTOM+10, 100, VU_BOTTOM+30);
+		pWin->setBackColor(wsCYAN);
+	#endif
+
+
+	// UI TRACKS
+	
+	#if 1
+		int cheight = height-TOP_MARGIN-BOTTOM_MARGIN-TRACK_VSPACE*2;
+		int cwidth = (width-LEFT_MARGIN-1-TRACK_HSPACE*(LOOPER_NUM_TRACKS+1)) / LOOPER_NUM_TRACKS;
+		int step = LEFT_MARGIN + TRACK_HSPACE;
+	
+		for (int i=0; i<LOOPER_NUM_TRACKS; i++)
+		{
+			new uiTrack(
+				i,
+				this,
+				ID_TRACK_CONTROL_BASE + i,
+				step,
+				TOP_MARGIN + TRACK_VSPACE,
+				step + cwidth -1,
+				TOP_MARGIN + TRACK_VSPACE + cheight - 1);
+	
+			step += cwidth + TRACK_HSPACE;
+		}
+	#endif
+	
+	
+	// LOOPER BUTTONS
+		
+	#if 1
+		for (int i=0; i<NUM_LOOP_BUTTONS; i++)
+		{
+			u16 fxn = last_button_fxn[i] = getButtonFunction(i);
+			pLoopButton[i] = new wsMidiButton(
+				this,
+				ID_LOOP_BUTTON_BASE + i,
+				pLooper->getCommandName(fxn),
+				offset,
+				btop+10,
+				offset+bwidth,
+				btop+39);
+			offset += bwidth + BUTTON_SPACING;
+		}
+	#endif
+	
 	
 }	// uiWindow ctor
 
