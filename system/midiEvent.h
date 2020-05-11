@@ -17,16 +17,17 @@
 
 #include <circle/types.h>
 
-#define MIDI_MSG_CC   0xb9
-#define MIDI_CC_VOL   0x07
-	// wrong but I need something
+
+#define MIDI_EVENT_NOTE_ON   0x09		// after being rightshifted from leading status byte
+#define MIDI_EVENT_NOTE_OFF  0x08
+#define MIDI_EVENT_CC        0x0B
+
 
 
 class midiEvent;		// forward;
 
 
 typedef void (*handleMidiEventFxn)(void *, midiEvent *event);
-
 
 
 class midiEvent

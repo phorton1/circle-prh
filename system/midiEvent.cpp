@@ -38,7 +38,7 @@ void midiEventHandler::registerMidiHandler(
 	s8 value1,
 	s8 value2)
 {
-	// LOG("registerMidiHandler(0x%08X,0x%08X,%d,%d,%d,%d,%d)",(u32)pObject,(u32)pMethod,cable,channel,msg,value1,value2);
+	LOG("registerMidiHandler(0x%08X,0x%08X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X)",(u32)pObject,(u32)pMethod,cable,channel,msg,value1,value2);
 
 	midiEventHandler *handler = new midiEventHandler(pObject,pMethod,cable,channel,msg,value1,value2);
 	
@@ -73,7 +73,7 @@ void midiEventHandler::unRegisterMidiHandler(
 	s8 value1,
 	s8 value2)
 {
-	// LOG("unRegisterMidiHandler(0x%08X,0x%08X,%d,%d,%d,%d,$d)",(u32)pObject,(u32)pMethod,cable,channel,msg,value1,value2);
+	LOG("unRegisterMidiHandler(0x%08X,0x%08X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X)",(u32)pObject,(u32)pMethod,cable,channel,msg,value1,value2);
 
 	midiEventHandler *found = 0;
 	midiEventHandler *cur = m_sFirstHandler;
@@ -123,24 +123,35 @@ void midiEventHandler::unRegisterMidiHandler(
 // static
 void midiEventHandler::dispatchMidiEvent(midiEvent *pEvent)
 {
-	LOG("dispatchMidiEvent(%d,%d,%d,%d,$d)",
-		pEvent->getCable(),
-	    pEvent->getChannel(),
-	    pEvent->getMsg(),    
-	    pEvent->getValue1(),
-	    pEvent->getValue2()); 
+	#if 0
+		LOG("dispatchMidiEvent(0x%02X,0x%02X,0x%02X,0x%02X,0x%02X)",
+			pEvent->getCable(),
+			pEvent->getChannel(),
+			pEvent->getMsg(),    
+			pEvent->getValue1(),
+			pEvent->getValue2()); 
+	#endif
 	
 	midiEventHandler *cur = m_sFirstHandler;
 	while (cur)
 	{
+		#if 0
+			LOG("checking cur(0x%02X,0x%02X,0x%02X,0x%02X,0x%02X)",
+				cur->getCable(),
+				cur->getChannel(),
+				cur->getMsg(),    
+				cur->getValue1(),
+				cur->getValue2()); 
+		#endif
+		
 		if (
-			(cur->m_cable   == -1  || cur->m_cable   == pEvent->getCable()   ) &&
-			(cur->m_channel == -1  || cur->m_channel == pEvent->getChannel() ) &&
-			(cur->m_msg     == -1  || cur->m_msg     == pEvent->getMsg()     ) &&
-			(cur->m_value1  == -1  || cur->m_value1  == pEvent->getValue1()  ) &&
-			(cur->m_value2  == -1  || cur->m_value2  == pEvent->getValue2()  ) )
+			((cur->m_cable   == -1)  || (cur->m_cable   == pEvent->getCable()   )) &&
+			((cur->m_channel == -1)  || (cur->m_channel == pEvent->getChannel() )) &&
+			((cur->m_msg     == -1)  || (cur->m_msg     == pEvent->getMsg()     )) &&
+			((cur->m_value1  == -1)  || (cur->m_value1  == pEvent->getValue1()  )) &&
+			((cur->m_value2  == -1)  || (cur->m_value2  == pEvent->getValue2()  )) )
 		{
-			LOG("    dispatching to 0x%08X::0x%08X",(u32)cur->m_pObject,(u32)cur->m_pMethod);
+			// LOG("    dispatching to 0x%08X::0x%08X",(u32)cur->m_pObject,(u32)cur->m_pMethod);
 			(cur->m_pMethod)(cur->m_pObject,pEvent);
 		}
 		cur = cur->m_pNextHandler;
