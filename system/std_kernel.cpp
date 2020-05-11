@@ -345,11 +345,11 @@ boolean CKernel::Initialize (void)
 		if (bOK)
 			bOK = m_DWHCI.Initialize ();
 	#endif
-	
-	#ifdef WITH_MULTI_CORE
-		if (bOK)
-			bOK = m_CoreTask.Initialize();
-	#endif
+
+	// #ifdef WITH_MULTI_CORE
+	// 	if (bOK)
+	// 		bOK = m_CoreTask.Initialize();
+	// #endif
 	
 	#if USE_UI_SYSTEM
 		if (bOK)
@@ -371,6 +371,11 @@ boolean CKernel::Initialize (void)
 		}
 	#endif
 
+	
+	#ifdef WITH_MULTI_CORE
+		if (bOK)
+			bOK = m_CoreTask.Initialize();
+	#endif
 	
 	return bOK;
 }
@@ -462,6 +467,12 @@ TShutdownMode CKernel::Run(void)
 		
 	#endif	
 
+	
+	#if 0
+		delay(4000);
+		m_CoreTask.Initialize();
+	#endif
+	
 	m_CoreTask.Run(0);
 	
 	return ShutdownHalt;
@@ -490,7 +501,7 @@ TShutdownMode CKernel::Run(void)
 		u8 param1  = pPacket[1];			// the key for note on and off events
 		u8 param2  = pPacket[2];			// velocity for note on and off events
 		
-		LOG("midPacket(length=%d cable=%d channel=%d type=%d param1=%d param2=%d)",length,cable,channel,type,param1,param2);
+		// LOG("midPacket(length=%d cable=%d channel=%d type=%d param1=%d param2=%d)",length,cable,channel,type,param1,param2);
 		
 		midiEvent *pEvent = new midiEvent(
 			length,
