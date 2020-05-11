@@ -15,7 +15,6 @@ awsVuMeter::awsVuMeter(wsWindow *pParent,u16 id, s32 xs, s32 ys, s32 xe, s32 ye,
     m_pPeak = 0;
     m_pConnection = 0;
 
-    m_running = 1;
     m_last_value = m_num_divs;  // unlikely value to cause it to redraw the first time
     m_next_value = 0;         
     m_hold_red = 0;

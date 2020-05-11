@@ -62,6 +62,7 @@ u32 main_loop_counter = 0;
 
 CCoreTask *CCoreTask::s_pCoreTask = 0;
 
+u32 ctor_sp = 0;
 
 CCoreTask::CCoreTask(CKernel *pKernel)	:
 	#ifdef WITH_MULTI_CORE
@@ -76,6 +77,18 @@ CCoreTask::CCoreTask(CKernel *pKernel)	:
 	#endif
 {
 	s_pCoreTask = this;
+
+
+	#if 0
+		u32 sp;
+		asm volatile
+		(
+			"mov %0,sp\n"
+			: "=r" (sp)
+		);
+		ctor_sp = sp;;
+	#endif	
+	
 }
 
 
@@ -169,6 +182,16 @@ CCoreTask::~CCoreTask()
 void CCoreTask::Run(unsigned nCore)
 {
 	LOG("Core(%d) starting ... mem=%dM",nCore,mem_get_size()/1000000);
+	#if 0
+		u32 sp;
+		asm volatile
+		(
+			"mov %0,sp\n"
+			: "=r" (sp)
+		);
+		printf("  core(%d) SP(%08x)\n",nCore,sp);
+	#endif	
+	
 	bool bCore0StartupReported = 0;
 		
 	// initialize the audio system on the given core
@@ -408,10 +431,23 @@ boolean CKernel::Initialize (void)
 #endif
 
 
+#include <circle/memorymap.h>
+
 TShutdownMode CKernel::Run(void)
 	// calls the CoreTask to do all the work
 {
 	LOG("std_kernel " __DATE__ " " __TIME__ " available memory=%d",mem_get_size());
+	
+	#if 0
+		u32 sp;
+		asm volatile
+		(
+			"mov %0,sp\n"
+			: "=r" (sp)
+		);
+		printf("MEM_KERNEL_STACK(%08x) SP(%08x) ctor(%08d)\n",MEM_KERNEL_STACK,sp,ctor_sp);
+	#endif	
+	
 	
 	// With two midi devices on a single core, behavior went to hell.
 	// Once you moved the mouse, the audio system got noises due, presumably,

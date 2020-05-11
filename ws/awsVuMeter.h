@@ -10,7 +10,6 @@
 #include <audio/Audio.h>
 #include <ws/wsWindow.h>
 
-#define OWNER_DRAW
 
 class awsVuMeter : public wsWindow
     // should be sized so that the major dimension plus 1
@@ -46,7 +45,6 @@ class awsVuMeter : public wsWindow
         u8 m_next_value;
         
         u16 m_hold_red;
-        bool m_running;
         
 };
 

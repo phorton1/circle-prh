@@ -238,6 +238,7 @@ void loopMachine::command(u16 command, u16 param /*=0*/)
                     clip_num == LOOPER_NUM_LAYERS)
                     clip_num = 0;
                 pTrack->setSelectedClipNum(clip_num);
+                break;
             }
         default:
             LOG_ERROR("unimplemented command(%d)",command);

@@ -376,7 +376,7 @@ void AudioSystem::sortStreams()
     AudioStream *prev = objs[0];
     for (i=1; i<s_numStreams; i++)
     {
-		#if 1
+		#if 0
 			LOG("%d    %s:%d --> %s:%d",
 				prev->m_updateDepth,
 				prev->getName(),prev->getInstance(),
