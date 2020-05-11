@@ -73,6 +73,9 @@ class loopMachine;
     // 60 seconds of 4 tracks of 3 layers of 128 sample audio
     // blocks (16 bits per sample) in stereo.
 
+
+#define ALLOCATE_LOOPBUFFER_ON_FIRST_USE  0
+
 class loopBuffer
 {
     public:
@@ -81,7 +84,12 @@ class loopBuffer
         ~loopBuffer();
         
         void init()          { m_top = 0; }
-        s16 *getBuffer()     { return &m_buffer[m_top]; }
+        
+        #if ALLOCATE_LOOPBUFFER_ON_FIRST_USE
+            s16 *getBuffer();
+        #else
+            s16 *getBuffer()     { return &m_buffer[m_top]; }
+        #endif            
         
         u32 getFreeBytes()   { return m_size - m_top; }
         u32 getFreeBlocks()  { return (m_size - m_top) / AUDIO_BLOCK_BYTES; }
