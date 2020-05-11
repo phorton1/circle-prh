@@ -13,7 +13,10 @@ OBJS = 	app.o \
 		uiClip.o \
 		uiTrack.o \
 		uiStatusBar.o \
-		uiWindow.o 
+		uiWindow.o \
+		vuSlider.o
+		
+		
 
 MAKE_LIBS = \
 	$(CIRCLEHOME)/_prh/ws/libws.mark \

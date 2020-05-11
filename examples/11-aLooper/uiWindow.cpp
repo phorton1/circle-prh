@@ -6,6 +6,7 @@
 #include "Looper.h"
 #include "uiStatusBar.h"
 #include "uiTrack.h"
+#include "vuSlider.h"
 
 
 #define log_name  "loopwin"
@@ -14,6 +15,10 @@
 #define TOP_MARGIN 		32
 #define BOTTOM_MARGIN  	50
 #define LEFT_MARGIN    	150
+
+#define VU_TOP  	TOP_MARGIN+40
+#define VU_BOTTOM   VU_TOP + 180
+
 
 #define BUTTON_SPACING 	20
 #define TRACK_VSPACE  	5
@@ -30,6 +35,8 @@
 #define ID_VUOM2               208
 #define ID_VUT1 	           207	// thru output (if NO_LOOPER_THRU)
 #define ID_VUT2                208  // copy of input amp or input
+
+#define ID_VU_SLIDER           250
 
 #define ID_TRACK_CONTROL_BASE  300  // ..311
 #define ID_LOOP_BUTTON_BASE    400  // ..403  
@@ -130,10 +137,6 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			pOutputVU2->setAudioDevice("looper",0,1);
 		#endif
 		
-		
-		#define VU_TOP  	TOP_MARGIN+40
-		#define VU_BOTTOM   VU_TOP + 180
-
 		// LEFT BAR - INPUT vu if using INPUT_AMP
 		
 		#if USE_INPUT_AMP
@@ -162,15 +165,29 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 
 			// loop output vu
 			
+		#if 1
 			wsStaticText *pt2 = new wsStaticText(this,0,"LOOP",46,TOP_MARGIN+23,86,TOP_MARGIN+39);
+			// LOG("pt2=%08x",(u32)pt2);
 			pt2->setAlign(ALIGN_CENTER);
 			pt2->setForeColor(wsWHITE);
 			pt2->setFont(wsFont7x12);
+		#endif
+		#if 1
+			// wsStaticText *pWin = new wsStaticText(this,ID_VU_SLIDER,"blah", 5, VU_BOTTOM+10, 100, VU_BOTTOM+30);
+			// pWin->setBackColor(wsCYAN);
+			// LOG("pWin=%08x",(u32)pWin);
+			
+			/// vuSlider *pSlider =
+			new vuSlider(this,ID_VU_SLIDER,8, VU_TOP, 140, VU_BOTTOM,
+				0,		// channel 1, 0 based, as programmed on MPD21
+				0x0D);	// 0x0D = the middle right knob on MPD218
+		#endif
 			
 			awsVuMeter *pLoopVU1 = new awsVuMeter(this,ID_VUOM1, 50, VU_TOP, 65, VU_BOTTOM, 0, 12);
 			awsVuMeter *pLoopVU2 = new awsVuMeter(this,ID_VUOM2, 67, VU_TOP, 82, VU_BOTTOM, 0, 12);
 			pLoopVU1->setAudioDevice("looper",0,0);
 			pLoopVU2->setAudioDevice("looper",0,1);
+			
 			
 		#endif
 		
