@@ -136,8 +136,8 @@ void setup()
     #endif
 
     #if USE_INPUT_AMP
-        inputAmp1.gain(1.27);
-        inputAmp2.gain(1.27);
+        inputAmp1.gain(1.0);
+        inputAmp2.gain(1.0);
     #endif
     
     #if USE_OUTPUT_MIXER
