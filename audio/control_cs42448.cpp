@@ -254,6 +254,8 @@ void AudioControlCS42448::start(void)
 		LOG("0x1B. MUTEC_Pin_Control  = 0x%02x",read(CS42448_MUTEC_Pin_Control));
         delay(200);
 	#endif
+
+	volume(0);
 }
 
 
@@ -266,7 +268,9 @@ uint32_t volumebyte(float level)
 {
 	if (level >= 1.0) return 0;
 	if (level <= 0.0000003981) return 128;
-	return roundf(log10f(level) * -20.0);
+	uint32_t i = roundf(log10f(level) * -20.0);
+	// LOG("volumeByte %0.2f==%d",level,i);
+	return i;
 }
 int32_t inputlevelbyte(float level)
 	// convert level to input gain, section 6.11.1, page 51
@@ -286,8 +290,8 @@ int32_t inputlevelbyte(float level)
 	// if (level < 0.00063095734) return -128;
 	// return roundf(log10f(level) * 40.0);
 	
-	int i = roundf(level * 2.0);
-	LOG("inputlevelbyte %0.2f==%d",level,i);
+	int32_t i = roundf(level * (128 + 1 + 48)) - 128;
+	// LOG("inputlevelbyte %0.2f==%d",level,i);
 	return i;
 }
 

@@ -51,7 +51,6 @@ public:
     
 	void inputLevel(float level);
 	void inputLevel(int channel, float level);
-        // not implemented
         
 	virtual void start();
 		// public until AudioSystem starts it ...
