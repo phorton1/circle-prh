@@ -397,7 +397,7 @@ boolean CKernel::Initialize (void)
 	#endif
 
 	
-	#if 1
+	#if 0
 		#ifdef WITH_MULTI_CORE
 			if (bOK)
 				bOK = m_CoreTask.Initialize();
@@ -508,9 +508,10 @@ TShutdownMode CKernel::Run(void)
 	#endif	
 
 	
-	#if 0
-		delay(4000);
+	#if 1
+		delay(500);
 		m_CoreTask.Initialize();
+		delay(500);
 	#endif
 	
 	m_CoreTask.Run(0);
