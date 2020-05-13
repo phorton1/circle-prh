@@ -25,16 +25,10 @@
 #define TRACK_HSPACE  	5
 
 #define ID_LOOP_STATUS_BAR     101
-#define ID_VUI1                201	// codec input
-#define ID_VUI2                202
-#define ID_VUO1                203	// final output (looper or output mixer)
-#define ID_VUO2                204
-#define ID_VUAI1               205	// input amp if present
-#define ID_VUAI2               206
-#define ID_VUOM1               207	// looper output
-#define ID_VUOM2               208
-#define ID_VUT1 	           207	// thru output (if NO_LOOPER_THRU)
-#define ID_VUT2                208  // copy of input amp or input
+#define ID_VU1                201	
+#define ID_VU2                202
+#define ID_VU3                203	
+#define ID_VU4                204
 
 #define ID_VU_SLIDER           250
 
@@ -98,33 +92,6 @@ u16 uiWindow::getButtonFunction(u16 num)
 
 //----------------------------------------------------------------
 
-u32 last_sp = 0;
-
-class testWindow : public wsWindow
-{
-	public:	
-
-		testWindow(wsWindow *pParent) :
-			wsWindow(pParent,999,10,VU_BOTTOM+10,LEFT_MARGIN-10,pParent->getHeight()-10)
-		{
-			setBackColor(wsCYAN);
-		}
-		
-		virtual void updateFrame()
-		{
-			volatile int i = 0;
-			if (i==0) i++;
-			
-			u32 sp = (u32) &i;
-			if (sp != last_sp)
-			{
-				last_sp = sp;
-				LOG("sp=0x%08x",sp);
-			}
-		}
-};
-
-
 uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) :
 	wsTopLevelWindow(pApp,id,xs,ys,xe,ye)
 {
@@ -142,6 +109,10 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 	new uiStatusBar(this,ID_LOOP_STATUS_BAR,165,0,width-165,TOP_MARGIN-1);
 	
 	// TOP LEFT INPUT VU METER - CODEC audio input, period
+	// mpd knobs
+	//   0x03  0x09
+	//   0x0C  0x0D
+	//   0x0E  0x0F
 
 	#if 0
 		AudioStream *pInputDevice = AudioSystem::find(AUDIO_DEVICE_INPUT,0,-1);
@@ -153,7 +124,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 	
 	// TOP RIGHT OUTPUT VU METER - final mixer or looper output
 	
-	#if 1
+	#if 0
 		awsVuMeter *pOutputVU1 = new awsVuMeter(this,ID_VUO1,width-150-1, 2,width-6,14,1,12);
 		awsVuMeter *pOutputVU2 = new awsVuMeter(this,ID_VUO2,width-150-1,16,width-6,28,1,12);
 		#if USE_OUTPUT_MIXER
@@ -165,66 +136,64 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 		#endif
 	#endif
 	
-	// LEFT BAR - INPUT vu if using INPUT_AMP
+	// LEFT - INPUT vu
 	
 	#if 1
-		#if USE_INPUT_AMP
-			#if 0
-				wsStaticText *pt1 = new wsStaticText(this,0,"IN",6,TOP_MARGIN+23,44,TOP_MARGIN+39);
-				pt1->setAlign(ALIGN_CENTER);
-				pt1->setForeColor(wsWHITE);
-				pt1->setFont(wsFont7x12);
-			#endif
+		wsStaticText *pt1 = new wsStaticText(this,0,"IN",6,TOP_MARGIN+23,42,TOP_MARGIN+39);
+		pt1->setAlign(ALIGN_CENTER);
+		pt1->setForeColor(wsWHITE);
+		pt1->setFont(wsFont7x12);
 			
-			#if 1
-				new vuSlider(this,ID_VUOM1, 8, VU_TOP, 40, VU_BOTTOM, 0, 12,
-					"amp",0,0,		 
-					"amp",1,0,
-					0,		// channel 1, 0 based, as programmed on MPD21
-					0x0C);	// 0x0D = the middle right knob on MPD218
-			#else
-				awsVuMeter *pAmpVU1 = new awsVuMeter(this,ID_VUAI1,  8, VU_TOP, 23, VU_BOTTOM, 0, 12);
-				awsVuMeter *pAmpVU2 = new awsVuMeter(this,ID_VUAI2, 25, VU_TOP, 40, VU_BOTTOM, 0, 12);
-				pAmpVU1->setAudioDevice("amp",0,0);
-				pAmpVU2->setAudioDevice("amp",1,0);
-			#endif
+		new vuSlider(this,ID_VU2, 8, VU_TOP, 40, VU_BOTTOM, 0, 12,
+			METER_INPUT,		 
+			CONTROL_INPUT_GAIN,
+			-1,		// cable
+			-1,		// 0 based channel
+			MIDI_EVENT_TYPE_CC,
+			0x03);	// cc number top left knob
+	#endif
+
+	// MIDDLE - THRU vu
+	
+	#if 1
+		wsStaticText *pt2 = new wsStaticText(this,0,"THRU",50,TOP_MARGIN+23,86,TOP_MARGIN+39);
+		pt2->setAlign(ALIGN_CENTER);
+		pt2->setForeColor(wsWHITE);
+		pt2->setFont(wsFont7x12);
+
+		new vuSlider(this,ID_VU3, 52, VU_TOP, 84, VU_BOTTOM, 0, 12,
+			METER_THRU,		 
+			CONTROL_THRU_VOLUME,
+			-1,		// cable
+			-1,		// 0 based channel
+			MIDI_EVENT_TYPE_CC,
+			0x0C);	// cc number middle left knob
+	#endif
+	
+	// RIGHT - LOOP vu
+	
+	#if 1
+		wsStaticText *pt3 = new wsStaticText(this,0,"LOOP",94,TOP_MARGIN+23,130,TOP_MARGIN+39);
+		pt3->setAlign(ALIGN_CENTER);
+		pt3->setForeColor(wsWHITE);
+		pt3->setFont(wsFont7x12);
+
+		new vuSlider(this,ID_VU4, 96, VU_TOP, 128, VU_BOTTOM, 0, 12,
+			METER_LOOP,		 
+			CONTROL_LOOP_VOLUME,
+			-1,		// cable
+			-1,		// 0 based channel
+		#if 1
+			MIDI_EVENT_TYPE_INC_DEC,
+			0x31,	// MSB
+			0x32);	// LSB
+		#else
+			MIDI_EVENT_TYPE_CC,
+			0x0D);	// param1 cc number middle right knob
 		#endif
 	#endif
 
-	// LEFT BAR - LOOP vu if USE_OUTPUT_MIXER
-
-	#if 1
-		#if USE_OUTPUT_MIXER
-			#if 0
-				wsStaticText *pt2 = new wsStaticText(this,0,"LOOP",46,TOP_MARGIN+23,86,TOP_MARGIN+39);
-				pt2->setAlign(ALIGN_CENTER);
-				pt2->setForeColor(wsWHITE);
-				pt2->setFont(wsFont7x12);
-			#endif
-	
-			#if 1
-				new vuSlider(this,ID_VUOM1, 50, VU_TOP, 82, VU_BOTTOM, 0, 12,
-					"looper",0,0,		 
-					"looper",0,1,
-					0,		// channel 1, 0 based, as programmed on MPD21
-					0x0D);	// 0x0D = the middle right knob on MPD218
-			#else
-				awsVuMeter *pLoopVU1 = new awsVuMeter(this,ID_VUOM1, 50, VU_TOP, 65, VU_BOTTOM, 0, 12);
-				awsVuMeter *pLoopVU2 = new awsVuMeter(this,ID_VUOM2, 67, VU_TOP, 82, VU_BOTTOM, 0, 12);
-				pLoopVU1->setAudioDevice("looper",0,0);
-				pLoopVU2->setAudioDevice("looper",0,1);
-			#endif
-			
-		#endif
-	#endif
-	
 		
-	// A test wsStaticText
-	#if 0
-		wsStaticText *pWin = new wsStaticText(this,ID_VU_SLIDER,"blah", 5, VU_BOTTOM+10, 100, VU_BOTTOM+30);
-		pWin->setBackColor(wsCYAN);
-	#endif
-
 
 	// UI TRACKS
 	
@@ -250,6 +219,10 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 	
 	
 	// LOOPER BUTTONS
+	// This MPD preset outputs a note on and off event for the
+	// notes numbered 0x20 .. 0x2f (32 thru 47) from the top
+	// left corner.
+	
 		
 	#if 1
 		for (int i=0; i<NUM_LOOP_BUTTONS; i++)
@@ -262,7 +235,10 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 				offset,
 				btop+10,
 				offset+bwidth,
-				btop+39);
+				btop+39,
+				-1,
+				-1,
+				0x2c+i);
 			offset += bwidth + BUTTON_SPACING;
 		}
 	#endif

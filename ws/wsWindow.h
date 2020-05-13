@@ -18,6 +18,7 @@
 #include "wsTheme.h"
 
 // #define DEBUG_UPDATE
+	// shows first full update
 
 #ifdef DEBUG_UPDATE
 	extern int debug_update;

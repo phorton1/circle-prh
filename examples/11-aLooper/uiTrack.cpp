@@ -34,7 +34,7 @@ uiTrack::uiTrack(
 	int cheight = (height - CLIP_BUTTON_SPACE*(LOOPER_NUM_LAYERS-1)) / LOOPER_NUM_LAYERS;
 	int offset = 0;
 	
-	LOG("ctor height=%d cheight=%d",height,cheight);
+	// LOG("ctor height=%d cheight=%d",height,cheight);
 
 	for (int i=0; i<LOOPER_NUM_LAYERS; i++)
 	{

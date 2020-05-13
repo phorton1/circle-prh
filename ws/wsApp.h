@@ -65,7 +65,6 @@ class wsApplication : public wsWindow
 		
 		wsWindow *m_pTouchFocus;
 		touchState_t m_touch_state;
-		u32 m_lastTouchUpdate;
 		
 		wsTopLevelWindow *m_pBottomWindow;
 		wsTopLevelWindow *m_pTopWindow;

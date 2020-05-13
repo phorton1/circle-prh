@@ -20,7 +20,7 @@ uiClip::uiClip(
 		// WIN_STYLE_CLICK
 		// WIN_STYLE_3D
 {
-	LOG("ctor(%d,%d) %d,%d,%d,%d",track_num,clip_num,xs,ys,xe,ye);
+	// LOG("ctor(%d,%d) %d,%d,%d,%d",track_num,clip_num,xs,ys,xe,ye);
 
 	m_track_num = track_num;
 	m_clip_num = clip_num;

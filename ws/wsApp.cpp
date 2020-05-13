@@ -42,7 +42,6 @@ wsApplication::wsApplication() :
 
 	m_pTouchFocus = 0;
 	memset(&m_touch_state,0,sizeof(touchState_t));
-	m_lastTouchUpdate = 0;
 
 	m_pFirstEvent = 0;
 	m_pLastEvent = 0;
@@ -270,9 +269,18 @@ void wsApplication::onTouchEvent(
 // timeSlice()
 //--------------------------------------------------
 
+#define UI_FRAME_RATE    40
 
 void wsApplication::timeSlice()
 {
+	// Gate the entire process to UI_FRAME_RATE
+	
+	unsigned cur_time = CTimer::Get()->GetClockTicks();
+	if (cur_time > m_update_frame_time &&
+		cur_time < m_update_frame_time + CLOCKHZ/UI_FRAME_RATE)
+		return;
+	m_update_frame_time = cur_time;
+
 	#ifdef DEBUG_UPDATE	
 		if (debug_update)
 		{
@@ -283,45 +291,35 @@ void wsApplication::timeSlice()
 		}
 	#endif
 	
+	// update mouse and touch
+	
 	if (m_pMouse)
 		m_pMouse->UpdateCursor();
-	
-	// rate limit updates from the touch screen
-	// to 60 per second
-	
 	if (m_pTouch)
+		m_pTouch->Update();
+	
+
+	//----------------------------------
+	// Update tree
+	//----------------------------------
+	// WIN_STATE_UPDATE is a "big" change to the system, like a movment,
+	// or size event, and is generally set on static window objects
+	// only on their creation, or when a parent is updated, so update()
+	// is not called on every object on every frame. updateFrame() IS
+	// called on every frame, allowing for polling which changes the
+	// WIN_STATE_DRAW or REDRAW bits.
+	
+		
+	for (wsTopLevelWindow *p=m_pBottomWindow; p; p=p->m_pNextWindow)
 	{
-		if (CTimer::GetClockTicks() > m_lastTouchUpdate + CLOCKHZ/10)		// 60
-		{
-			m_pTouch->Update();
-			m_lastTouchUpdate = CTimer::Get()->GetClockTicks();
-		}
+		p->updateFrame();
 	}
 	
 	
-	#define UPDATE_FRAOME_DELAY   33333  	// 33333 = 30 frames a second - GetClockTicks() = 1Mhz
-	
-	unsigned cur_time = CTimer::Get()->GetClockTicks();		// GetClock() == 100's of a second
-	if (cur_time < m_update_frame_time ||
-		cur_time > m_update_frame_time + UPDATE_FRAOME_DELAY)  
-	{
-		m_update_frame_time = cur_time;
-		for (wsTopLevelWindow *p=m_pBottomWindow; p; p=p->m_pNextWindow)
-		{
-			p->updateFrame();
-		}
-	}
-	
-	// we do not call the base class update() method here ...
+	// We do not call the base class update() method here ...
 	// instead, we call update directly on each top level window
 	// so that they are drawn in the right order (the stack order
 	// as opposed to their instantiation order).
-	//
-	// This should *probably* be made into a generic behvavior, i.e.
-	// each window's children should be in a modifyable zOrder with
-	// a bringToTop() method.  Top level windows that are shown() are
-	// then brought to the top, but so would be objects being dragged,
-	// etc.
 
 	for (wsTopLevelWindow *p=m_pBottomWindow; p; p=p->m_pNextWindow)
 	{

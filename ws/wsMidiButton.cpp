@@ -19,13 +19,15 @@ wsMidiButton::wsMidiButton(
 		s32 xs,
 		s32 ys,
 		s32 xe,
-		s32 ye) :
-	wsControl(pParent,id,xs,ys,xe,ye,
+		s32 ye,
+		s16 midi_cable,	
+		s16 midi_channel,
+		s16 midi_note) :
+	wsWindow(pParent,id,xs,ys,xe,ye,
 		WIN_STYLE_TOUCH |
-		WIN_STYLE_CLICK |
 		WIN_STYLE_3D )
 {
-	LOG("ctor(%s)",text);
+	// LOG("ctor(%s)",text);
 
 	// base class
 	
@@ -40,7 +42,15 @@ wsMidiButton::wsMidiButton(
 	m_button_state = 0;
 	m_pressed_back_color = defaultButtonPressedColor;
 	m_pressed_fore_color = m_fore_color;
-
+	
+	midiEventHandler::registerMidiHandler(
+		this,
+		staticHandleMidiEvent,
+		midi_cable,
+		midi_channel,
+		MIDI_EVENT_TYPE_NOTE,
+		midi_note,
+		-1);
 }
 
 
@@ -60,15 +70,28 @@ void wsMidiButton::onUpdateTouch(bool touched)
 }
 
 
-//	void wsMidiButton::onUpdateClick()
-//	{
-//		#if 1  // DEBUG_TOUCH
-//			printf("wsMidiButton(%08x)::onUpdateClick()\n",(u32)this);
-//		#endif
-//	
-//		setBit(m_state,WIN_STATE_DRAW);
-//		
-//	}
+
+void wsMidiButton::staticHandleMidiEvent(void *pThis, midiEvent *event)
+{
+	((wsMidiButton *)pThis)->handleMidiEvent(event);
+}
+
+
+void wsMidiButton::handleMidiEvent(midiEvent *event)
+{
+	m_pressed = event->getMsg() == MIDI_EVENT_NOTE_ON;
+	setBit(m_state,WIN_STATE_DRAW);
+
+	if (m_pressed)
+	{
+		getApplication()->addEvent(new wsEvent(
+			EVT_TYPE_BUTTON,
+			EVENT_CLICK,
+			this ));
+	}
+}
+
+
 
 
 

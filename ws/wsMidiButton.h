@@ -7,14 +7,15 @@
 #ifndef _wsMidiButton_h
 #define _wsMidiButton_h
 
-#include "wsControl.h"
+#include "wsWindow.h"
+#include <system/midiEvent.h>
 
 
 #define BTN_STATE_RELEASED                            0x0000
 #define BTN_STATE_PRESSED                             0x0001
 
 
-class wsMidiButton : public wsControl
+class wsMidiButton : public wsWindow
 {
 	public:
 	
@@ -27,11 +28,11 @@ class wsMidiButton : public wsControl
 				s32 xs,
 				s32 ys,
 				s32 xe,
-				s32 ye);
+				s32 ye,
+				s16 midi_cable,		// -1 for any cable
+				s16 midi_channel,	// 0 based
+				s16 midi_note);
  
-		// void setPressedBackColor(wsColor color)  {m_alt_back_color = color;}
-		// void setPressedForeColor(wsColor color)  {m_alt_fore_color = color;}
-
 	protected:
 	
 		u8 m_pressed;
@@ -40,8 +41,9 @@ class wsMidiButton : public wsControl
 		wsColor m_pressed_fore_color;
 		
 		virtual void onDraw();
-		// virtual void onUpdateClick();
 		virtual void onUpdateTouch(bool touched);
+		static void staticHandleMidiEvent(void *pThis, midiEvent *event);
+		void handleMidiEvent(midiEvent *event);
 		
 };	// wsMidiButton
 

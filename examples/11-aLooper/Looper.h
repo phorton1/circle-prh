@@ -33,23 +33,6 @@
 #define _loopMachine_h_
 
 #include <audio/Audio.h>
-
-
-#define USE_INPUT_AMP          1
-
-#define USE_OUTPUT_MIXER       1
-    // If 0 the audio inputs will be connected directly to the looper and 
-    //    the looper outputs will be connected directly to the audio outputs
-    // if 1, there will inputs will be routed through a pair of mixers
-    //    before going to the looper, and the audio inputs, and the looper
-    //    outputs will be connected to a separate mixer for output, in which
-    //    and the looper does not echo the inputs.
-
-#define NO_THRU_LOOPER          1
-    // requires USE_OUTPUT_MIXER
-
-
-
     
 class loopClip;
 class loopTrack;
@@ -310,13 +293,8 @@ class loopTrack
 // THIS MUST BE LARGER THAN OR EQUAL TO THE NUMBER
 // OF CONNECTIONS THAT ARE ALLOCATED IN audio.cpp
 
-#if 1       // initital stereo in, stereo out looper
-    #define LOOPER_MAX_NUM_INPUTS   2
-    #define LOOPER_MAX_NUM_OUTPUTS  2
-#else   // future 6x8 loooper
-    #define LOOPER_MAX_NUM_INPUTS   6
-    #define LOOPER_MAX_NUM_OUTPUTS  8
-#endif
+#define LOOPER_CHANNELS  2
+    
 
 
 #define LOOP_STATE_NONE             0
@@ -324,6 +302,38 @@ class loopTrack
 #define LOOP_STATE_PLAYING          2
 #define LOOP_STATE_STOPPED          4
 
+#define METER_INPUT                 0
+#define METER_LOOP                  1
+#define METER_THRU                  2
+#define METER_OUTPUT                3
+#define NUM_METERS                  4
+
+#define CONTROL_INPUT_GAIN          0
+#define CONTROL_THRU_VOLUME         1
+#define CONTROL_LOOP_VOLUME         2
+#define CONTROL_OUTPUT_VOLUME       3
+#define CONTROL_OUTPUT_GAIN         4
+#define NUM_CONTROLS                5
+
+typedef struct
+{
+    s16 val[LOOPER_CHANNELS];   
+
+} stereoSample_t;
+
+typedef struct
+{
+    s16 min_sample[LOOPER_CHANNELS];
+    s16 max_sample[LOOPER_CHANNELS];
+}   meter_t;
+
+
+typedef struct              // avoid byte sized structs
+{
+    u16 value;              // 0..127
+    u16 default_value;      // 0..127
+    float scale;            // 0..1.0 for my controls; unused for codec
+} controlDescriptor_t;
 
 class loopMachine : public AudioStream
 {
@@ -331,8 +341,6 @@ class loopMachine : public AudioStream
         
         loopMachine();
         ~loopMachine();
-        
-        void init();
         
         virtual const char *getName() 	{ return "looper"; }
         virtual u16   getType()  		{ return AUDIO_DEVICE_OTHER; }
@@ -350,7 +358,6 @@ class loopMachine : public AudioStream
         // The semantic is that you can only select the 2nd track
         // once the 1st is record.  This is encapsulated in
         // getNumUsedTracks.  Tracks know if they are empty.
-
         
         u16         getCurTrackNum()        { return m_cur_track_num; }
         loopTrack  *getCurTrack()           { return m_tracks[m_cur_track_num]; }
@@ -374,28 +381,36 @@ class loopMachine : public AudioStream
         
         void command(u16 command, u16 param=0);
 
-    protected:
-
-            void setPendingState(u16 state);
-
-            void selectTrack(u16 num);
+        // controls
+        
+        float getMeter(u16 meter, u16 channel);
+        u8 getControlValue(u16 control);
+        u8 getControlDefault(u16 control);
+        void setControl(u16 control, u8 value);
             
     private:
+
+        void init();
+        virtual void update(void);
+        void setPendingState(u16 state);
+        void selectTrack(u16 num);
+        
+        
+        AudioCodec *pCodec;
         
         volatile u16 m_state;
         u16 m_pending_state;
-        
         u16 m_cur_track_num;
         u16 m_selected_track_num;
+
+        loopClip *m_pRecordClip;
         
         loopBuffer *m_pLoopBuffer;
         loopTrack *m_tracks[LOOPER_NUM_TRACKS];
-      	audio_block_t *inputQueueArray[LOOPER_MAX_NUM_INPUTS];
+      	audio_block_t *inputQueueArray[LOOPER_CHANNELS];
 
-        virtual void update(void);
-        
-        loopClip *m_pRecordClip;
-            // set at start of recording
+        meter_t m_meter[NUM_METERS];
+        controlDescriptor_t m_control[NUM_CONTROLS];
         
 };
 

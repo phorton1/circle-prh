@@ -24,7 +24,7 @@
 		}
 
 	int debug_update = 1;
-		// set to 1 to show the first update, 0 to not
+		// set to 1 to show first update
 	int debug_update_level = 0;
 	void debugUpdate(int num)
 	{
