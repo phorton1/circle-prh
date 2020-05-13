@@ -152,7 +152,8 @@ CCoreTask::~CCoreTask()
 			#endif
 		
 			m_pKernel->m_app.Initialize(pUseScreen,pTouch,pMouse);
-				LOG("after UI initialization mem=%dM",mem_get_size()/1000000);
+			LOG("after UI initialization mem=%dM",mem_get_size()/1000000);
+			
 			m_bUIStarted = 1;
 		}
 		else
@@ -182,6 +183,8 @@ CCoreTask::~CCoreTask()
 void CCoreTask::Run(unsigned nCore)
 {
 	LOG("Core(%d) starting ... mem=%dM",nCore,mem_get_size()/1000000);
+	dprobe(0,"Core(%d) starting",nCore);
+	
 	#if 0
 		u32 sp;
 		asm volatile
@@ -198,17 +201,24 @@ void CCoreTask::Run(unsigned nCore)
 	
 	#if USE_AUDIO_SYSTEM
 		if (nCore == CORE_FOR_AUDIO_SYSTEM)
+		{
 			runAudioSystem(nCore,true);
+			dprobe(0,"after first runAudioSystem",0);
+		}
 	#endif
 	
 	// initialilze the ui on the given core
 	
 	#if USE_UI_SYSTEM
 		if (nCore == CORE_FOR_UI_SYSTEM)
+		{
 			runUISystem(nCore,true);
+			dprobe(0,"after first runUISystem",0);
+		}
 	#endif
 	
 	delay(500);
+	dprobe(0,"CCoreTask::Run(%d) before loop",nCore);
 
 	while (1)
 	{
@@ -219,14 +229,20 @@ void CCoreTask::Run(unsigned nCore)
 
 		#if USE_AUDIO_SYSTEM
 			if (nCore == CORE_FOR_AUDIO_SYSTEM)
+			{
 				runAudioSystem(nCore,false);
+				dprobe(0,"after runAudioSystem");
+			}
 		#endif
 		
 		// do a timeslice of the ui system on given core
 		
 		#if USE_UI_SYSTEM
 			if (nCore == CORE_FOR_UI_SYSTEM)
+			{
 				runUISystem(nCore,false);
+				dprobe(0,"after runUISystem");
+			}
 		#endif
 		
 		// on core0 increment loop counter and
@@ -256,7 +272,12 @@ void CCoreTask::Run(unsigned nCore)
 					CGPIOPin toTeensy(USE_GPIO_READY_PIN,GPIOModeOutput);
 					toTeensy.Write(1);
 				#endif
+				
+				dprobe(2,"CoreTask(0) rpi ready");
+
 			}
+			dprobe(0,"at end of CoreTask(0)::Run() loop");
+
 		}
 
 	}	// while (1)
@@ -335,6 +356,8 @@ CKernel::~CKernel (void)
 boolean CKernel::Initialize (void)
 {
 	boolean bOK = TRUE;
+
+	dprobe(0,"",0);
 	
 	#if USE_SCREEN
 		if (bOK)
@@ -344,7 +367,7 @@ boolean CKernel::Initialize (void)
 				bOK = m_Logger.Initialize(&m_Screen);
 		#endif
 	#endif
-
+	
 	#if USE_MINI_SERIAL
 		if (bOK)
 			bOK = m_MiniUart.Initialize(115200);
@@ -364,6 +387,8 @@ boolean CKernel::Initialize (void)
 			bOK = m_Logger.Initialize(&m_Serial);
 	#endif	
 
+	dprobe(0,"after logger started",0);
+	
 	#if USE_USB
 		if (bOK)
 			bOK = m_DWHCI.Initialize ();
@@ -538,21 +563,34 @@ TShutdownMode CKernel::Run(void)
 	
 		u8 status  = pPacket[0];
 		u8 channel = status & 0x0F;
-		u8 type    = status >> 4;
+		u8 msg     = status >> 4;
 		u8 param1  = pPacket[1];			// the key for note on and off events
 		u8 param2  = pPacket[2];			// velocity for note on and off events
 		
-		// LOG("midPacket(length=%d cable=%d channel=%d type=%d param1=%d param2=%d)",length,cable,channel,type,param1,param2);
-		
-		midiEvent *pEvent = new midiEvent(
-			length,
-			cable,
-			channel,
-			type,
-			param1,
-			param2);
-		midiEventHandler::dispatchMidiEvent(pEvent);
-		delete pEvent;
+		static u8 nrpn[2] = {0x7f,0x7f};
+		if (msg == MIDI_EVENT_CC &&
+			param1 == MIDI_EVENT_MSB)
+		{
+			nrpn[0] = param2;
+		}
+		else if (msg == MIDI_EVENT_CC &&
+				 param1 == MIDI_EVENT_LSB)
+		{
+			nrpn[1] = param2;
+		}
+		else
+		{
+			// LOG("midPacket(length=%d cable=%d channel=%d msg=%d param1=%d param2=%d)",length,cable,channel,msg,param1,param2);
+			
+			midiEvent *pEvent = new midiEvent(
+				cable,
+				channel,
+				msg,
+				param1,
+				param2);
+			midiEventHandler::dispatchMidiEvent(pEvent,nrpn);
+			delete pEvent;
+		}
 	}
 #endif
 

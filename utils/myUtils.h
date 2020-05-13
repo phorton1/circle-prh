@@ -30,4 +30,13 @@ extern void delay(unsigned int ms);
 extern void printf(const char *f, ...);
 extern void display_bytes(const char *s, const unsigned char *p, int len);
 
-#endif 
+#define DPROBE
+
+#ifdef DPROBE
+    extern void dprobe(int l, const char *f, ...);
+#else
+    #define dprobe(l,f,...)
+#endif
+
+
+#endif // !__myutils_h__
