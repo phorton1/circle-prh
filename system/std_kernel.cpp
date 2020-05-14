@@ -231,7 +231,7 @@ void CCoreTask::Run(unsigned nCore)
 			if (nCore == CORE_FOR_AUDIO_SYSTEM)
 			{
 				runAudioSystem(nCore,false);
-				dprobe(0,"after runAudioSystem");
+				// dprobe(0,"after runAudioSystem");
 			}
 		#endif
 		

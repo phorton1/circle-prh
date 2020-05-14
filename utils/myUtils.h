@@ -22,7 +22,7 @@
 
 #define LOG(f,...)           CLogger::Get()->Write(log_name,LogNotice,f,__VA_ARGS__)
 #define LOG_DEBUG(f,...)     CLogger::Get()->Write(log_name,LogDebug,f,__VA_ARGS__)
-#define LOG_WARNING(f,...)     CLogger::Get()->Write(log_name,LogWarning,f,__VA_ARGS__)
+#define LOG_WARNING(f,...)   CLogger::Get()->Write(log_name,LogWarning,f,__VA_ARGS__)
 #define LOG_ERROR(f,...)     CLogger::Get()->Write(log_name,LogError,f,__VA_ARGS__)
 #define LOG_PANIC(f,...)     CLogger::Get()->Write(log_name,LogPanic,f,__VA_ARGS__)
 
@@ -30,7 +30,7 @@ extern void delay(unsigned int ms);
 extern void printf(const char *f, ...);
 extern void display_bytes(const char *s, const unsigned char *p, int len);
 
-#define DPROBE
+// #define DPROBE
 
 #ifdef DPROBE
     extern void dprobe(int l, const char *f, ...);
