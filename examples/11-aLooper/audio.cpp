@@ -83,7 +83,7 @@ void setup()
     // set all volumes except output
     // and then ramp up the output volume
     
-    for (int i=CONTROL_THRU_VOLUME; i<=CONTROL_OUTPUT_VOLUME; i++)
+    for (int i=CONTROL_THRU_VOLUME; i<=CONTROL_MIX_VOLUME; i++)
     {
         pLooper->setControl(i,pLooper->getControlDefault(i));
     }

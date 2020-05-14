@@ -415,7 +415,7 @@ void loopMachine::update(void)
 
     float thru_level = m_control[CONTROL_THRU_VOLUME].scale;
     float loop_level = m_control[CONTROL_LOOP_VOLUME].scale;
-    float output_level = m_control[CONTROL_OUTPUT_VOLUME].scale;
+    float output_level = m_control[CONTROL_MIX_VOLUME].scale;
 
     // loop through two channels of 128 samples
     
@@ -429,8 +429,8 @@ void loopMachine::update(void)
         s16 *thru_min = &(m_meter[METER_THRU].min_sample[channel]   );
         s16 *loop_max = &(m_meter[METER_LOOP].max_sample[channel]   );
         s16 *loop_min = &(m_meter[METER_LOOP].min_sample[channel]   );
-        s16 *out_max  = &(m_meter[METER_OUTPUT].max_sample[channel] );
-        s16 *out_min  = &(m_meter[METER_OUTPUT].min_sample[channel] );
+        s16 *mix_max  = &(m_meter[METER_MIX].max_sample[channel] );
+        s16 *mix_min  = &(m_meter[METER_MIX].min_sample[channel] );
         
         
         for (u16 i=0; i<AUDIO_BLOCK_SAMPLES; i++)
@@ -472,14 +472,14 @@ void loopMachine::update(void)
                     *loop_min = loop_val;
             }
             
-            // output
+            // mix
             
             val = ((float)val) * output_level;
 
-            if (val > *out_max)
-                *out_max = val;
-            if (val < *out_min)
-                *out_min = val;
+            if (val > *mix_max)
+                *mix_max = val;
+            if (val < *mix_min)
+                *mix_min = val;
             
             *in_ptr++ = val;
         }

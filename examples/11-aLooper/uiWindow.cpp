@@ -109,88 +109,88 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 	new uiStatusBar(this,ID_LOOP_STATUS_BAR,165,0,width-165,TOP_MARGIN-1);
 	
 	// TOP LEFT INPUT VU METER - CODEC audio input, period
-	// mpd knobs
-	//   0x03  0x09
-	//   0x0C  0x0D
-	//   0x0E  0x0F
+	
+	// mpd knobs, double numbers are inc_dec msb lsb's
+	// ith increments of two
+	//
+	//   in:DEC2(0x0A)		  		out:DEC2(0z0B)
+	//   unuaed:CC(0x0C)      		mix:DEC1(0x0D:0x00) scale=2
+	//   thru:DEC1(0x0E,0x00)=2     loop:CC(0x0F)
 
-	#if 0
-		AudioStream *pInputDevice = AudioSystem::find(AUDIO_DEVICE_INPUT,0,-1);
-		awsVuMeter *pInputVU1 = new awsVuMeter(this,ID_VUI1,6, 2,151,14,1,12);
-		awsVuMeter *pInputVU2 = new awsVuMeter(this,ID_VUI2,6,16,151,28,1,12);
-		pInputVU1->setAudioDevice(pInputDevice->getName(),0,0);
-		pInputVU2->setAudioDevice(pInputDevice->getName(),0,1);
+	#if 1
+		new vuSlider(this,ID_VU2, 6, 2, 150, 28, true, 12,
+			METER_INPUT,		 
+			CONTROL_INPUT_GAIN,
+			-1,							// cable
+			-1,							// 0 based channel
+			MIDI_EVENT_TYPE_INC_DEC2,	// slow continuous 
+			0x0A);						// LSB 
 	#endif
 	
-	// TOP RIGHT OUTPUT VU METER - final mixer or looper output
 	
-	#if 0
-		awsVuMeter *pOutputVU1 = new awsVuMeter(this,ID_VUO1,width-150-1, 2,width-6,14,1,12);
-		awsVuMeter *pOutputVU2 = new awsVuMeter(this,ID_VUO2,width-150-1,16,width-6,28,1,12);
-		#if USE_OUTPUT_MIXER
-			pOutputVU1->setAudioDevice("mixer",0,0);
-			pOutputVU2->setAudioDevice("mixer",1,0);
-		#else
-			pOutputVU1->setAudioDevice("looper",0,0);
-			pOutputVU2->setAudioDevice("looper",0,1);
-		#endif
-	#endif
-	
-	// LEFT - INPUT vu
+	// TOP RIGHT OUTPUT VU METER - output gain, no monitor
 	
 	#if 1
-		wsStaticText *pt1 = new wsStaticText(this,0,"IN",6,TOP_MARGIN+23,42,TOP_MARGIN+39);
+		new vuSlider(this,ID_VU2, width-150, 2, width-6, 28, true, 12,
+			-1,		 					// no meter
+			CONTROL_OUTPUT_GAIN,
+			-1,							// cable
+			-1,							// 0 based channel
+			MIDI_EVENT_TYPE_INC_DEC2,	// slow continuous
+			0x0B);						// top right knob
+	#endif
+	
+	// LEFT - THRU vu
+	
+	#if 1
+		wsStaticText *pt1 = new wsStaticText(this,0,"THRU",6,TOP_MARGIN+23,42,TOP_MARGIN+39);
 		pt1->setAlign(ALIGN_CENTER);
 		pt1->setForeColor(wsWHITE);
 		pt1->setFont(wsFont7x12);
 			
-		new vuSlider(this,ID_VU2, 8, VU_TOP, 40, VU_BOTTOM, 0, 12,
-			METER_INPUT,		 
-			CONTROL_INPUT_GAIN,
-			-1,		// cable
-			-1,		// 0 based channel
-			MIDI_EVENT_TYPE_CC,
-			0x03);	// cc number top left knob
-	#endif
-
-	// MIDDLE - THRU vu
-	
-	#if 1
-		wsStaticText *pt2 = new wsStaticText(this,0,"THRU",50,TOP_MARGIN+23,86,TOP_MARGIN+39);
-		pt2->setAlign(ALIGN_CENTER);
-		pt2->setForeColor(wsWHITE);
-		pt2->setFont(wsFont7x12);
-
-		new vuSlider(this,ID_VU3, 52, VU_TOP, 84, VU_BOTTOM, 0, 12,
+		new vuSlider(this,ID_VU2, 8, VU_TOP, 40, VU_BOTTOM, false, 12,
 			METER_THRU,		 
 			CONTROL_THRU_VOLUME,
 			-1,		// cable
 			-1,		// 0 based channel
-			MIDI_EVENT_TYPE_CC,
-			0x0C);	// cc number middle left knob
+			MIDI_EVENT_TYPE_INC_DEC1,	// faster continous
+			0x0E,						// bottom left knob
+			0x00);
 	#endif
-	
-	// RIGHT - LOOP vu
+
+	// MIDDLE - LOOP vu
 	
 	#if 1
-		wsStaticText *pt3 = new wsStaticText(this,0,"LOOP",94,TOP_MARGIN+23,130,TOP_MARGIN+39);
-		pt3->setAlign(ALIGN_CENTER);
-		pt3->setForeColor(wsWHITE);
-		pt3->setFont(wsFont7x12);
+		wsStaticText *pt2 = new wsStaticText(this,0,"LOOP",50,TOP_MARGIN+23,86,TOP_MARGIN+39);
+		pt2->setAlign(ALIGN_CENTER);
+		pt2->setForeColor(wsWHITE);
+		pt2->setFont(wsFont7x12);
 
-		new vuSlider(this,ID_VU4, 96, VU_TOP, 128, VU_BOTTOM, 0, 12,
+		new vuSlider(this,ID_VU3, 52, VU_TOP, 84, VU_BOTTOM, false, 12,
 			METER_LOOP,		 
 			CONTROL_LOOP_VOLUME,
 			-1,		// cable
 			-1,		// 0 based channel
-		#if 1
-			MIDI_EVENT_TYPE_INC_DEC,
-			0x31,	// MSB
-			0x32);	// LSB
-		#else
-			MIDI_EVENT_TYPE_CC,
-			0x0D);	// param1 cc number middle right knob
-		#endif
+			MIDI_EVENT_TYPE_CC,			// jumpy CC for foot pedal 
+			0x0F);						// bottom right knob
+	#endif
+	
+	// RIGHT - MIX vu
+	
+	#if 1
+		wsStaticText *pt3 = new wsStaticText(this,0,"MIX",94,TOP_MARGIN+23,130,TOP_MARGIN+39);
+		pt3->setAlign(ALIGN_CENTER);
+		pt3->setForeColor(wsWHITE);
+		pt3->setFont(wsFont7x12);
+
+		new vuSlider(this,ID_VU4, 96, VU_TOP, 128, VU_BOTTOM, false, 12,
+			METER_MIX,		 
+			CONTROL_MIX_VOLUME,
+			-1,		// cable
+			-1,		// 0 based channel
+			MIDI_EVENT_TYPE_INC_DEC1,	// faster continous
+			0x0D,						// right knob
+			0x00);
 	#endif
 
 		

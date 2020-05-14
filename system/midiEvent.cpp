@@ -201,7 +201,7 @@ void midiEventHandler::dispatchMidiEvent(midiEvent *pEvent,u8 *nrpn)
 				pEvent->m_value1 = p2 >= 0x40 ? MIDI_CC_DECREMENT : MIDI_CC_INCREMENT;
 				pEvent->m_value2 = p2 >= 0x40 ? 0x80 - p2 : p2;
 
-				LOG("remapping CC 0x%02x val 0x%02x to val1 0x%02x val2=0x%02x", p1, p2, pEvent->m_value1, pEvent->m_value2 );
+				// LOG("remapping CC 0x%02x val 0x%02x to val1 0x%02x val2=0x%02x", p1, p2, pEvent->m_value1, pEvent->m_value2 );
 				sendit = true;
 			}
 			

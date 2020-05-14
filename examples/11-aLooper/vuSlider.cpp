@@ -84,13 +84,15 @@ vuSlider::vuSlider(wsWindow *pParent,u16 id, s32 xs, s32 ys, s32 xe, s32 ye,
 // virtual
 void vuSlider::updateFrame()
 {
+	if (m_meter_num < 0)	// slider only
+		return;
+	
 	float peak0 = pLooper->getMeter(m_meter_num,0);
 	float peak1 = pLooper->getMeter(m_meter_num,1);
 	u8 value0 = (peak0 * ((float)m_num_divs) + 0.8);
 	u8 value1 = (peak1 * ((float)m_num_divs) + 0.8);
 	
-	if (value0)
-		LOG("value0=%d",value0);
+	// if (value0) LOG("value0=%d",value0);
 		
 	bool clear_red = false;
 	u32 red = CTimer::Get()->GetTicks();						// 100's of a second
@@ -131,7 +133,7 @@ void vuSlider::onDraw()
 	if (m_control_num != -1 &&
 		next_control_value != last_control_value)
 	{
-		float fval = (127.0 - last_control_value);
+		float fval = m_horz ? last_control_value : (127.0 - last_control_value);
 		float pos = fval * m_usable_bar_area / 127.00;
 		s32 xoff = m_horz ? pos : 0;
 		s32 yoff = m_horz ? 0 : pos;
@@ -173,7 +175,7 @@ void vuSlider::onDraw()
 		u16 use_x = !m_horz ? which * m_box_width : 0;
 			// offset by half the width for two channels
 
-		LOG("draw from=%d to=%d  use x=%d y=%d",draw_from,draw_to,use_x,use_y);
+		// LOG("draw from=%d to=%d  use x=%d y=%d",draw_from,draw_to,use_x,use_y);
 		
 		for (int i=draw_from; i<=draw_to; i++)
 		{
@@ -197,10 +199,10 @@ void vuSlider::onDraw()
 				color = wsYELLOW;
 			}
 			
-			// note that they are in inverted order
-			// so num_divs-1 becomes 0, and the last one
+			// note that they are in inverted order when vertical
+			// so num_divs-1 becomes 0, and the last one num_divs-1
 			// 
-			s32 inv_i = (m_num_divs-1 - i);
+			s32 inv_i = m_horz ? i : (m_num_divs-1 - i);
 			s32 box_x = m_rect_client.xs + use_x + inv_i*m_xoffset;
 			s32 box_y = m_rect_client.ys + use_y + inv_i*m_yoffset;
 		
@@ -216,7 +218,7 @@ void vuSlider::onDraw()
 	
 	if (m_control_num != -1)
 	{
-		float fval = (127.0 - next_control_value);
+		float fval = m_horz ? next_control_value : (127.0 - next_control_value);
 		float pos = fval * m_usable_bar_area / 127.00;
 		s32 xoff = m_horz ? pos : 0;
 		s32 yoff = m_horz ? 0 : pos;

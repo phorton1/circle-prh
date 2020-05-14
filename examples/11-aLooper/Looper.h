@@ -305,13 +305,13 @@ class loopTrack
 #define METER_INPUT                 0
 #define METER_LOOP                  1
 #define METER_THRU                  2
-#define METER_OUTPUT                3
+#define METER_MIX                   3
 #define NUM_METERS                  4
 
 #define CONTROL_INPUT_GAIN          0
 #define CONTROL_THRU_VOLUME         1
 #define CONTROL_LOOP_VOLUME         2
-#define CONTROL_OUTPUT_VOLUME       3
+#define CONTROL_MIX_VOLUME       3
 #define CONTROL_OUTPUT_GAIN         4
 #define NUM_CONTROLS                5
 
