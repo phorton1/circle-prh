@@ -20,29 +20,46 @@
 //--------------------------------------------------------
 // my higher level abstraction of midi event types,
 //--------------------------------------------------------
-// as the case may be
+// starting with MPD218, as the case may be
 
 typedef enum
 {
 	MIDI_EVENT_TYPE_NOTE, 		// returns MIDI_EVENT_NOTE_ON and MIDI_EVENT_NOTE_OFF 
 	MIDI_EVENT_TYPE_CC,    		// returns MIDI_EVENT_CC 
-	MIDI_EVENT_TYPE_INC_DEC,   	// returns MIDI_EVENT_INCREMENT or MIDI_EVENT_DECREMENT
+	MIDI_EVENT_TYPE_INC_DEC1,   // returns MIDI_EVENT_INC/DEREMENT with programmed value
+	MIDI_EVENT_TYPE_INC_DEC2,	// returns MIDI_EVENT_INC/DECREMENT with 1+ or 7f- for velocity
+	
 }	midiEventType_t;
 
+// The main problem with CC's and knobs on the MPD218 is that values "jump"
+// on the first touch.  That's necessary to use a footpedal (at this time).
 
-// NRPN event registration (B0) with various others
-// 	  The MPD218 can return continuous values for the rotary controllers
-//    via increment (0x60) and decrement (0x61) messages.
-//    These appear to be preceded by 0x63 with the MSB and
-//    0x62 with the LSB, and followed by 0x63 and 0x62 with 0x7F.
+// The MPD218 can return continuous values for the rotary controllers
+// in two different ways.  The first way DEC1, is complicated
+// and involves NRPNs, and two distinct messages. DEC2 is
+// somewhat simpler and returns the CC with velocity numbers.
+//
+// DEC1 receives increment (0x60) or decrement (0x61) messages,
+//    along with four NRPN MSB (0x63) and and LSB (0x62) messages.
+//    The inc/dec are preceded by the programmed msb/lsb's, and
+//    followed by 7f's to presumably clear the nrpn msb/lsb.
 //
 //             b0  63  msb
-//             b0  63  lsb
+//             b0  62  lsb
 //             b0  60  increment_value
+//             b0  63  7f
+//             b0  62  7f
 //
-//    The loop will continually monitor incoming msb/lsb pairs,
-//    and on the b0,61,value,  will return it to the client because
-//    it matches the current nrpn registers.
+//    The kernel continually monitors incoming msb/lsb pairs, on the
+//    62,63 messages and send the NRPN values to dispatch() for it to use.
+//    The client registers on MIDI_EVENT_TYPE_INC_DEC1 and the msb/lsb
+//    pair, and will receive MIDI_CC_INCREMENT/DECREMENT messages with
+//    the value programmed into the MPD.
+//
+// DEC2 receives CC messages values of positive values of 1,2... for increment
+//   or 7f,7e,... for decrement, based on the velocity, where presumably the
+//   0x40 bit is used for the sign. It uses special handling in dispatch
+//   to build inc/dec events, and probably works the best for my uses.
 
 
 #define MIDI_EVENT_NOTE_ON   0x09		// after being rightshifted from leading status byte
@@ -56,6 +73,7 @@ typedef enum
 
 
 class midiEvent;		// forward;
+class midiEventHandler;
 
 
 typedef void (*handleMidiEventFxn)(void *, midiEvent *event);
@@ -88,6 +106,7 @@ class midiEvent
 		s16 getValue2() const  		{ return m_value2; }
 		
 	protected:
+		friend class midiEventHandler;
 		
 		s16 m_cable;
 		s16 m_channel;

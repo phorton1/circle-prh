@@ -181,7 +181,7 @@ void midiEventHandler::dispatchMidiEvent(midiEvent *pEvent,u8 *nrpn)
 				sendit = true;	
 			}
 			else
-			if ((cur->m_type == MIDI_EVENT_TYPE_INC_DEC) &&
+			if ((cur->m_type == MIDI_EVENT_TYPE_INC_DEC1) &&
 				(msg == MIDI_EVENT_CC) &&
 				(p1 == MIDI_CC_DECREMENT ||
 				 p1 == MIDI_CC_INCREMENT) &&
@@ -190,6 +190,21 @@ void midiEventHandler::dispatchMidiEvent(midiEvent *pEvent,u8 *nrpn)
 			{
 				sendit = true;
 			}
+			else
+			if ((cur->m_type == MIDI_EVENT_TYPE_INC_DEC2) &&
+				(msg == MIDI_EVENT_CC) &&
+				(cur->m_value1 == -1 || cur->m_value1 == p1))
+			{
+				// REMAP THE MIDI EVENT TYPE and VALUE !!!
+				// I could scale the value here
+
+				pEvent->m_value1 = p2 >= 0x40 ? MIDI_CC_DECREMENT : MIDI_CC_INCREMENT;
+				pEvent->m_value2 = p2 >= 0x40 ? 0x80 - p2 : p2;
+
+				LOG("remapping CC 0x%02x val 0x%02x to val1 0x%02x val2=0x%02x", p1, p2, pEvent->m_value1, pEvent->m_value2 );
+				sendit = true;
+			}
+			
 			if (sendit)
 			{
 				// LOG("    dispatching to 0x%08X::0x%08X",(u32)cur->m_pObject,(u32)cur->m_pMethod);
