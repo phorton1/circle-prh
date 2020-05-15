@@ -43,7 +43,7 @@ wsMidiButton::wsMidiButton(
 	m_pressed_back_color = defaultButtonPressedColor;
 	m_pressed_fore_color = m_fore_color;
 	
-	midiEventHandler::registerMidiHandler(
+	midiSystem::getMidiSystem()->registerMidiHandler(
 		this,
 		staticHandleMidiEvent,
 		midi_cable,

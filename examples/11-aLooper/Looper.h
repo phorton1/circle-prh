@@ -333,6 +333,7 @@ typedef struct              // avoid byte sized structs
     u16 value;              // 0..127
     u16 default_value;      // 0..127
     float scale;            // 0..1.0 for my controls; unused for codec
+    int32_t multiplier;     // for WITH_INT_VOLUMES
 } controlDescriptor_t;
 
 class loopMachine : public AudioStream

@@ -17,14 +17,6 @@
 	#include <audio/AudioStream.h>
 #endif
 
-#if USE_USB
-	#include <circle/usb/usbstring.h>
-#endif
-
-#if USE_MIDI_SYSTEM
-	#include <circle/usb/usbmidi.h>
-	#include "midiEvent.h"
-#endif
 
 #if USE_FILE_SYSTEM
 	#define SHOW_ROOT_DIRECTORY  1
@@ -54,6 +46,7 @@ extern void setup();
 extern void loop();
 
 u32 main_loop_counter = 0;
+bool bCore0StartupReported = 0;
 
 
 //---------------------------------------------
@@ -194,8 +187,6 @@ void CCoreTask::Run(unsigned nCore)
 		);
 		printf("  core(%d) SP(%08x)\n",nCore,sp);
 	#endif	
-	
-	bool bCore0StartupReported = 0;
 		
 	// initialize the audio system on the given core
 	
@@ -203,7 +194,7 @@ void CCoreTask::Run(unsigned nCore)
 		if (nCore == CORE_FOR_AUDIO_SYSTEM)
 		{
 			runAudioSystem(nCore,true);
-			dprobe(0,"after first runAudioSystem",0);
+			dprobe(1,"after first runAudioSystem",0);
 		}
 	#endif
 	
@@ -213,7 +204,7 @@ void CCoreTask::Run(unsigned nCore)
 		if (nCore == CORE_FOR_UI_SYSTEM)
 		{
 			runUISystem(nCore,true);
-			dprobe(0,"after first runUISystem",0);
+			dprobe(1,"after first runUISystem",0);
 		}
 	#endif
 	
@@ -241,7 +232,7 @@ void CCoreTask::Run(unsigned nCore)
 			if (nCore == CORE_FOR_UI_SYSTEM)
 			{
 				runUISystem(nCore,false);
-				dprobe(0,"after runUISystem");
+				// dprobe(0,"after runUISystem");
 			}
 		#endif
 		
@@ -262,7 +253,6 @@ void CCoreTask::Run(unsigned nCore)
 				)
 			{
 				CScheduler::Get()->MsSleep(200);
-				bCore0StartupReported = 1;
 				printf("ready ...\n");
 				CScheduler::Get()->MsSleep(200);
 					// to give the printf time before we change
@@ -273,13 +263,29 @@ void CCoreTask::Run(unsigned nCore)
 					toTeensy.Write(1);
 				#endif
 				
-				dprobe(2,"CoreTask(0) rpi ready");
+				// dprobe(2,"CoreTask(0) rpi ready");
 
+				bCore0StartupReported = 1;
 			}
-			dprobe(0,"at end of CoreTask(0)::Run() loop");
-
 		}
 
+		#ifdef DPROBE
+			if (nCore == 3)
+			{
+				static bool bProbeReported = false;
+				if (bCore0StartupReported && !bProbeReported)
+				{
+					bProbeReported = true;
+					dprobe(2,"Core(3) ready");
+				}
+				else
+				{
+					dprobe(0,"Core(3) at end of CoreTask(0)::Run() loop");
+					delay(1000);
+				}
+			}
+		#endif
+		
 	}	// while (1)
 }	// CCoreTask::Run()
 
@@ -326,7 +332,7 @@ CKernel::CKernel(void) :
 	
 	
 	#if USE_MAIN_SERIAL
-		m_Serial(&m_Interrupt, TRUE),	// (0,FALSE,
+		m_Serial(&m_Interrupt, FALSE),	// TRUE),	// (0,FALSE,
 	#endif
 	m_Logger(LogDebug,&m_Timer)	// m_Options.GetLogLevel(), &m_Timer)
 	#if USE_USB
@@ -434,27 +440,6 @@ boolean CKernel::Initialize (void)
 
 
 
-#if USE_USB
-	
-	CString *getDeviceString(CUSBDevice *usb_device, u8 which)
-	{
-		const TUSBDeviceDescriptor *pDesc = usb_device->GetDeviceDescriptor();
-		u8 id =
-			which == 0 ? pDesc->iManufacturer	:
-			which == 1 ? pDesc->iProduct		:
-			which == 2 ? pDesc->iSerialNumber	: 0;
-		if (!id) return 0;
-		if (id == 0xff) return 0;
-		
-		CUSBString usb_string(usb_device);
-		if (usb_string.GetFromDescriptor(id, usb_string.GetLanguageID()))
-		{
-			return new CString(usb_string.Get());
-		}
-		return 0;
-	}
-#endif
-
 
 #include <circle/memorymap.h>
 
@@ -471,67 +456,12 @@ TShutdownMode CKernel::Run(void)
 			: "=r" (sp)
 		);
 		printf("MEM_KERNEL_STACK(%08x) SP(%08x) ctor(%08d)\n",MEM_KERNEL_STACK,sp,ctor_sp);
-	#endif	
-	
-	
-	// With two midi devices on a single core, behavior went to hell.
-	// Once you moved the mouse, the audio system got noises due, presumably,
-	// to the many USB interrupts.  For some unknown reason, setting
-	// USE_USB_SOF_INTR in circle/include/sys_config.h helped.
-	
+	#endif
+
 	#if USE_MIDI_SYSTEM
-		// enumerate midi devices
-		unsigned dev_num = 1;
-		boolean found = 1;
-		while (found)
-		{
-			CString dev_name;
-			dev_name.Format("umidi%d",dev_num);
-			CUSBMIDIDevice *pMidiDevice = (CUSBMIDIDevice *) // : public CUSBFunction : public CDevice
-				CDeviceNameService::Get ()->GetDevice (dev_name, FALSE);
-				
-			if (pMidiDevice)
-			{
-				CUSBDevice *usb_device = pMidiDevice->GetDevice();
-				LOG("found MIDI DEVICE[%d]: %08x",dev_num,pMidiDevice);
-				CString *vendor_name = usb_device->GetName(DeviceNameVendor);
-				CString *device_name = usb_device->GetName(DeviceNameDevice);
-				LOG("    usb_device(%08x) addr(%d) vendor_name(%s) device_name(%s)",
-					(u32)usb_device,
-					usb_device->GetAddress(),
-					vendor_name ? ((const char *)*vendor_name) : "null",
-					device_name ? ((const char *)*device_name) : "null");
-				if (vendor_name)
-					delete vendor_name;
-				if (device_name)
-					delete device_name;
-			
-				// this is how you get to the device strings
-				// which requies access to specific members of
-				// the TUSBDeviceDescriptor ...
-				
-				CString *p_str0 = getDeviceString(usb_device,0);
-				CString *p_str1 = getDeviceString(usb_device,1);
-				CString *p_str2 = getDeviceString(usb_device,2);
-				LOG("    manuf(%s) product(%s) serial(%s)",
-					p_str0 ? ((const char *)*p_str0) : "empty",
-					p_str1 ? ((const char *)*p_str1) : "empty",
-					p_str2 ? ((const char *)*p_str2) : "empty");
-				delete p_str0;
-				delete p_str1;
-				delete p_str2;
-
-				dev_num++;
-				pMidiDevice->RegisterPacketHandler(midiPacketHandler);
-			}
-			else
-			{
-				found = 0;
-			}
-		}
-		
-	#endif	
-
+		m_MidiSystem.Initialize();
+	#endif
+	
 	
 	#if 1
 		delay(500);
@@ -545,54 +475,6 @@ TShutdownMode CKernel::Run(void)
 
 }
 
-
-
-#if USE_MIDI_SYSTEM
-	// static
-	void CKernel::midiPacketHandler(unsigned cable, u8 *pPacket, unsigned length)
-	{
-		// The packet contents are just normal MIDI data - see
-		// https://www.midi.org/specifications/item/table-1-summary-of-midi-message
-	
-		// MPD218 note packats have a length of 2
-		// control packets have a length of 3
-		// if (length < 3)
-		// {
-		// 	return;
-		// }
-	
-		u8 status  = pPacket[0];
-		u8 channel = status & 0x0F;
-		u8 msg     = status >> 4;
-		u8 param1  = pPacket[1];			// the key for note on and off events
-		u8 param2  = pPacket[2];			// velocity for note on and off events
-		
-		static u8 nrpn[2] = {0x7f,0x7f};
-		if (msg == MIDI_EVENT_CC &&
-			param1 == MIDI_EVENT_MSB)
-		{
-			nrpn[0] = param2;
-		}
-		else if (msg == MIDI_EVENT_CC &&
-				 param1 == MIDI_EVENT_LSB)
-		{
-			nrpn[1] = param2;
-		}
-		else
-		{
-			// LOG("midPacket(length=%d cable=%d channel=%d msg=%d param1=%d param2=%d)",length,cable,channel,msg,param1,param2);
-			
-			midiEvent *pEvent = new midiEvent(
-				cable,
-				channel,
-				msg,
-				param1,
-				param2);
-			midiEventHandler::dispatchMidiEvent(pEvent,nrpn);
-			delete pEvent;
-		}
-	}
-#endif
 
 
 #if USE_FILE_SYSTEM

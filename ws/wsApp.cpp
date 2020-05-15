@@ -6,11 +6,15 @@
 
 #include "wsApp.h"
 #include "wsEvent.h"
-
+#include <system/std_kernel.h>
 #include <circle/logger.h>
 #include <circle/util.h>
 #define log_name  "wsapp"
 
+
+#if USE_MIDI_SYSTEM
+	#include <system/midiEvent.h>
+#endif
 
 //----------------------------------------------
 // wsApplication
@@ -297,6 +301,10 @@ void wsApplication::timeSlice()
 		m_pMouse->UpdateCursor();
 	if (m_pTouch)
 		m_pTouch->Update();
+	
+	#if USE_MIDI_SYSTEM
+		midiSystem::getMidiSystem()->dispatchEvents();
+	#endif
 	
 
 	//----------------------------------

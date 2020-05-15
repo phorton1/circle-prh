@@ -5,8 +5,41 @@
 
 #define log_name "lmachine"
 
-stereoSample_t peak[NUM_METERS];
+#define WITH_VOLUMES       1
+#define WITH_INT_VOLUMES   0
+
+#if WITH_VOLUMES
+    #if WITH_INT_VOLUMES
+    
+        #include <audio/utility/dspinst.h>
+        
+        #define MULTI_UNITYGAIN 65536
+    
+        static void applyGain(int16_t *data, int32_t mult)
+        {
+            // uint32_t tmp32 = *data; // read 2 samples from *data
+            int32_t val1 = signed_multiply_32x16b(mult, *data);
+            val1 = signed_saturate_rshift(val1, 16, 0);
+            *data = val1;
+        }
+    #endif
+#endif
+
+
+extern int g_sUSBHIDDeviceDelay;    // 0
+extern int g_sUSBMIDIDeviceDelay;   // 10
+    // various values to try to optimize USB usage
+void setUSBOpts()
+    // done this way for recompiles over and over
+{
+    g_sUSBHIDDeviceDelay    = 0;    // 180;
+    g_sUSBMIDIDeviceDelay   = 10;   // 60;
+}
+
+
 // static
+stereoSample_t peak[NUM_METERS];
+
 
 
 // The default input gain for the cs42448 of 0db
@@ -17,9 +50,9 @@ stereoSample_t peak[NUM_METERS];
 
 u16 control_default[NUM_CONTROLS] = {
     94,      // codec input
-    100,     // thru
-    100,     // loop
-    100,     // output
+    63,     // thru
+    63,     // loop
+    63,     // output
     127};    // codec output defaults to 1.0
 
 
@@ -36,6 +69,7 @@ loopMachine::loopMachine() :
         m_control[i].value = 0;
         m_control[i].default_value = control_default[i];
         m_control[i].scale = 0.00;
+        m_control[i].multiplier = 0;
     }
     for (int i=0; i<NUM_METERS; i++)
     {
@@ -52,6 +86,9 @@ loopMachine::loopMachine() :
         m_tracks[i] = new loopTrack(i,this);
     }
     init();
+    
+    setUSBOpts();
+
     LOG("looper ctor finished",0);
 }
 
@@ -174,6 +211,16 @@ void loopMachine::setControl(u16 control, u8 value)
     else if (control == CONTROL_OUTPUT_GAIN)
     {
         ((AudioControlCS42448 *)pCodec)->volume(scale);
+    }
+    else
+    {
+        #if WITH_INT_VOLUMES
+            //if (n > 32767.0f) n = 32767.0f;
+            //else if (n < -32767.0f) n = -32767.0f;
+            m_control[control].multiplier = scale * 65536.0f;            
+        #else
+            scale = ((float)value)/63;
+        #endif
     }
     m_control[control].value = value;
     m_control[control].scale = scale;
@@ -413,10 +460,18 @@ void loopMachine::update(void)
     s16 *rec_ptr = m_state == LOOP_STATE_RECORDING ?
         m_pRecordClip->getBlockBuffer() : 0;
 
-    float thru_level = m_control[CONTROL_THRU_VOLUME].scale;
-    float loop_level = m_control[CONTROL_LOOP_VOLUME].scale;
-    float output_level = m_control[CONTROL_MIX_VOLUME].scale;
-
+    #if WITH_VOLUMES
+        #if WITH_INT_VOLUMES
+            int32_t thru_mult = m_control[CONTROL_THRU_VOLUME].multiplier;
+            int32_t loop_mult = m_control[CONTROL_LOOP_VOLUME].multiplier;
+            int32_t mix_mult = m_control[CONTROL_MIX_VOLUME].multiplier;
+        #else
+            float thru_level = m_control[CONTROL_THRU_VOLUME].scale;
+            float loop_level = m_control[CONTROL_LOOP_VOLUME].scale;
+            float mix_level = m_control[CONTROL_MIX_VOLUME].scale;
+        #endif
+    #endif
+    
     // loop through two channels of 128 samples
     
 	for (u16 channel=0; channel<LOOPER_CHANNELS; channel++)
@@ -448,7 +503,13 @@ void loopMachine::update(void)
             
             // thru
             
-            val = ((float)val) * thru_level;
+            #if WITH_VOLUMES
+                #if WITH_INT_VOLUMES
+                    applyGain(&val,thru_mult);
+                #else                    
+                    val = ((float)val) * thru_level;
+                #endif
+            #endif
 
             if (val > *thru_max)
                 *thru_max = val;
@@ -462,8 +523,17 @@ void loopMachine::update(void)
                 s16 loop_val = 0;
                 for (u16 clip_num=0; clip_num<num_clips; clip_num++)
                 {
-                    loop_val += ((float)*clip_ptr[clip_num]++) * loop_level;
+                    loop_val += *clip_ptr[clip_num]++;
                 }
+
+                #if WITH_VOLUMES
+                    #if WITH_INT_VOLUMES
+                        applyGain(&loop_val,loop_mult);
+                    #else
+                        loop_val = ((float)loop_val)*loop_level;                    
+                    #endif
+                #endif
+                
                 val += loop_val;
 
                 if (loop_val > *loop_max)
@@ -474,7 +544,13 @@ void loopMachine::update(void)
             
             // mix
             
-            val = ((float)val) * output_level;
+            #if WITH_VOLUMES
+                #if WITH_INT_VOLUMES
+                    applyGain(&val,mix_mult);
+                #else                    
+                    val = ((float)val) * mix_level;
+                #endif
+            #endif
 
             if (val > *mix_max)
                 *mix_max = val;

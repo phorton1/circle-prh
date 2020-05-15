@@ -8,7 +8,6 @@
 #include <circle/logger.h>
 #include <circle/machineinfo.h>
 
-
 #define log_name "bcm_pcm"
 
 #if 0
@@ -16,6 +15,14 @@
 #else
 	#define PCM_LOG(...)
 #endif
+
+#define USE_LITE_DMA_CHANNEL   1
+	// The lite channel appears to issue only one vector, tho you
+	//    must register both.
+	// The normal channel seems to call the two routines correctly
+	//    but crashes if the update() takes too long.
+	// Both have noises if you move the mouse (and/or have usb hooked up)
+	//    and crash at startup intermittently.
 
 
 #define PIN_BCLK	   18		// The bit clock
@@ -84,8 +91,13 @@ BCM_PCM::BCM_PCM() :
 		m_RX_ACTIVE(PIN_RX_ACTIVE, GPIOModeOutput),
 		m_TX_ACTIVE(PIN_TX_ACTIVE, GPIOModeOutput),
 	#endif
-	m_nDMAInChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE)),
-	m_nDMAOutChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE))
+	#if USE_LITE_DMA_CHANNEL
+		m_nDMAInChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE)),		
+		m_nDMAOutChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_LITE))		
+	#else
+		m_nDMAInChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_NORMAL)),		
+		m_nDMAOutChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_NORMAL))		
+	#endif
 {
 	#ifdef DYNAMIC_INITIALIZATION
 		// If the object is statically initialized, we depend on BSS
@@ -186,6 +198,8 @@ void BCM_PCM::initBuffers()
 		memset(m_outBuffer[i],0,RAW_AUDIO_BLOCK_BYTES);
 	}
 	
+	in_irq_count	= 0;
+	out_irq_count   = 0;
 	in_block_count  = 0;
 	in_other_count  = 0;
 	in_wrong_count  = 0;
@@ -254,7 +268,7 @@ void BCM_PCM::init()
 		((u32)m_outISR) ? "OUTPUT" :
 		"ERROR - no isr specified in init!");
 	
-	PCM_LOG("inDMAChannel=%d outDMAChannel=%d",
+	LOG("inDMAChannel=%d outDMAChannel=%d",
 		m_nDMAInChannel,
 		m_nDMAOutChannel);
 	PCM_LOG("m_inControlBlock[0]=0x%08x",&m_inControlBlock[0]);
@@ -619,6 +633,11 @@ void BCM_PCM::start()
 	initBuffers();		
 
 	// connect IRQs
+	//
+	// this is totally weird.  If using the LITE dma channel, and both isrs, only
+	// the output isr routine gets called (last one in order of code below?).
+	// When using normal DMA channels, the interrupts are separate, but the
+	// dma is more finicky.
 	
 	if (m_inISR && !m_bInIRQConnected)
 	{
@@ -803,12 +822,14 @@ void BCM_PCM::updateOutput(bool cold)
 void BCM_PCM::audioInIRQStub(void *pParam)
 {
 	// assert(pParam);
+	((BCM_PCM *) pParam)->in_irq_count++;
 	((BCM_PCM *) pParam)->audioInIRQ();
 }
 
 void BCM_PCM::audioOutIRQStub(void *pParam)
 {
 	// assert(pParam);
+	((BCM_PCM *) pParam)->out_irq_count++;
 	((BCM_PCM *) pParam)->audioOutIRQ();
 }
 

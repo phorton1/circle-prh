@@ -1,7 +1,4 @@
 #include <utils/myUtils.h>
-
-#ifdef DPROBE
-
 #include <circle/devicenameservice.h>
 #include <circle/koptions.h>
 #include <circle/device.h>
@@ -40,7 +37,7 @@ bool checkAll();
 u32  checkSumKernel();
 
 
-void dprobe(int l, const char *f, ...)
+void do_dprobe(int l, const char *f, ...)
 {
     bool dump = checkAll();
     
@@ -147,9 +144,3 @@ void dlog(const char *f, ...)
     } 
 }
 
-
-
-
-
-
-#endif // DPROBE

@@ -101,6 +101,10 @@
 	#include <fatfs/ff.h>
 #endif
 
+#if USE_MIDI_SYSTEM
+	#include "midiEvent.h"
+#endif
+
 
 #ifdef ARM_ALLOW_MULTI_CORE
 #define WITH_MULTI_CORE
@@ -252,7 +256,7 @@ private:
 	
 	
 	#if USE_MIDI_SYSTEM
-		static void midiPacketHandler(unsigned cable, u8 *pPacket, unsigned length);
+		midiSystem m_MidiSystem;
 	#endif
 	
 };

@@ -16,6 +16,8 @@
 #define _midiEvent_h
 
 #include <circle/types.h>
+#include <circle/spinlock.h>
+
 
 //--------------------------------------------------------
 // my higher level abstraction of midi event types,
@@ -74,6 +76,8 @@ typedef enum
 
 class midiEvent;		// forward;
 class midiEventHandler;
+class midiSystem;
+
 
 
 typedef void (*handleMidiEventFxn)(void *, midiEvent *event);
@@ -83,22 +87,6 @@ class midiEvent
 {
 	public:
 
-		~midiEvent() {}
-	
-		midiEvent(
-			s16 cable,
-			s16 channel,
-			s16 msg,
-			s16 value1,
-			s16 value2) :
-				m_cable(cable),
-				m_channel(channel),
-				m_msg(msg),
-				m_value1(value1),
-				m_value2(value2)
-		{}
-
-		
 		s16 getCable() const		{ return m_cable; }
 		s16 getChannel() const  	{ return m_channel; }
 		s16 getMsg() const   		{ return m_msg; }
@@ -106,15 +94,55 @@ class midiEvent
 		s16 getValue2() const  		{ return m_value2; }
 		
 	protected:
-		friend class midiEventHandler;
 		
+		friend class midiSystem;
+		friend class midiEventHandler;
+
 		s16 m_cable;
 		s16 m_channel;
 		s16 m_msg;
 		s16 m_value1;
 		s16 m_value2;
+		s16 m_nrpn0;
+		s16 m_nrpn1;
+		
+		midiEvent *m_pNextEvent;
+
+		~midiEvent() {}
+	
+		midiEvent(
+			s16 cable,
+			s16 channel,
+			s16 msg,
+			s16 value1,
+			s16 value2,
+			s16 nrpn0,
+			s16 nrpn1) 
+		{
+			m_cable 	= cable;
+			m_channel 	= channel;
+			m_msg		= msg;
+			m_value1	= value1;
+			m_value2	= value2;
+			m_nrpn0		= nrpn0;
+			m_nrpn1 	= nrpn1;
+			m_pNextEvent = 0;
+		}
+
+		midiEvent(midiEvent *pEvent)
+		{
+			m_cable 	= pEvent->m_cable;
+			m_channel 	= pEvent->m_channel;
+			m_msg		= pEvent->m_msg;
+			m_value1	= pEvent->m_value1;
+			m_value2	= pEvent->m_value2;
+			m_nrpn0		= pEvent->m_nrpn0;
+			m_nrpn1 	= pEvent->m_nrpn1;
+			m_pNextEvent = 0;
+		}
 		
 };	// midiEvent
+
 
 
 class midiEventHandler : public midiEvent
@@ -123,50 +151,90 @@ class midiEventHandler : public midiEvent
 		
 		~midiEventHandler() {}
 	
-		static midiEventHandler *getFirstHandler()			{ return m_sFirstHandler; }
-		midiEventHandler *getNextHandlerHandler()	{ return m_pNextHandler; }
-		static void dispatchMidiEvent(midiEvent *pEvent,u8 *nrpn);
-		
-		static void registerMidiHandler(
-			void *pObject,
-			handleMidiEventFxn pMethod,
-			s16 cable,
-			s16 channel,
-			midiEventType_t type,
-			s16 value1,
-			s16 value2);
-		static void unRegisterMidiHandler(
-			void *pObject,
-			handleMidiEventFxn pMethod,
-			s16 cable,
-			s16 channel,
-			midiEventType_t type,
-			s16 value1,
-			s16 value2);
-	
-	protected:
-
 		midiEventHandler(
-			void *pObject,
-			handleMidiEventFxn pMethod,
-			s16 cable,
-			s16 channel,
-			midiEventType_t type,
-			s16 value1,
-			s16 value2 );
-			
+				void *pObject,
+				handleMidiEventFxn pMethod,
+				s16 cable,
+				s16 channel,
+				midiEventType_t type,
+				s16 value1,
+				s16 value2 ) :
+			midiEvent(cable,channel,0,value1,value2,0,0),
+			m_pObject(pObject),
+			m_pMethod(pMethod),
+			m_type(type)
+		{
+			m_pNextHandler = 0;
+			m_pPrevHandler = 0;		
+		}
+		
 		void *m_pObject;
 		handleMidiEventFxn m_pMethod;
-
 		midiEventType_t m_type;
 
 		midiEventHandler *m_pNextHandler;
 		midiEventHandler *m_pPrevHandler;	
 		
-		static midiEventHandler *m_sFirstHandler;
-		static midiEventHandler *m_sLastHandler;
-		
 };	// midiEventHandler
+
+
+
+class midiSystem
+{
+	public:
+		
+		midiSystem()
+		{
+			s_pMidiSystem = this;
+			m_pFirstHandler = 0;
+			m_pLastHandler = 0;
+			m_pFirstEvent = 0;
+			m_pLastEvent = 0;
+		}
+		~midiSystem() {}
+		
+		static midiSystem *getMidiSystem()
+			{ return s_pMidiSystem; }
+
+		void Initialize();
+		
+		void registerMidiHandler(
+			void *pObject,
+			handleMidiEventFxn pMethod,
+			s16 cable,
+			s16 channel,
+			midiEventType_t type,
+			s16 value1,
+			s16 value2);
+		void unRegisterMidiHandler(
+			void *pObject,
+			handleMidiEventFxn pMethod,
+			s16 cable,
+			s16 channel,
+			midiEventType_t type,
+			s16 value1,
+			s16 value2);
+
+		void dispatchEvents();
+		
+		
+	private:
+		
+		static midiSystem *s_pMidiSystem;
+		
+		midiEventHandler *m_pFirstHandler;
+		midiEventHandler *m_pLastHandler;
+
+		midiEvent *m_pFirstEvent;
+		midiEvent *m_pLastEvent;
+		
+		void midiPacketHandler(unsigned cable, u8 *pPacket, unsigned length);
+		static void staticMidiPacketHandler(unsigned cable, u8 *pPacket, unsigned length)
+			{ s_pMidiSystem->midiPacketHandler(cable,pPacket,length); }
+
+		CSpinLock m_spinlock;	
+
+};
 
 
 #endif  // !_midiEvent_h

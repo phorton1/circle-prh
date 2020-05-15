@@ -51,7 +51,7 @@ vuSlider::vuSlider(wsWindow *pParent,u16 id, s32 xs, s32 ys, s32 xe, s32 ye,
     
 	if (m_control_num != -1)
 	{
-		midiEventHandler::registerMidiHandler(
+		midiSystem::getMidiSystem()->registerMidiHandler(
 			this,
 			staticHandleMidiEvent,
 			-1,				// cable
@@ -133,6 +133,12 @@ void vuSlider::onDraw()
 	if (m_control_num != -1 &&
 		next_control_value != last_control_value)
 	{
+		pLooper->setControl(m_control_num,next_control_value);
+			// SET THE CONTROL VALUE!
+			// we wait until here so that if there are multiple value events
+			// in a row on a single refresh cycle, we don't send a bunch of
+			// control events, but only do it once ...
+			
 		float fval = m_horz ? last_control_value : (127.0 - last_control_value);
 		float pos = fval * m_usable_bar_area / 127.00;
 		s32 xoff = m_horz ? pos : 0;
@@ -260,8 +266,6 @@ void vuSlider::handleMidiEvent(midiEvent *event)
 	{
 		m_next_control_value = val;
 		setBit(m_state,WIN_STATE_DRAW);
-		if (m_control_num != -1)
-			pLooper->setControl(m_control_num,val);
 	}
 }
 

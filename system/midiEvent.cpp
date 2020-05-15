@@ -1,36 +1,92 @@
 #include "midiEvent.h"
 #include <utils/myUtils.h>
 #include <circle/logger.h>
+#include <circle/usb/usbmidi.h>
+#include <circle/devicenameservice.h>
+#include <circle/usb/usbstring.h>
+
+
 #define log_name  "midi"
 
 
-// static
-midiEventHandler *midiEventHandler::m_sFirstHandler = 0;
-midiEventHandler *midiEventHandler::m_sLastHandler = 0;
+midiSystem *midiSystem::s_pMidiSystem = 0;
 
-
-// protected
-midiEventHandler::midiEventHandler(
-		void *pObject,
-		handleMidiEventFxn pMethod,
-		s16 cable,
-		s16 channel,
-		midiEventType_t type,
-		s16 value1,
-		s16 value2 ) :
-	midiEvent(cable,channel,0,value1,value2),
-	m_pObject(pObject),
-	m_pMethod(pMethod),
-	m_type(type)
+	
+CString *getDeviceString(CUSBDevice *usb_device, u8 which)
 {
-	m_pNextHandler = 0;
-	m_pPrevHandler = 0;
+	const TUSBDeviceDescriptor *pDesc = usb_device->GetDeviceDescriptor();
+	u8 id =
+		which == 0 ? pDesc->iManufacturer	:
+		which == 1 ? pDesc->iProduct		:
+		which == 2 ? pDesc->iSerialNumber	: 0;
+	if (!id) return 0;
+	if (id == 0xff) return 0;
+	
+	CUSBString usb_string(usb_device);
+	if (usb_string.GetFromDescriptor(id, usb_string.GetLanguageID()))
+	{
+		return new CString(usb_string.Get());
+	}
+	return 0;
+}
+
+
+void midiSystem::Initialize()
+{
+	LOG("initialize()",0);
+	unsigned dev_num = 1;
+	boolean found = 1;
+	while (found)
+	{
+		CString dev_name;
+		dev_name.Format("umidi%d",dev_num);
+		CUSBMIDIDevice *pMidiDevice = (CUSBMIDIDevice *) // : public CUSBFunction : public CDevice
+			CDeviceNameService::Get()->GetDevice (dev_name, FALSE);
+			
+		if (pMidiDevice)
+		{
+			CUSBDevice *usb_device = pMidiDevice->GetDevice();
+			LOG("found MIDI DEVICE[%d]: %08x",dev_num,pMidiDevice);
+			CString *vendor_name = usb_device->GetName(DeviceNameVendor);
+			CString *device_name = usb_device->GetName(DeviceNameDevice);
+			LOG("    usb_device(%08x) addr(%d) vendor_name(%s) device_name(%s)",
+				(u32)usb_device,
+				usb_device->GetAddress(),
+				vendor_name ? ((const char *)*vendor_name) : "null",
+				device_name ? ((const char *)*device_name) : "null");
+			if (vendor_name)
+				delete vendor_name;
+			if (device_name)
+				delete device_name;
+		
+			// this is how you get to the device strings
+			// which requies access to specific members of
+			// the TUSBDeviceDescriptor ...
+			
+			CString *p_str0 = getDeviceString(usb_device,0);
+			CString *p_str1 = getDeviceString(usb_device,1);
+			CString *p_str2 = getDeviceString(usb_device,2);
+			LOG("    manuf(%s) product(%s) serial(%s)",
+				p_str0 ? ((const char *)*p_str0) : "empty",
+				p_str1 ? ((const char *)*p_str1) : "empty",
+				p_str2 ? ((const char *)*p_str2) : "empty");
+			delete p_str0;
+			delete p_str1;
+			delete p_str2;
+
+			dev_num++;
+			pMidiDevice->RegisterPacketHandler(staticMidiPacketHandler);
+		}
+		else
+		{
+			found = 0;
+		}
+	}
 }
 
 
 
-// static
-void midiEventHandler::registerMidiHandler(
+void midiSystem::registerMidiHandler(
 	void *pObject,
 	handleMidiEventFxn pMethod,
 	s16 cable,
@@ -47,19 +103,19 @@ void midiEventHandler::registerMidiHandler(
 
 	midiEventHandler *handler = new midiEventHandler(pObject,pMethod,cable,channel,type,value1,value2);
 	
-	if (m_sLastHandler)
+	if (m_pLastHandler)
 	{
-		handler->m_pPrevHandler = m_sLastHandler;
-		m_sLastHandler->m_pNextHandler = handler;
+		handler->m_pPrevHandler = m_pLastHandler;
+		m_pLastHandler->m_pNextHandler = handler;
 	}
 	else
 	{
-		m_sFirstHandler = handler;
+		m_pFirstHandler = handler;
 	}
-	m_sLastHandler = handler;
+	m_pLastHandler = handler;
 	
 	int count = 0;
-	midiEventHandler *cur = m_sFirstHandler;
+	midiEventHandler *cur = m_pFirstHandler;
 	while (cur)
 	{
 		count++;
@@ -69,7 +125,7 @@ void midiEventHandler::registerMidiHandler(
 }
 
 
-void midiEventHandler::unRegisterMidiHandler(
+void midiSystem::unRegisterMidiHandler(
 	void *pObject,
 	handleMidiEventFxn pMethod,
 	s16 cable,
@@ -79,13 +135,13 @@ void midiEventHandler::unRegisterMidiHandler(
 	s16 value2)
 {
 	#if 0
-		LOG("unRegisterMidiHandler(0x%08X,0x%02X,0x%02X,%d0x%02X,0x%02X)",
+		LOG("unRegisterMidiHandler(0x%08X,0x%02X,0x%02X,%d,0x%02X,0x%02X)",
 			(u32)pObject,
 			(cable&0xff),channel&0xff,type,value1&0xff,value2&0xff);
 	#endif
 
 	midiEventHandler *found = 0;
-	midiEventHandler *cur = m_sFirstHandler;
+	midiEventHandler *cur = m_pFirstHandler;
 	while (cur)
 	{
 		if (pObject == cur->m_pObject &&
@@ -104,13 +160,13 @@ void midiEventHandler::unRegisterMidiHandler(
 	if (found)
 	{
 		LOG("    deleting midi handler",0);
-		if (found == m_sLastHandler)
+		if (found == m_pLastHandler)
 		{
-			m_sLastHandler = found->m_pPrevHandler;
+			m_pLastHandler = found->m_pPrevHandler;
 		}
-		if (found == m_sFirstHandler)
+		if (found == m_pFirstHandler)
 		{
-			m_sFirstHandler = found->m_pNextHandler;
+			m_pFirstHandler = found->m_pNextHandler;
 		}
 		if (found->m_pNextHandler)
 		{
@@ -129,89 +185,160 @@ void midiEventHandler::unRegisterMidiHandler(
 }
 
 
-// static
-void midiEventHandler::dispatchMidiEvent(midiEvent *pEvent,u8 *nrpn)
+
+
+
+void midiSystem::dispatchEvents()
 {
-	#if 0
-		LOG("dispatchMidiEvent(0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X)",
-			(pEvent->getCable() & 0xff),
-			(pEvent->getChannel() & 0xff),
-			(pEvent->getMsg() & 0xff),
-			(pEvent->getValue1() & 0xff),
-			(pEvent->getValue2() & 0xff),
-			(nrpn[0] & 0xff),
-			(nrpn[1] & 0xff)); 
-	#endif
+	m_spinlock.Acquire();
+	midiEvent *pEvent = m_pFirstEvent;
+	m_pFirstEvent = 0;
+	m_pLastEvent = 0;
+	m_spinlock.Release();
 	
-	
-	midiEventHandler *cur = m_sFirstHandler;
-	while (cur)
+	while (pEvent)
 	{
 		#if 0
-			LOG("checking cur(0x%02X,0x%02X,%d,0x%02X,0x%02X)",
-				(cur->getCable() & 0xff),
-				(cur->getChannel() & 0xff),
-				cur->m_type,
-				(cur->getValue1() & 0xff),
-				(cur->getValue2() & 0xff)); 
+			LOG("dispatching(0x%02X,0x%02X,0x%02x,0x%02X,0x%02X)",
+				(pEvent->m_cable 	& 0xff),
+				(pEvent->m_channel	& 0xff),
+				(pEvent->m_type 	& 0xff),
+				(pEvent->m_value1)  & 0xff),
+				(pEvent->m_value1() & 0xff)); 
 		#endif
-		
-		if (((cur->m_cable   == -1)  || (cur->m_cable   == pEvent->getCable()   )) &&
-			((cur->m_channel == -1)  || (cur->m_channel == pEvent->getChannel() )) )
+
+		midiEventHandler *cur = m_pFirstHandler;
+		while (cur)
 		{
-			bool sendit = false;
-			s16 msg = pEvent->getMsg();
-			s16 p1 = pEvent->getValue1();
-			s16 p2 = pEvent->getValue2();
+			#if 0
+				LOG("    checking cur(0x%02X,0x%02X,%d,0x%02X,0x%02X)",
+					(cur->m_cable & 0xff),
+					(cur->m_channel & 0xff),
+					cur->m_type,
+					(cur->m_value1) & 0xff),
+					(cur->m_value1() & 0xff)); 
+			#endif
 			
-			if ((cur->m_type == MIDI_EVENT_TYPE_NOTE) &&
-				(msg == MIDI_EVENT_NOTE_ON ||
-				 msg == MIDI_EVENT_NOTE_OFF) &&
-				(cur->m_value1 == -1 || cur->m_value1 == p1) &&
-				(cur->m_value2 == -1 || cur->m_value2 == p2))
+			if (((cur->m_cable   == -1)  || (cur->m_cable   == pEvent->m_channel  )) &&
+				((cur->m_channel == -1)  || (cur->m_channel == pEvent->m_channel  )) )
 			{
-				sendit = true;
-			}
-			else
-			if ((cur->m_type == MIDI_EVENT_TYPE_CC) &&
-				(msg == MIDI_EVENT_CC) &&
-				(cur->m_value1 == -1 || cur->m_value1 == p1) &&
-				(cur->m_value2 == -1 || cur->m_value2 == p2))
-			{
-				sendit = true;	
-			}
-			else
-			if ((cur->m_type == MIDI_EVENT_TYPE_INC_DEC1) &&
-				(msg == MIDI_EVENT_CC) &&
-				(p1 == MIDI_CC_DECREMENT ||
-				 p1 == MIDI_CC_INCREMENT) &&
-				(cur->m_value1 == -1 || cur->m_value1 == nrpn[0]) &&
-				(cur->m_value2 == -1 || cur->m_value2 == nrpn[1]))
-			{
-				sendit = true;
-			}
-			else
-			if ((cur->m_type == MIDI_EVENT_TYPE_INC_DEC2) &&
-				(msg == MIDI_EVENT_CC) &&
-				(cur->m_value1 == -1 || cur->m_value1 == p1))
-			{
-				// REMAP THE MIDI EVENT TYPE and VALUE !!!
-				// I could scale the value here
+				s16 msg = pEvent->m_msg;
+				s16 p1 = pEvent->m_value1;
+				s16 p2 = pEvent->m_value2;
+				
+				if ((cur->m_type == MIDI_EVENT_TYPE_NOTE) &&
+					(msg == MIDI_EVENT_NOTE_ON ||
+					 msg == MIDI_EVENT_NOTE_OFF) &&
+					(cur->m_value1 == -1 || cur->m_value1 == p1) &&
+					(cur->m_value2 == -1 || cur->m_value2 == p2))
+				{
+					(cur->m_pMethod)(cur->m_pObject,pEvent);
+				}
+				else
+				if ((cur->m_type == MIDI_EVENT_TYPE_CC) &&
+					(msg == MIDI_EVENT_CC) &&
+					(cur->m_value1 == -1 || cur->m_value1 == p1) &&
+					(cur->m_value2 == -1 || cur->m_value2 == p2))
+				{
+					(cur->m_pMethod)(cur->m_pObject,pEvent);
+				}
+				else
+				if ((cur->m_type == MIDI_EVENT_TYPE_INC_DEC1) &&
+					(msg == MIDI_EVENT_CC) &&
+					(p1 == MIDI_CC_DECREMENT ||
+					 p1 == MIDI_CC_INCREMENT) &&
+					(cur->m_value1 == -1 || cur->m_value1 == pEvent->m_nrpn0) &&
+					(cur->m_value2 == -1 || cur->m_value2 == pEvent->m_nrpn1))
+				{
+					(cur->m_pMethod)(cur->m_pObject,pEvent);
+				}
+				else
+				if ((cur->m_type == MIDI_EVENT_TYPE_INC_DEC2) &&
+					(msg == MIDI_EVENT_CC) &&
+					(cur->m_value1 == -1 || cur->m_value1 == p1))
+				{
+					// CREATE A NEW EVENT !!!
 
-				pEvent->m_value1 = p2 >= 0x40 ? MIDI_CC_DECREMENT : MIDI_CC_INCREMENT;
-				pEvent->m_value2 = p2 >= 0x40 ? 0x80 - p2 : p2;
-
-				// LOG("remapping CC 0x%02x val 0x%02x to val1 0x%02x val2=0x%02x", p1, p2, pEvent->m_value1, pEvent->m_value2 );
-				sendit = true;
+					midiEvent *newEvent = new midiEvent(pEvent);
+					newEvent->m_value1 = p2 >= 0x40 ? MIDI_CC_DECREMENT : MIDI_CC_INCREMENT;
+					newEvent->m_value2 = p2 >= 0x40 ? 0x80 - p2 : p2;
+					(cur->m_pMethod)(cur->m_pObject,newEvent);
+					delete newEvent;
+	
+				}
 			}
-			
-			if (sendit)
-			{
-				// LOG("    dispatching to 0x%08X::0x%08X",(u32)cur->m_pObject,(u32)cur->m_pMethod);
-				(cur->m_pMethod)(cur->m_pObject,pEvent);
-			}
+			cur = cur->m_pNextHandler;
 		}
-		cur = cur->m_pNextHandler;
+		
+		midiEvent *ptr = pEvent;
+		pEvent = pEvent->m_pNextEvent;
+		delete ptr;
+
 	}
 }
 
+
+
+	
+void midiSystem::midiPacketHandler(unsigned cable, u8 *pPacket, unsigned length)
+{
+	// The packet contents are just normal MIDI data - see
+	// https://www.midi.org/specifications/item/table-1-summary-of-midi-message
+
+	// MPD218 note packats have a length of 2
+	// control packets have a length of 3
+	// if (length < 3)
+	// {
+	// 	return;
+	// }
+
+	u8 status  = pPacket[0];
+	u8 channel = status & 0x0F;
+	u8 msg     = status >> 4;
+	u8 param1  = pPacket[1];			// the key for note on and off events
+	u8 param2  = pPacket[2];			// velocity for note on and off events
+	
+	#if 0
+		LOG("midiPacketHandler(0x%02X,0x%02X,0x%02X,0x%02X,0x%02X)",
+			(cable&0xff),channel&0xff,msg&0xff,param1&0xff,param2&0xff);
+	#endif
+
+
+	
+
+	static u8 nrpn[2] = {0x7f,0x7f};
+	
+	if (msg == MIDI_EVENT_CC &&
+		param1 == MIDI_EVENT_MSB)
+	{
+		nrpn[0] = param2;
+	}
+	else if (msg == MIDI_EVENT_CC &&
+			 param1 == MIDI_EVENT_LSB)
+	{
+		nrpn[1] = param2;
+	}
+	else
+	{
+		// LOG("midPacket(length=%d cable=%d channel=%d msg=%d param1=%d param2=%d)",length,cable,channel,msg,param1,param2);
+
+		midiEvent *pEvent = new midiEvent(
+			cable,
+			channel,
+			msg,
+			param1,
+			param2,
+			nrpn[0],
+			nrpn[1]);
+
+		m_spinlock.Acquire();
+		
+		if (!m_pFirstEvent)
+			m_pFirstEvent = pEvent;
+		if (m_pLastEvent)
+			m_pLastEvent->m_pNextEvent = pEvent;
+		m_pLastEvent = pEvent;
+			
+		m_spinlock.Release();
+	}
+}

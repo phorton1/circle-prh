@@ -332,6 +332,8 @@ private:
 
 public:
 	
+	u32 in_irq_count;
+	u32 out_irq_count;
 	u32	in_block_count;
 	u32	in_other_count;
 	u32	in_wrong_count;
