@@ -31,9 +31,11 @@ CString *getDeviceString(CUSBDevice *usb_device, u8 which)
 }
 
 
-void midiSystem::Initialize()
+void midiSystem::Initialize(CSerialDevice *pSerial)
 {
-	LOG("initialize()",0);
+	LOG("initialize(%08x)",(u32)pSerial);
+	m_pSerial = pSerial;
+	
 	unsigned dev_num = 1;
 	boolean found = 1;
 	while (found)
@@ -192,9 +194,48 @@ void midiSystem::dispatchEvents()
 {
 	m_spinlock.Acquire();
 	midiEvent *pEvent = m_pFirstEvent;
+	midiEvent *pLast  = m_pLastEvent;
 	m_pFirstEvent = 0;
 	m_pLastEvent = 0;
 	m_spinlock.Release();
+
+	if (m_pSerial)
+	{
+		u8 buf[6];
+		int num_read = m_pSerial->Read(buf,5);
+		while (num_read)
+		{
+			// display_bytes("midi",buf,num_read);
+			if (num_read == 5)	// add a midi event
+			{
+				midiEvent *pNewEvent = new midiEvent(
+					buf[0],
+					buf[1],
+					buf[2],
+					buf[3],
+					buf[4],
+					0,
+					0);
+
+				// m_spinlock.Acquire();
+
+				if (!pEvent)
+					pEvent = pNewEvent;
+				if (pLast)
+					pLast->m_pNextEvent = pNewEvent;
+				pLast = pNewEvent;
+					
+				// m_spinlock.Release();
+				
+			}
+			else
+			{
+				LOG_ERROR("wrong_midi %d",num_read);
+			}
+			num_read = m_pSerial->Read(buf,5);
+		}
+	}
+	
 	
 	while (pEvent)
 	{

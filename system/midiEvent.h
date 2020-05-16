@@ -17,7 +17,7 @@
 
 #include <circle/types.h>
 #include <circle/spinlock.h>
-
+#include <circle/serial.h>
 
 //--------------------------------------------------------
 // my higher level abstraction of midi event types,
@@ -185,6 +185,7 @@ class midiSystem
 		
 		midiSystem()
 		{
+			m_pSerial = 0;
 			s_pMidiSystem = this;
 			m_pFirstHandler = 0;
 			m_pLastHandler = 0;
@@ -196,7 +197,7 @@ class midiSystem
 		static midiSystem *getMidiSystem()
 			{ return s_pMidiSystem; }
 
-		void Initialize();
+		void Initialize(CSerialDevice *pSerial=0);
 		
 		void registerMidiHandler(
 			void *pObject,
@@ -232,7 +233,8 @@ class midiSystem
 		static void staticMidiPacketHandler(unsigned cable, u8 *pPacket, unsigned length)
 			{ s_pMidiSystem->midiPacketHandler(cable,pPacket,length); }
 
-		CSpinLock m_spinlock;	
+		CSpinLock m_spinlock;
+		CSerialDevice *m_pSerial;
 
 };
 

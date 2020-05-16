@@ -459,7 +459,11 @@ TShutdownMode CKernel::Run(void)
 	#endif
 
 	#if USE_MIDI_SYSTEM
-		m_MidiSystem.Initialize();
+		#if USE_MAIN_SERIAL
+			m_MidiSystem.Initialize(&m_Serial);
+		#else
+			m_MidiSystem.Initialize();
+		#endif
 	#endif
 	
 	
