@@ -222,7 +222,7 @@ void CCoreTask::Run(unsigned nCore)
 			if (nCore == CORE_FOR_AUDIO_SYSTEM)
 			{
 				runAudioSystem(nCore,false);
-				// dprobe(0,"after runAudioSystem");
+				// dprobe(0,"after runAudioSystem",0);
 			}
 		#endif
 		
@@ -232,7 +232,7 @@ void CCoreTask::Run(unsigned nCore)
 			if (nCore == CORE_FOR_UI_SYSTEM)
 			{
 				runUISystem(nCore,false);
-				// dprobe(0,"after runUISystem");
+				// dprobe(0,"after runUISystem",0);
 			}
 		#endif
 		
@@ -263,7 +263,7 @@ void CCoreTask::Run(unsigned nCore)
 					toTeensy.Write(1);
 				#endif
 				
-				// dprobe(2,"CoreTask(0) rpi ready");
+				// dprobe(2,"CoreTask(0) rpi ready",0);
 
 				bCore0StartupReported = 1;
 			}
@@ -276,11 +276,11 @@ void CCoreTask::Run(unsigned nCore)
 				if (bCore0StartupReported && !bProbeReported)
 				{
 					bProbeReported = true;
-					dprobe(2,"Core(3) ready");
+					dprobe(2,"Core(3) ready",0);
 				}
 				else
 				{
-					dprobe(0,"Core(3) at end of CoreTask(0)::Run() loop");
+					dprobe(0,"Core(3) at end of CoreTask(0)::Run() loop",0);
 					delay(1000);
 				}
 			}

@@ -33,7 +33,7 @@ extern void display_bytes(const char *s, const unsigned char *p, int len);
 // #define DPROBE
 
 #ifdef DPROBE
-    #define dprobe(l,f,...)  do_prob(l,f,__VA_ARGS__)
+    #define dprobe(l,f,...)  do_dprobe(l,f,__VA_ARGS__)
     extern void do_dprobe(int l, const char *f, ...);
 #else
     #define dprobe(l,f,...)
