@@ -43,7 +43,7 @@
 #define USE_USB          	1			// may run with, or without, a mouse
 #define USE_MINI_SERIAL  	0			// can output log to either serial port
 #define USE_MAIN_SERIAL  	1
-#define USE_FILE_SYSTEM     1			// include (and initalize) the addon fatfs
+#define USE_FILE_SYSTEM     0			// include (and initalize) the addon fatfs
 
 
 // At most, one of the following may be defined/
