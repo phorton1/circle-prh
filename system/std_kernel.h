@@ -9,7 +9,7 @@
 //
 // Based on Circle - A C++ bare metal environment for Raspberry Pi
 // Copyright (c) 2015-2016  R. Stange <rsta2@o2online.de>
-// Copyright (c) 2019 Patrick Horton- no rights reserved, 
+// Copyright (c) 2019 Patrick Horton- no rights reserved,
 // please see license details in LICENSE.TXT
 
 #ifndef _std_kernel_h
@@ -35,9 +35,9 @@
 // programs link against the pieces they want.
 
 
-#define USE_UI_SYSTEM 		1			
+#define USE_UI_SYSTEM 		1
 #define USE_AUDIO_SYSTEM 	1
-#define USE_MIDI_SYSTEM     1			// requires USE_USB
+#define USE_MIDI_SYSTEM     0			// requires USE_USB
 
 #define USE_SCREEN  	 	1			// may run with only specific i2c/spi touch screen devices
 #define USE_USB          	1			// may run with, or without, a mouse
@@ -59,7 +59,7 @@
 // If one of the below is defined, the CScreen, nor the default
 // touchscreen, nor the mouse will be bound to the UI.
 
-// #define WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN 
+// #define WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
 	// This define corresponds to the standard cheap resistive
 	// rpi touch screen that I implemented.
 
@@ -127,7 +127,7 @@
 		// As currently implemented, the psudo-Arudino setup() and
 		// loop() calls are made from the core running the Audio
 		// system.
-		
+
 	#define CORE_FOR_UI_SYSTEM       2
 		// The UI System is updated in the Run() loop on the
 		// given core.
@@ -145,38 +145,39 @@
 
 
 class CKernel;
-class CCoreTask 
+class CCoreTask
 	#ifdef WITH_MULTI_CORE
 		: public CMultiCoreSupport
 	#endif
 {
 	public:
-		
+
 		CCoreTask(CKernel *pKernel);
 		~CCoreTask();
 		void Run(unsigned nCore);
 		static CCoreTask *Get() {return s_pCoreTask;}
-		
+		CKernel *GetKernel() { return m_pKernel; }
+
 		#if USE_AUDIO_SYSTEM
 			#if CORE_FOR_AUDIO_SYSTEM != 0
 				void IPIHandler(unsigned nCore, unsigned nIPI);
 			#endif
 		#endif
-		
+
 		#if USE_FILE_SYSTEM
 			FATFS *GetFileSystem();
 		#endif
-		
+
 	private:
 
 		CKernel *m_pKernel;
 		static CCoreTask *s_pCoreTask;
-		
+
 	#if USE_AUDIO_SYSTEM
 		void runAudioSystem(unsigned nCore, bool init);
 		volatile bool m_bAudioStarted;
 	#endif
-	
+
 	#if USE_UI_SYSTEM
 		void runUISystem(unsigned nCore, bool init);
 		volatile bool m_bUIStarted;
@@ -193,7 +194,7 @@ enum TShutdownMode
 	ShutdownReboot
 };
 
-class CKernel 
+class CKernel
 {
 public:
 	CKernel (void);
@@ -203,62 +204,66 @@ public:
 
 	TShutdownMode Run (void);
 
+	#if USE_MAIN_SERIAL
+		CSerialDevice *GetSerial()  { return &m_Serial; }
+	#endif
+
 private:
-	
+
 	friend class CCoreTask;
 
 	CMemorySystem		m_Memory;
 	myActLED			m_ActLED;
 	CKernelOptions		m_Options;
 	CDeviceNameService	m_DeviceNameService;
-	
+
 	#if USE_SCREEN
 		CScreenDevice	m_Screen;
 	#endif
-	
+
 	#if USE_MINI_SERIAL
 		CMiniUartDevice m_MiniUart;
 	#endif
-	
+
 	CExceptionHandler	m_ExceptionHandler;
 	CInterruptSystem	m_Interrupt;
 	CTimer				m_Timer;
-	
+
 	#if USE_MAIN_SERIAL
 		CSerialDevice	m_Serial;
 	#endif
-	
+
 	CLogger				m_Logger;
 	CScheduler			m_Scheduler;
-	
+
 	#if USE_USB
 		CDWHCIDevice	m_DWHCI;
 	#endif
-	
+
 	#if USE_UI_SYSTEM
 		wsApplication 	m_app;
 		#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
 			CSPIMaster	m_SPI;
 			ILI9846 	m_ili9486;
 			XPT2046 	m_xpt2046;
-		#else	
+		#else
 			CTouchScreenDevice	m_TouchScreen;
 		#endif
 	#endif
 
 	CCoreTask 	m_CoreTask;
-	
+
 	#if USE_FILE_SYSTEM
 		CEMMCDevice			m_EMMC;
 		FATFS				m_FileSystem;
 		void initFileSystem();
 	#endif
-	
-	
+
+
 	#if USE_MIDI_SYSTEM
 		midiSystem m_MidiSystem;
 	#endif
-	
+
 };
 
 

@@ -1,5 +1,6 @@
 
 #include "uiTrack.h"
+#include "Looper.h"
 #include "uiClip.h"
 #include <circle/logger.h>
 #define log_name  "track_ctl"
@@ -24,16 +25,15 @@ uiTrack::uiTrack(
 {
 	m_selected = false;
 	m_track_num = track_num;
-	m_pLoopTrack = pLooper->getTrack(m_track_num);
 	setForeColor(wsWHITE);
     setFrameWidth(2);
-	
+
 	// create the clip controls
-	
+
 	int height = m_rect_client.ye-m_rect_client.ys+1;
 	int cheight = (height - CLIP_BUTTON_SPACE*(LOOPER_NUM_LAYERS-1)) / LOOPER_NUM_LAYERS;
 	int offset = 0;
-	
+
 	// LOG("ctor height=%d cheight=%d",height,cheight);
 
 	for (int i=0; i<LOOPER_NUM_LAYERS; i++)
@@ -71,12 +71,12 @@ void uiTrack::onDraw()
 
 void uiTrack::updateFrame()
 {
-	bool sel = m_pLoopTrack->isSelected();
+	bool sel = pTheLooper->getPublicTrack(m_track_num)->isSelected();
 	if (sel != m_selected)
 	{
 		m_selected = sel;
 		setBit(m_state,WIN_STATE_DRAW);
 	}
-	
+
 	wsWindow::updateFrame();
 }

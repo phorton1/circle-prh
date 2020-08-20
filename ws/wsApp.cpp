@@ -50,7 +50,7 @@ wsApplication::wsApplication() :
 	m_pFirstEvent = 0;
 	m_pLastEvent = 0;
 	m_update_frame_time = 0;
-	
+
 	m_state |= WIN_STATE_PARENT_VISIBLE;
 		// the application is always progenator of
 		// win_state_parent_visible
@@ -66,14 +66,14 @@ void wsApplication::addEvent(wsEvent *event)
 	m_pLastEvent = event;
 }
 
-	
+
 void wsApplication::addTopLevelWindow(wsTopLevelWindow *pWindow)
 {
 	// remove it from the list if it already exists
 	// so it will become the new top window
-	
+
 	removeTopLevelWindow(pWindow);
-	
+
 	if (m_pTopWindow)
 	{
 		pWindow->m_pPrevWindow = m_pTopWindow;
@@ -113,31 +113,34 @@ void wsApplication::Initialize(
 	// and it is assumed to never move and occupy the full screen.
 	// We set it's size here, and explicitly call onSize() to set
 	// full abs, client, and clipping rectangles.
-	
+
 	m_rect.assign(0,0,m_pScreen->GetWidth()-1, pScreen->GetHeight()-1);
 	onSize();
-	
+
 	m_pDC = new wsDC(m_pScreen);
 	m_pDC->setFont(wsFont8x14);
-	
+
 	// print_rect("initial invalid",&m_pDC->getInvalid());
-	
+
 	setFont(wsFont8x14);
 	m_pScreen->InitializeUI(m_pDC,wsDC::driverRegisterStub);
-	
+
 	if (m_pTouch)
 		m_pTouch->RegisterEventHandler(touchEventStub,this);
 	if (m_pMouse)
 	{
 		m_pMouse->Setup(getWidth(),getHeight());
-		m_pMouse->ShowCursor(TRUE);		
+		m_pMouse->ShowCursor(TRUE);
 		m_pMouse->RegisterEventHandler(mouseEventStub,this);
 	}
-	
+
 	// Call the client's Create() method
-	
+
 	Create();
+
 	// print_rect("after create invalid",&m_pDC->getInvalid());
+
+	LOG("Initialize() returning",0);
 }
 
 
@@ -169,7 +172,7 @@ void wsApplication::mouseEventHandler(
 			(event == MouseEventMouseMove) ? "move" :
 			(event == MouseEventMouseUp)   ? "up" : "unknown",
 			buttons);
-	#endif		
+	#endif
 
 	u8 touch_event =
 		(event == MouseEventMouseMove) ?
@@ -178,7 +181,7 @@ void wsApplication::mouseEventHandler(
 			TOUCH_DOWN :
 		(event == MouseEventMouseUp) ?
 			TOUCH_UP : 0;
-	
+
 	if (touch_event)
 		onTouchEvent(x,y,touch_event);
 }
@@ -208,7 +211,7 @@ void wsApplication::touchEventHandler(
 			(event == TouchScreenEventFingerDown) ? "down" :
 			(event == TouchScreenEventFingerMove) ? "move" :
 			(event == TouchScreenEventFingerUp)   ? "up" : "unknown");
-	#endif		
+	#endif
 
 	// LOG("touch event(%d,%d,%d,%d)",event,id,x,y);
 	u8 touch_event =
@@ -219,7 +222,7 @@ void wsApplication::touchEventHandler(
 		onTouchEvent(x,y,touch_event);
 }
 
-	
+
 void wsApplication::setTouchFocus(wsWindow *win)
 	// called from hitTest on the the wsWindow object,
 	// if any, that matched the starting x,y coordinates
@@ -227,7 +230,7 @@ void wsApplication::setTouchFocus(wsWindow *win)
 	m_pTouchFocus = win;
 	#if DEBUG_TOUCH
 		LOG("setTouchFocus(%08x)",(u32)win);
-	#endif		
+	#endif
 	if (!win)
 		memset(&m_touch_state,0,sizeof(touchState_t));
 }
@@ -245,7 +248,7 @@ void wsApplication::onTouchEvent(
 {
 	#if DEBUG_TOUCH
 		LOG("onTouchEvent(%d,%d,%02x) time=%d",x,y,touch,m_touch_state.time);
-	#endif		
+	#endif
 
  	if (m_pTouchFocus)
 	{
@@ -278,14 +281,14 @@ void wsApplication::onTouchEvent(
 void wsApplication::timeSlice()
 {
 	// Gate the entire process to UI_FRAME_RATE
-	
+
 	unsigned cur_time = CTimer::Get()->GetClockTicks();
 	if (cur_time > m_update_frame_time &&
 		cur_time < m_update_frame_time + CLOCKHZ/UI_FRAME_RATE)
 		return;
 	m_update_frame_time = cur_time;
 
-	#ifdef DEBUG_UPDATE	
+	#ifdef DEBUG_UPDATE
 		if (debug_update)
 		{
 			delay(10);
@@ -294,18 +297,18 @@ void wsApplication::timeSlice()
 				print_rect("invalid",&m_pDC->getInvalid());
 		}
 	#endif
-	
+
 	// update mouse and touch
-	
+
 	if (m_pMouse)
 		m_pMouse->UpdateCursor();
 	if (m_pTouch)
 		m_pTouch->Update();
-	
+
 	#if USE_MIDI_SYSTEM
 		midiSystem::getMidiSystem()->dispatchEvents();
 	#endif
-	
+
 
 	//----------------------------------
 	// Update tree
@@ -316,14 +319,14 @@ void wsApplication::timeSlice()
 	// is not called on every object on every frame. updateFrame() IS
 	// called on every frame, allowing for polling which changes the
 	// WIN_STATE_DRAW or REDRAW bits.
-	
-		
+
+
 	for (wsTopLevelWindow *p=m_pBottomWindow; p; p=p->m_pNextWindow)
 	{
 		p->updateFrame();
 	}
-	
-	
+
+
 	// We do not call the base class update() method here ...
 	// instead, we call update directly on each top level window
 	// so that they are drawn in the right order (the stack order
@@ -331,7 +334,7 @@ void wsApplication::timeSlice()
 
 	for (wsTopLevelWindow *p=m_pBottomWindow; p; p=p->m_pNextWindow)
 	{
-		#ifdef DEBUG_UPDATE	
+		#ifdef DEBUG_UPDATE
 			if (debug_update)
 			{
 				delay(10);
@@ -340,28 +343,28 @@ void wsApplication::timeSlice()
 		#endif
 		p->update();
 	}
-	
+
 	// since we do not call our own base class update() method
 	// we need to explicitly clear the state bits after the
 	// first time through the loop.  They should not be reset
 	// thereafter.
-	
+
 	clearBit(m_state,
 		WIN_STATE_UPDATE |
 		WIN_STATE_DRAW |
 		WIN_STATE_REDRAW );
-	
+
 	// At this point all objects should be up to date and completely drawn.
 	// We empty the DC's clipping region here, it will be expanded
 	// as any objects are hidden or need to be redrawn in
 	// response to the below (client) updateXXX() calls or
 	// events
-	
+
 	m_pDC->validate();
 
 	// Handle any time senstive touch (long click, repeat)
-	// or drag-move events after validation.  
-	
+	// or drag-move events after validation.
+
 	if (m_pTouchFocus)
 	{
 		if (m_pTouchFocus->m_style & WIN_STYLE_TOUCH_TIMING_EVENTS)
@@ -371,13 +374,13 @@ void wsApplication::timeSlice()
 		}
 	}
 
-	#ifdef DEBUG_UPDATE	
+	#ifdef DEBUG_UPDATE
 		if (debug_update)
 			debug_update--;
 	#endif
 
 	// dispatch any pending events to the top level window
-	
+
 	if (m_pFirstEvent && m_pTopWindow)
 	{
 		wsEvent *event = m_pFirstEvent;
@@ -391,7 +394,7 @@ void wsApplication::timeSlice()
 			m_pFirstEvent = 0;
 			m_pLastEvent = 0;
 		}
-		
+
 		m_pTopWindow->handleEvent(event);
 		delete event;
 	}

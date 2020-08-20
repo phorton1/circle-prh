@@ -4,7 +4,6 @@
 
 #include <ws/wsControl.h>
 #include <system/midiEvent.h>
-#include "Looper.h"
 
 
 #define NUM_LTB_ROWS   3
@@ -14,9 +13,9 @@
 class uiTrack : public wsWindow
 {
 	public:
-	
+
 		~uiTrack() {}
-		
+
 		uiTrack(
 				u8 track_num,
 				wsWindow *pParent,
@@ -25,17 +24,15 @@ class uiTrack : public wsWindow
 				s32 ys,
 				s32 xe,
 				s32 ye);
- 
-	protected:
-		
-		u8 m_track_num;
-		loopTrack *m_pLoopTrack;
 
+	protected:
+
+		u8 m_track_num;
 		bool m_selected;
-		
+
 		virtual void onDraw();
 		virtual void updateFrame();
-		
+
 };	// _uiTrack_h
 
 

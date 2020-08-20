@@ -80,8 +80,8 @@ CCoreTask::CCoreTask(CKernel *pKernel)	:
 			: "=r" (sp)
 		);
 		ctor_sp = sp;;
-	#endif	
-	
+	#endif
+
 }
 
 
@@ -130,23 +130,25 @@ CCoreTask::~CCoreTask()
 			#if USE_AUDIO_SYSTEM
 				while (!m_bAudioStarted);
 			#endif
-			
+
 			LOG("UI starting on Core(%d) mem=%dM",nCore,mem_get_size()/1000000);
 			delay(1000);
 
 			CMouseDevice *pMouse = (CMouseDevice *) CDeviceNameService::Get ()->GetDevice ("mouse1", FALSE);
-			
+
 			#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
 				CScreenDeviceBase *pUseScreen = &m_pKernel->m_ili9486;
 				CTouchScreenBase  *pTouch = &m_pKernel->m_xpt2046;
 			#else
 				CScreenDeviceBase *pUseScreen = &m_pKernel->m_Screen;
-				CTouchScreenBase  *pTouch = (CTouchScreenBase *) CDeviceNameService::Get ()->GetDevice ("touch1", FALSE);
+				CTouchScreenBase  *pTouch = 0;
+					// prh 2020-08-19 - no TouchScreen Device
+					// (CTouchScreenBase *) CDeviceNameService::Get ()->GetDevice ("touch1", FALSE);
 			#endif
-		
+
 			m_pKernel->m_app.Initialize(pUseScreen,pTouch,pMouse);
 			LOG("after UI initialization mem=%dM",mem_get_size()/1000000);
-			
+
 			m_bUIStarted = 1;
 		}
 		else
@@ -177,7 +179,7 @@ void CCoreTask::Run(unsigned nCore)
 {
 	LOG("Core(%d) starting ... mem=%dM",nCore,mem_get_size()/1000000);
 	dprobe(0,"Core(%d) starting",nCore);
-	
+
 	#if 0
 		u32 sp;
 		asm volatile
@@ -186,10 +188,10 @@ void CCoreTask::Run(unsigned nCore)
 			: "=r" (sp)
 		);
 		printf("  core(%d) SP(%08x)\n",nCore,sp);
-	#endif	
-		
+	#endif
+
 	// initialize the audio system on the given core
-	
+
 	#if USE_AUDIO_SYSTEM
 		if (nCore == CORE_FOR_AUDIO_SYSTEM)
 		{
@@ -197,9 +199,9 @@ void CCoreTask::Run(unsigned nCore)
 			dprobe(1,"after first runAudioSystem",0);
 		}
 	#endif
-	
+
 	// initialilze the ui on the given core
-	
+
 	#if USE_UI_SYSTEM
 		if (nCore == CORE_FOR_UI_SYSTEM)
 		{
@@ -207,7 +209,7 @@ void CCoreTask::Run(unsigned nCore)
 			dprobe(1,"after first runUISystem",0);
 		}
 	#endif
-	
+
 	delay(500);
 	dprobe(0,"CCoreTask::Run(%d) before loop",nCore);
 
@@ -225,9 +227,9 @@ void CCoreTask::Run(unsigned nCore)
 				// dprobe(0,"after runAudioSystem",0);
 			}
 		#endif
-		
+
 		// do a timeslice of the ui system on given core
-		
+
 		#if USE_UI_SYSTEM
 			if (nCore == CORE_FOR_UI_SYSTEM)
 			{
@@ -235,17 +237,17 @@ void CCoreTask::Run(unsigned nCore)
 				// dprobe(0,"after runUISystem",0);
 			}
 		#endif
-		
+
 		// on core0 increment loop counter and
 		// notify when everything is setup
-		
+
 		if (nCore == 0)
 		{
 			main_loop_counter++;
-			
+
 			if (!bCore0StartupReported
 				#if USE_UI_SYSTEM
-					&& m_bUIStarted 
+					&& m_bUIStarted
 				#endif
 				#if USE_AUDIO_SYSTEM
 					&& m_bAudioStarted
@@ -257,12 +259,12 @@ void CCoreTask::Run(unsigned nCore)
 				CScheduler::Get()->MsSleep(200);
 					// to give the printf time before we change
 					// the pin, just a minor aesthetic issue ...
-			
+
 				#if USE_GPIO_READY_PIN
 					CGPIOPin toTeensy(USE_GPIO_READY_PIN,GPIOModeOutput);
 					toTeensy.Write(1);
 				#endif
-				
+
 				// dprobe(2,"CoreTask(0) rpi ready",0);
 
 				bCore0StartupReported = 1;
@@ -285,7 +287,7 @@ void CCoreTask::Run(unsigned nCore)
 				}
 			}
 		#endif
-		
+
 	}	// while (1)
 }	// CCoreTask::Run()
 
@@ -296,7 +298,7 @@ void CCoreTask::Run(unsigned nCore)
 
 #if USE_AUDIO_SYSTEM
 	#if CORE_FOR_AUDIO_SYSTEM != 0
-	
+
 		void CCoreTask::IPIHandler(unsigned nCore, unsigned nIPI)
 		{
 			if (nCore == CORE_FOR_AUDIO_SYSTEM &&
@@ -322,15 +324,15 @@ CKernel::CKernel(void) :
 		m_MiniUart(&m_Interrupt),
 	#endif
 	m_Timer(&m_Interrupt),
-	
+
 	// prh - 2020-05-03   Logging seems to work WAY better without the interrupt system !
 	// THIS HAS NOT BEEN TESTED WITH THE BOOTLOADER, WHICH *MIGHT* NEED THE INTERRUPTS
 	// but conveniently has it's own Kernel.
-	
+
 	// EXCEPT IT (not using interrupts) CAUSED ALL KINDS OF NOISE IN THE AUDIO SYSTEM
 	// GRR ... and I changed back to multi-core too ..
-	
-	
+
+
 	#if USE_MAIN_SERIAL
 		m_Serial(&m_Interrupt, FALSE),	// TRUE),	// (0,FALSE,
 	#endif
@@ -364,22 +366,22 @@ boolean CKernel::Initialize (void)
 	boolean bOK = TRUE;
 
 	dprobe(0,"",0);
-	
+
 	#if USE_SCREEN
 		if (bOK)
 			bOK = m_Screen.Initialize();
-		#if !USE_MINI_SERIAL && !USE_MAIN_SERIAL 
+		#if !USE_MINI_SERIAL && !USE_MAIN_SERIAL
 			if (bOK)
 				bOK = m_Logger.Initialize(&m_Screen);
 		#endif
 	#endif
-	
+
 	#if USE_MINI_SERIAL
 		if (bOK)
 			bOK = m_MiniUart.Initialize(115200);
 		if (bOK)
 			bOK = m_Logger.Initialize(&m_MiniUart);
-	#endif	
+	#endif
 
 	if (bOK)
 		bOK = m_Interrupt.Initialize();
@@ -391,10 +393,10 @@ boolean CKernel::Initialize (void)
 			bOK = m_Serial.Initialize(115200);
 		if (bOK)
 			bOK = m_Logger.Initialize(&m_Serial);
-	#endif	
+	#endif
 
 	dprobe(0,"after logger started",0);
-	
+
 	#if USE_USB
 		if (bOK)
 			bOK = m_DWHCI.Initialize ();
@@ -406,7 +408,7 @@ boolean CKernel::Initialize (void)
 				bOK = m_CoreTask.Initialize();
 		#endif
 	#endif
-	
+
 	#if USE_UI_SYSTEM
 		if (bOK)
 		{
@@ -418,7 +420,7 @@ boolean CKernel::Initialize (void)
 			#endif
 		}
 	#endif
-	
+
 	#if USE_FILE_SYSTEM
 		if (bOK)
 		{
@@ -427,14 +429,14 @@ boolean CKernel::Initialize (void)
 		}
 	#endif
 
-	
+
 	#if 0
 		#ifdef WITH_MULTI_CORE
 			if (bOK)
 				bOK = m_CoreTask.Initialize();
 		#endif
 	#endif
-	
+
 	return bOK;
 }
 
@@ -447,7 +449,7 @@ TShutdownMode CKernel::Run(void)
 	// calls the CoreTask to do all the work
 {
 	LOG("std_kernel " __DATE__ " " __TIME__ " available memory=%d",mem_get_size());
-	
+
 	#if 0
 		u32 sp;
 		asm volatile
@@ -465,16 +467,16 @@ TShutdownMode CKernel::Run(void)
 			m_MidiSystem.Initialize();
 		#endif
 	#endif
-	
-	
+
+
 	#if 1
 		delay(500);
 		m_CoreTask.Initialize();
 		delay(500);
 	#endif
-	
+
 	m_CoreTask.Run(0);
-	
+
 	return ShutdownHalt;
 
 }
@@ -489,7 +491,7 @@ TShutdownMode CKernel::Run(void)
 			LOG_ERROR("Cannot mount drive: %s", DRIVE);
 			return;
 		}
-	
+
 		#if SHOW_ROOT_DIRECTORY
 			LOG("Contents of SD card",0);
 			DIR Directory;
@@ -506,4 +508,3 @@ TShutdownMode CKernel::Run(void)
 		#endif
 	}
 #endif
-
