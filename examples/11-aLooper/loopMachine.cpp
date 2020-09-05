@@ -357,70 +357,42 @@ void loopMachine::update(void)
         #if WITH_INT_VOLUMES
             int32_t thru_mult = m_control[CONTROL_THRU_VOLUME].multiplier;
             int32_t loop_mult = m_control[CONTROL_LOOP_VOLUME].multiplier;
+            int32_t mix_mult = m_control[CONTROL_MIX_VOLUME].multiplier;
         #else
             float thru_level = m_control[CONTROL_THRU_VOLUME].scale;
             float loop_level = m_control[CONTROL_LOOP_VOLUME].scale;
+            float mix_level =  m_control[CONTROL_MIX_VOLUME].scale;
         #endif
     #endif
+
+    // Set the input buffer and create empty output buffers
 
     audio_block_t *in[LOOPER_NUM_CHANNELS];
     audio_block_t *out[LOOPER_NUM_CHANNELS];
     for (u16 channel=0; channel<LOOPER_NUM_CHANNELS; channel++)
     {
-        in[channel] = receiveReadOnly(channel);                 // will always exist
+        in[channel] = receiveReadOnly(channel);
         out[channel] = AudioSystem::allocate();
+        memset(out[channel]->data,0,AUDIO_BLOCK_BYTES);
 
-        s16 *ip = in[channel] ? in[channel]->data : 0;
-        s16 *op = out[channel]->data;
+        // a preliminary loop through the input buffer
+        // JUST to set the input meter
 
         #if WITH_METERS
+            s16 *ip = in[channel] ? in[channel]->data : 0;
             s16 *in_max   = &(m_meter[METER_INPUT].max_sample[channel]  );
             s16 *in_min   = &(m_meter[METER_INPUT].min_sample[channel]  );
-            s16 *thru_max = &(m_meter[METER_THRU].max_sample[channel]   );
-            s16 *thru_min = &(m_meter[METER_THRU].min_sample[channel]   );
-        #endif
-
-        // 1st loop through samples
-
-        for (u16 i=0; i<AUDIO_BLOCK_SAMPLES; i++)
-        {
-            s16 val = ip ? *ip++ : 0;
-
-            // InputMeter min and max
-
-            #if WITH_METERS
+            for (u16 i=0; i<AUDIO_BLOCK_SAMPLES; i++)
+            {
+                s16 val = ip ? *ip++ : 0;
                 if (val > *in_max)
                     *in_max = val;
                 if (val <*in_min)
                     *in_min = val;
-            #endif
+            }
+        #endif
 
-            // apply ThruControl volume level
-
-            #if WITH_VOLUMES
-                #if WITH_INT_VOLUMES
-                    applyGain(&val,thru_mult);
-                #else
-                    val = ((float)val) * thru_level;
-                #endif
-            #endif
-
-            // ThruMeter min and max
-
-            #if WITH_METERS
-                if (val > *thru_max)
-                    *thru_max = val;
-                if (val < *thru_min)
-                    *thru_min = val;
-            #endif
-
-            // place the sample in the output buffer
-
-            *op++ = val;
-
-        }   // for each input sample
     }   // for each channel
-
 
     //-------------------
     // update the state
@@ -439,26 +411,90 @@ void loopMachine::update(void)
             loopTrack *pCurTrack = m_cur_track_num >= 0 ? getTrack(m_cur_track_num) : 0;
 
             if (pPrevTrack)
-            {
-                // LOG("calling pPrevTrack->update()",0);
                 pPrevTrack->update(in,out);
-            }
             if (pCurTrack && pCurTrack != pPrevTrack)
-            {
-                // LOG("calling pCurTrack->update()",0);
                 pCurTrack->update(in,out);
-            }
 
         }   // LOOP_STATE_RUNNING or LOOP_STATE_STOPPING
     }   // in[0] (audioSystem is started)
 
-    //-------------------------------------
-    // transmit the output blocks
-    //-------------------------------------
-    // and release the input blocks
+
+    //-----------------------------------------------
+    // final mix of in ==> thru ==> out
+    //-----------------------------------------------
+    // and transmitting and releasing of audio blocks
+    // out[channel] contains combined "loop" values
+    // in[channel] contains the as-yet-unmixed "thru" values
 
     for (u16 channel=0; channel<LOOPER_NUM_CHANNELS; channel++)
     {
+        s16 *ip = in[channel] ? in[channel]->data : 0;
+        s16 *op = out[channel]->data;
+
+        #if WITH_METERS
+            s16 *thru_max   = &(m_meter[METER_THRU].max_sample[channel]);
+            s16 *thru_min   = &(m_meter[METER_THRU].min_sample[channel]);
+            s16 *loop_max   = &(m_meter[METER_LOOP].max_sample[channel]);
+            s16 *loop_min   = &(m_meter[METER_LOOP].min_sample[channel]);
+            s16 *mix_max    = &(m_meter[METER_MIX].max_sample[channel]);
+            s16 *mix_min    = &(m_meter[METER_MIX].min_sample[channel]);
+        #endif
+
+        for (u16 i=0; i<AUDIO_BLOCK_SAMPLES; i++)
+        {
+            s16 ival = ip ? *ip++ : 0;
+            s16 oval = *op;                 // pointer not incremented
+
+            // apply Thru and Loop Control volume level
+
+            #if WITH_VOLUMES
+                #if WITH_INT_VOLUMES
+                    applyGain(&ival,thru_mult);
+                    applyGain(&oval,loop_mult);
+                #else
+                    ival = ((float)ival) * thru_level;
+                    oval = ((float)oval) * loop_level;
+                #endif
+            #endif
+
+            // add them to create the Mix value
+            // and apply it's volume if'defd
+
+            s16 mval = ival + oval;
+            #if WITH_VOLUMES
+                #if WITH_INT_VOLUMES
+                    applyGain(&mval,mix_mult);
+               #else
+                    mval = ((float)mval) * mix_level;
+                #endif
+            #endif
+
+            // update the meters
+
+            #if WITH_METERS
+                if (ival > *thru_max)
+                    *thru_max = ival;
+                if (ival < *thru_min)
+                    *thru_min = ival;
+                if (oval > *loop_max)
+                    *loop_max = oval;
+                if (oval <*loop_min)
+                    *loop_min = oval;
+                if (mval > *mix_max)
+                    *mix_max = ival;
+                if (mval <*mix_min)
+                    *mix_min = mval;
+            #endif
+
+            // place the sample in the output buffer
+
+            *op++ = mval;
+
+        }   // for each input sample
+
+        // transmit the output blocks
+        // and release all blocks
+
         transmit(out[channel], channel);
         if (in[channel])
             AudioSystem::release(in[channel]);
@@ -621,5 +657,3 @@ void loopMachine::updateState(void)
 
 
 }
-
-
