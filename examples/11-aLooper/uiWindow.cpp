@@ -104,7 +104,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 	//   unuaed:CC(0x0C)      		mix:DEC1(0x0D:0x00) scale=2
 	//   thru:DEC1(0x0E,0x00)=2     loop:CC(0x0F)
 
-	#if 0
+	#if WITH_METERS
 		new vuSlider(this,ID_VU2, 6, 2, 150, 28, true, 12,
 			METER_INPUT,
 			CONTROL_INPUT_GAIN,
@@ -117,7 +117,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 
 	// TOP RIGHT OUTPUT VU METER - output gain, no monitor
 
-	#if 0
+	#if WITH_METERS
 		new vuSlider(this,ID_VU2, width-150, 2, width-6, 28, true, 12,
 			-1,		 					// no meter
 			CONTROL_OUTPUT_GAIN,
@@ -129,7 +129,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 
 	// LEFT - THRU vu
 
-	#if 0
+	#if WITH_METERS
 		wsStaticText *pt1 = new wsStaticText(this,0,"THRU",6,TOP_MARGIN+23,42,TOP_MARGIN+39);
 		pt1->setAlign(ALIGN_CENTER);
 		pt1->setForeColor(wsWHITE);
@@ -147,7 +147,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 
 	// MIDDLE - LOOP vu
 
-	#if 0
+	#if WITH_METERS
 		wsStaticText *pt2 = new wsStaticText(this,0,"LOOP",50,TOP_MARGIN+23,86,TOP_MARGIN+39);
 		pt2->setAlign(ALIGN_CENTER);
 		pt2->setForeColor(wsWHITE);
@@ -164,7 +164,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 
 	// RIGHT - MIX vu
 
-	#if 0
+	#if WITH_METERS
 		wsStaticText *pt3 = new wsStaticText(this,0,"MIX",94,TOP_MARGIN+23,130,TOP_MARGIN+39);
 		pt3->setAlign(ALIGN_CENTER);
 		pt3->setForeColor(wsWHITE);
@@ -269,7 +269,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 // virtual
 void uiWindow::updateFrame()
 {
-	#if 0
+	#if 1
 			// use serial port input keys 1..5 for buttons 0..4
 		CSerialDevice *pSerial = CCoreTask::Get()->GetKernel()->GetSerial();
 		if (pSerial)

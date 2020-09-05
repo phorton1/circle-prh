@@ -235,7 +235,7 @@ void  loopMachine::setPendingCommand(u16 command)
     // because this is NOT called from update()
 {
     m_pending_command = command;
-    #if DEBUG_UPDATE
+    #if DEBUG_LOOPER_UPDATE
         LOG("setPendingCommand(%s)",getLoopCommandName(command));
     #endif
 }
@@ -373,10 +373,12 @@ void loopMachine::update(void)
         s16 *ip = in[channel] ? in[channel]->data : 0;
         s16 *op = out[channel]->data;
 
-        s16 *in_max   = &(m_meter[METER_INPUT].max_sample[channel]  );
-        s16 *in_min   = &(m_meter[METER_INPUT].min_sample[channel]  );
-        s16 *thru_max = &(m_meter[METER_THRU].max_sample[channel]   );
-        s16 *thru_min = &(m_meter[METER_THRU].min_sample[channel]   );
+        #if WITH_METERS
+            s16 *in_max   = &(m_meter[METER_INPUT].max_sample[channel]  );
+            s16 *in_min   = &(m_meter[METER_INPUT].min_sample[channel]  );
+            s16 *thru_max = &(m_meter[METER_THRU].max_sample[channel]   );
+            s16 *thru_min = &(m_meter[METER_THRU].min_sample[channel]   );
+        #endif
 
         // 1st loop through samples
 
@@ -386,10 +388,12 @@ void loopMachine::update(void)
 
             // InputMeter min and max
 
-            if (val > *in_max)
-                *in_max = val;
-            if (val <*in_min)
-                *in_min = val;
+            #if WITH_METERS
+                if (val > *in_max)
+                    *in_max = val;
+                if (val <*in_min)
+                    *in_min = val;
+            #endif
 
             // apply ThruControl volume level
 
@@ -403,10 +407,12 @@ void loopMachine::update(void)
 
             // ThruMeter min and max
 
-            if (val > *thru_max)
-                *thru_max = val;
-            if (val < *thru_min)
-                *thru_min = val;
+            #if WITH_METERS
+                if (val > *thru_max)
+                    *thru_max = val;
+                if (val < *thru_min)
+                    *thru_min = val;
+            #endif
 
             // place the sample in the output buffer
 
@@ -469,21 +475,21 @@ void loopMachine::update(void)
 
 void loopMachine::setLoopState(u16 loop_state)
 {
-    #if DEBUG_UPDATE
+    #if DEBUG_LOOPER_UPDATE
         LOG("LOOP_STATE_%s",getLoopStateName(loop_state));
     #endif
     m_loop_state = loop_state;
 }
 void loopMachine::setCurTrackNum(int num)
 {
-    #if DEBUG_UPDATE
+    #if DEBUG_LOOPER_UPDATE
         LOG("cur_track_num(%d) ----> %d",m_cur_track_num,num);
     #endif
     m_cur_track_num = num;
 }
 void loopMachine::setPrevTrackNum(int num)
 {
-    #if DEBUG_UPDATE
+    #if DEBUG_LOOPER_UPDATE
         LOG("prev_track_num(%d) ----> %d",m_prev_track_num,num);
     #endif
     m_prev_track_num = num;
@@ -491,7 +497,7 @@ void loopMachine::setPrevTrackNum(int num)
 void loopMachine::incDecNumUsedTracks(int inc)
 {
     m_num_used_tracks += inc;
-    #if DEBUG_UPDATE
+    #if DEBUG_LOOPER_UPDATE
         LOG("num_used_tracks(%d) --> %d",inc,m_num_used_tracks);
     #endif
 }

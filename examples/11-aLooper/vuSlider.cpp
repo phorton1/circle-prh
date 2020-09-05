@@ -3,6 +3,7 @@
 #include "Looper.h"
 #include <circle/logger.h>
 #include <utils/myUtils.h>
+#include <system/std_kernel.h>
 
 #define log_name "vuslider"
 
@@ -49,17 +50,19 @@ vuSlider::vuSlider(wsWindow *pParent,u16 id, s32 xs, s32 ys, s32 xe, s32 ye,
 			num_divs);
 	}
 
-	if (m_control_num != -1)
-	{
-		midiSystem::getMidiSystem()->registerMidiHandler(
-			this,
-			staticHandleMidiEvent,
-			-1,				// cable
-			midi_channel,	// channel 6, 0 based, as programmed on MPD21
-			midi_type,
-			midi_param1,			// 0x0D = the middle right knob on MPD218
-			midi_param2);		// any values
-	}
+	#if USE_MIDI_SYSTEM
+		if (m_control_num != -1)
+		{
+			midiSystem::getMidiSystem()->registerMidiHandler(
+				this,
+				staticHandleMidiEvent,
+				-1,				// cable
+				midi_channel,	// channel 6, 0 based, as programmed on MPD21
+				midi_type,
+				midi_param1,			// 0x0D = the middle right knob on MPD218
+				midi_param2);		// any values
+		}
+	#endif
 
 	m_box_height = m_horz ?
 		(ye-ys+1)/2 :

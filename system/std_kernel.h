@@ -40,7 +40,7 @@
 #define USE_MIDI_SYSTEM     0			// requires USE_USB
 
 #define USE_SCREEN  	 	1			// may run with only specific i2c/spi touch screen devices
-#define USE_USB          	1			// may run with, or without, a mouse
+#define USE_USB          	0			// may run with, or without, a mouse
 #define USE_MINI_SERIAL  	0			// can output log to either serial port
 #define USE_MAIN_SERIAL  	1
 #define USE_FILE_SYSTEM     0			// include (and initalize) the addon fatfs

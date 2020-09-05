@@ -62,14 +62,14 @@ void loopTrack::update(audio_block_t *in[], audio_block_t *out[])
 void loopTrack::incDecNumUsedClips(int inc)
 {
     m_num_used_clips += inc;
-    #if DEBUG_UPDATE
+    #if DEBUG_LOOPER_UPDATE
         LOG("track(%d) inDecNumUsedClips(%d)=%d",m_track_num,inc,m_num_used_clips);
     #endif
 }
 void loopTrack::incDecNumRecordedClips(int inc)
 {
     m_num_recorded_clips += inc;
-    #if DEBUG_UPDATE
+    #if DEBUG_LOOPER_UPDATE
         LOG("track(%d) incDecNumRecordedClips(%d)=%d",m_track_num,inc,m_num_recorded_clips);
     #endif
 }
@@ -95,11 +95,13 @@ void loopTrack::updateState(u16 how_called, u16 loop_state, u16 pending_command)
 
         if (pending_command && m_selected)
         {
-            LOG("track(%d) responding to command(%d,%s) in loop_state(%s)",
-                m_track_num,
-                how_called,
-                getLoopCommandName(pending_command),
-                getLoopStateName(loop_state));
+            #if 0
+                LOG("track(%d) responding to command(%d,%s) in loop_state(%s)",
+                    m_track_num,
+                    how_called,
+                    getLoopCommandName(pending_command),
+                    getLoopStateName(loop_state));
+            #endif
 
             for (int i=0; i<m_num_recorded_clips; i++)
             {

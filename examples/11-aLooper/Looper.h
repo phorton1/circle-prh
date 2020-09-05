@@ -5,7 +5,9 @@
 
 #include <audio/Audio.h>
 
-#define DEBUG_UPDATE  1
+#define WITH_METERS   1
+#define DEBUG_LOOPER_UPDATE  0
+
 
 
 //------------------------------------------------------
@@ -17,7 +19,7 @@
 #define LOOPER_NUM_CHANNELS   2
     // the whole thing is stereo
 
-#define CROSSFADE_BLOCKS     600
+#define CROSSFADE_BLOCKS     40
     // The number of buffers (10 == approx 30ms) to continue recording
 
 #define LOOP_HEAP_BYTES  (60 * 4 * 3 * AUDIO_BLOCK_BYTES * 2 * INTEGRAL_BLOCKS_PER_SECOND)
