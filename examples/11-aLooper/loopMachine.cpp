@@ -113,10 +113,12 @@ float publicLoopMachine::getMeter(u16 meter, u16 channel)
     // technically, interrupts should be turned off for this
     // and possible volatile declared here or there.
     meter_t *pm = &m_meter[meter];
+	DisableIRQs();	// in synchronize.h
     int min = - pm->min_sample[channel];
     int max = pm->max_sample[channel];
     pm->max_sample[channel] = 0;
     pm->min_sample[channel] = 0;
+    EnableIRQs();
     if (min > max) max = min;
     return (float)max / 32767.0f;
 }
@@ -609,7 +611,7 @@ void loopMachine::updateState(void)
 
     if (m_pending_command  == LOOP_COMMAND_STOP_IMMEDIATE)
     {
-        LOG("LOOP_COMMAND_STOP_IMMEDIATE",0);
+        // LOG("LOOP_COMMAND_STOP_IMMEDIATE",0);
 
         if (pPrevTrack)
             pPrevTrack->stopImmediate();
@@ -623,6 +625,9 @@ void loopMachine::updateState(void)
 
         m_cur_track_num = -1;
         m_prev_track_num = -1;
+
+        setPendingCommand(LOOP_COMMAND_NONE);
+        return;
     }
 
     // if stopping, we set the loop state here

@@ -35,7 +35,7 @@ void uiStatusBar::updateFrame()
 	if (pTheLooper)	// && pTheLoopBuffer)
 	{
 		if (loop_state      != pTheLoopMachine->getLoopState()
-			#if DEBUG_LOOPER_UPDATE
+			#if 1
 				|| in_irq_count    != bcm_pcm.in_irq_count
 				|| out_irq_count	!= bcm_pcm.out_irq_count
 				|| in_wrong_count  != bcm_pcm.in_wrong_count

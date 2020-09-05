@@ -276,7 +276,7 @@ void wsApplication::onTouchEvent(
 // timeSlice()
 //--------------------------------------------------
 
-#define UI_FRAME_RATE    40
+#define UI_FRAME_RATE    30
 
 void wsApplication::timeSlice()
 {
