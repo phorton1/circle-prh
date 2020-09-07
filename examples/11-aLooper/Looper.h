@@ -1,4 +1,17 @@
 // The Looper Machine
+//
+// The classes are broken up into "public" versions, available to the UI,
+// and "implementation" versions that are only intended to be called in
+// the loopMachine-loopTrack-loopClip hierarchy, while still maintaining
+// some protection on the private members of the hiearchy (and a public
+// API for use within it).
+//
+// The UI treats the (public) loopMachine as "readonly", except to
+// issue commands() to it, or set the volume/mute of a clip or
+// volume of a track.
+//
+// The machine is driven by the loopMachine::update() method, which
+// is called by the audio system for every audio buffer.
 
 #ifndef _loopMachine_h_
 #define _loopMachine_h_
@@ -6,8 +19,14 @@
 #include <audio/Audio.h>
 
 #define WITH_METERS   1
-#define DEBUG_LOOPER_UPDATE  0
 
+#if 1
+    #define LOOPER_LOG(f,...)           pTheLoopMachine->LogUpdate(log_name,f,__VA_ARGS__)
+#elif 0
+    #define LOOPER_LOG(f,...)           CLogger::Get()->Write(log_name,LogDebug,f,__VA_ARGS__)
+#else
+    #define LOOPER_LOG(f,...)
+#endif
 
 
 //------------------------------------------------------
@@ -19,7 +38,7 @@
 #define LOOPER_NUM_CHANNELS   2
     // the whole thing is stereo
 
-#define CROSSFADE_BLOCKS     40
+#define CROSSFADE_BLOCKS     1000
     // The number of buffers (10 == approx 30ms) to continue recording
 
 #define LOOP_HEAP_BYTES  (60 * 4 * 3 * AUDIO_BLOCK_BYTES * 2 * INTEGRAL_BLOCKS_PER_SECOND)
@@ -63,34 +82,15 @@ typedef struct              // avoid byte sized structs
     int32_t multiplier;     // for WITH_INT_VOLUMES
 } controlDescriptor_t;
 
-
 // clip states
 
 #define CLIP_STATE_NONE             0x0000
-#define CLIP_STATE_RECORD_MAIN      0x0001       // The clip is recording the main portion
-#define CLIP_STATE_RECORD_END       0x0002       // The clip is recording the crossfade out portion
-#define CLIP_STATE_RECORDED         0x0004       // The clip contains a full recorded buffer
-#define CLIP_STATE_PLAY_MAIN        0x0010       // The clip is playing the main portion
-#define CLIP_STATE_PLAY_END         0x0020       // The clip is playing the crossfade out portion
-#define CLIP_STATE_PENDING_RECORD   0x0100       // The clip will start recording on the next cycle of the base clip
-#define CLIP_STATE_PENDING_PLAY     0x0200       // The clip will start playing on the next cycle of the base clip
-#define CLIP_STATE_PENDING_STOP     0x0400       // The clip will stop recording or playing on the next cycle of the base clip
-
-
-// loop machine states
-
-#define LOOP_STATE_NONE           0
-    // The looper is freshly initialized, there is no prevous track,
-    // and the 0th track and clip is selected on for the next operation.
-#define LOOP_STATE_RUNNING        1
-    // The looper is running and playing or recording at least one track/clip
-#define LOOP_STATE_STOPPING       2
-    // The looper has been told to stop, and is in the process of stopping.
-    // Nothing else can be done until it is stopped.
-#define LOOP_STATE_STOPPED        4
-    // The looper contains one or more record clips/tracks but is currently
-    // totally halted, and can be started again.
-
+#define CLIP_STATE_RECORD_IN        0x0001       // The clip is recording the minimum duration fade-in
+#define CLIP_STATE_RECORD_MAIN      0x0002       // The clip is recording the main portion
+#define CLIP_STATE_RECORD_END       0x0004       // The clip is recording the crossfade out portion
+#define CLIP_STATE_RECORDED         0x0010       // The clip contains a full recorded buffer
+#define CLIP_STATE_PLAY_MAIN        0x0020       // The clip is playing the main portion
+#define CLIP_STATE_PLAY_END         0x0040       // The clip is playing the crossfade out portion
 
 // loopMachine commands
 
@@ -102,6 +102,16 @@ typedef struct              // avoid byte sized structs
 #define LOOP_COMMAND_RECORD             50
 #define LOOP_COMMAND_SELECT_NEXT_TRACK  60
 #define LOOP_COMMAND_SELECT_NEXT_CLIP   70
+
+// An in memory log message
+
+typedef struct logString_type
+{
+    const char *lname;
+    CString *string;
+    logString_type *next;
+} logString_t;
+
 
 // forwards
 
@@ -158,8 +168,8 @@ class loopBuffer
 //-------------------------------------------------------
 // Clip
 //-------------------------------------------------------
-// a clip is selected in every track
-
+// a clip is selected in every track, even if the track
+// is not selected.
 
 class publicClip
 {
@@ -180,7 +190,7 @@ class publicClip
         u32 getMaxBlocks()          { return m_max_blocks; }
         u32 getPlayBlockNum()       { return m_play_block; }
         u32 getRecordBlockNum()     { return m_record_block; }
-        u32 getCrossfadeBlockNum()  { return m_crossfade_block; }
+        u32 getCrossfadeBlockNum()  { return m_crossfade_start + m_crossfade_offset; }
 
         bool isSelected()           { return m_selected; }
         bool isMuted()              { return m_mute; }
@@ -198,7 +208,8 @@ class publicClip
             m_max_blocks = 0;
             m_play_block = 0;
             m_record_block = 0;
-            m_crossfade_block = 0;
+            m_crossfade_start = 0;
+            m_crossfade_offset = 0;
             m_selected = !m_clip_num;
             m_mute = false;
         }
@@ -210,7 +221,8 @@ class publicClip
         u32  m_max_blocks;      // the number of blocks available for recording
         u32  m_play_block;
         u32  m_record_block;
-        u32  m_crossfade_block;
+        u32  m_crossfade_start;
+        u32  m_crossfade_offset;
 
         bool m_selected;
         bool m_mute;
@@ -270,22 +282,16 @@ class loopClip : public publicClip
             return &(m_buffer[block_num * AUDIO_BLOCK_SAMPLES * LOOPER_NUM_CHANNELS]);
         }
 
-        // new implementation
+        // note that all 'post' processing of cross_fade outs,
+        // and recording the extra blocks at the end happens
+        // in the update() method ... as updateState() is only
+        // called on the current and/or selected tracks()
 
         void setSelected(bool selected)  { m_selected = selected; }
-
-        // void updateState();     // called before update() on tracks and clips
         void update(audio_block_t *in[], audio_block_t *out[]);
-
-        // clip state implementation
-
-        // void incRecBlock();
-
+        void updateState(u16 cur_command);
         void stopImmediate();
-        void startPlaying();
-        void startRecording();
-        void startEndingRecording();
-        void finishRecording();
+
 
     private:
 
@@ -293,6 +299,14 @@ class loopClip : public publicClip
 
         s16 *m_buffer;
 
+        void _startRecording();
+        void _startEndingRecording();
+        void _finishRecording();
+
+        void _startPlaying();
+        void _startFadeOut();
+        void _startCrossFadeOut();
+        void _endFadeOut();
 };
 
 
@@ -300,6 +314,7 @@ class loopClip : public publicClip
 //---------------------------------------------------
 // Track
 //---------------------------------------------------
+// prh - add Volume to track
 
 class publicTrack
 {
@@ -315,8 +330,8 @@ class publicTrack
         u16 getTrackNum()           { return m_track_num; }
         u16 getNumUsedClips()       { return m_num_used_clips; }
         u16 getNumRecordedClips()   { return m_num_recorded_clips; }
+        u16 getNumRunningClips()    { return m_num_running_clips; }
         u16 getSelectedClipNum()    { return m_selected_clip_num; }
-
         bool isSelected()           { return m_selected; }
 
         virtual publicClip *getPublicClip(u16 clip_num) = 0;
@@ -328,6 +343,7 @@ class publicTrack
         {
             m_num_used_clips = 0;
             m_num_recorded_clips = 0;
+            m_num_running_clips = 0;
             m_selected_clip_num = 0;
             m_selected = !m_track_num;
         }
@@ -336,6 +352,7 @@ class publicTrack
         u16  m_num_used_clips;
         u16  m_num_recorded_clips;
         u16  m_selected_clip_num;
+        u16  m_num_running_clips;
 
         bool m_selected;
 };
@@ -372,19 +389,19 @@ class loopTrack : public publicTrack
             }
         }
 
-        #define UPDATE_STATE_CALLED_AS_PREV         0
-        #define UPDATE_STATE_CALLED_AS_CUR          1
-        #define UPDATE_STATE_CALLED_AS_SELECTED     2
-
-        void updateState(u16 how_called, u16 loop_state, u16 pending_command);
-            // called before update() on tracks and clips
+        void updateState(u16 cur_command);
+            // called before update() if there is a command for the
+            // current or selected track to handle. The "previous"
+            // track is entirely handled in the update() call chain.
         void update(audio_block_t *in[], audio_block_t *out[]);
-            // called only once for any track
+            // called only once for any track on the
+            // previous and/or current tracks.
 
-        void stopImmediate();
-
+        void incDecRunning(int inc);
         void incDecNumUsedClips(int inc);
         void incDecNumRecordedClips(int inc);
+
+        void stopImmediate();
 
     private:
 
@@ -392,7 +409,6 @@ class loopTrack : public publicTrack
         virtual publicClip *getSelectedPublicClip()     { return (publicClip *) m_clips[m_selected_clip_num]; }
 
         loopClip *m_clips[LOOPER_NUM_LAYERS];
-
 };
 
 
@@ -413,9 +429,10 @@ class publicLoopMachine : public AudioStream
 		virtual bool canDo(u16 command) = 0;
         virtual void command(u16 command) = 0;
 
-        u16 getLoopState()          { return m_loop_state; }
+        u16 getRunning()            { return m_running; }
         u16 getPendingCommand()     { return m_pending_command; }
         u16 getSelectedTrackNum()   { return m_selected_track_num; }
+        u16 getNumUsedTracks()      { return m_num_used_tracks; }
 
         virtual publicTrack *getPublicTrack(u16 num) = 0;
         virtual publicTrack *getSelectedPublicTrack(u16 num) = 0;
@@ -427,6 +444,7 @@ class publicLoopMachine : public AudioStream
         u8 getControlDefault(u16 control);
         void setControl(u16 control, u8 value);
 
+        logString_t *getNextLogString();
 
     protected:
 
@@ -438,9 +456,10 @@ class publicLoopMachine : public AudioStream
 
         void init()
         {
-            m_loop_state = 0;
+            m_running = 0;
             m_pending_command = 0;
             m_selected_track_num = 0;
+            m_num_used_tracks = 0;
         }
 
         // member variables
@@ -448,12 +467,16 @@ class publicLoopMachine : public AudioStream
         AudioCodec *pCodec;
       	audio_block_t *inputQueueArray[LOOPER_NUM_CHANNELS];
 
-        u16 m_loop_state;
+        int m_running;
         u16 m_pending_command;
         int m_selected_track_num;
+        u16 m_num_used_tracks;
 
         meter_t m_meter[NUM_METERS];
         controlDescriptor_t m_control[NUM_CONTROLS];
+
+        logString_t *m_pFirstLogString;
+        logString_t *m_pLastLogString;
 
 };
 
@@ -470,12 +493,10 @@ class loopMachine : public publicLoopMachine
         loopTrack *getTrack(u16 num)            { return m_tracks[num]; }
         loopTrack *getSelectedTrack(u16 num)    { return m_tracks[m_selected_track_num]; }
 
-        void setLoopState(u16 loop_state);
-        void setCurTrackNum(int num);
-        void setPrevTrackNum(int num);
-        void setPendingCommand(u16 command);
         void incDecNumUsedTracks(int inc);
+        void incDecRunning(int inc);
 
+        void LogUpdate(const char *lname, const char *format, ...);
 
     private:
 
@@ -495,10 +516,8 @@ class loopMachine : public publicLoopMachine
 
         // member variables
 
-        int m_prev_track_num;
+        u16 m_cur_command;
         int m_cur_track_num;
-        u16 m_num_used_tracks;
-        u16 m_num_recorded_tracks;
 
         loopTrack *m_tracks[LOOPER_NUM_TRACKS];
 };
@@ -514,5 +533,6 @@ extern loopBuffer  *pTheLoopBuffer;
 extern loopMachine *pTheLoopMachine;
 extern publicLoopMachine *pTheLooper;
     // in audio,cpp
+
 
 #endif  //!_loopMachine_h_

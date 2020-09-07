@@ -9,6 +9,9 @@
 
 #define ID_CLIP_BUTTON_BASE 500
 
+#define TRACK_MARGIN   20	// title frame for track
+
+
 
 uiTrack::uiTrack(
 		u8 track_num,
@@ -23,16 +26,19 @@ uiTrack::uiTrack(
 		// WIN_STYLE_TOUCH
 		// WIN_STYLE_CLICK
 {
-	m_selected = false;
 	m_track_num = track_num;
+	m_selected = false;
+	m_num_used = 0;
+	m_num_recorded = 0;
+
 	setForeColor(wsWHITE);
     setFrameWidth(2);
 
 	// create the clip controls
 
-	int height = m_rect_client.ye-m_rect_client.ys+1;
+	int height = m_rect_client.ye-m_rect_client.ys+1 - TRACK_MARGIN;
 	int cheight = (height - CLIP_BUTTON_SPACE*(LOOPER_NUM_LAYERS-1)) / LOOPER_NUM_LAYERS;
-	int offset = 0;
+	int offset = TRACK_MARGIN;
 
 	// LOG("ctor height=%d cheight=%d",height,cheight);
 
@@ -66,15 +72,27 @@ void uiTrack::onDraw()
 		m_rect_abs.ye,
 		color,
 		m_frame_width );
+
+	CString msg;
+	msg.Format("%d  %d",m_num_used,m_num_recorded);
+	m_pDC->putString( m_rect_client.xs+5, m_rect_client.ys+5,(const char *)msg);
 }
 
 
 void uiTrack::updateFrame()
 {
-	bool sel = pTheLooper->getPublicTrack(m_track_num)->isSelected();
-	if (sel != m_selected)
+	publicTrack *pTrack = pTheLooper->getPublicTrack(m_track_num);
+	bool sel = pTrack->isSelected();
+	u16  used = pTrack->getNumUsedClips();
+	u16  rec = pTrack->getNumRecordedClips();
+
+	if (sel != m_selected ||
+		used != m_num_used ||
+		rec != m_num_recorded)
 	{
 		m_selected = sel;
+		m_num_used = used;
+		m_num_recorded = rec;
 		setBit(m_state,WIN_STATE_DRAW);
 	}
 

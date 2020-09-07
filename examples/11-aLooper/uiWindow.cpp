@@ -84,7 +84,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 {
 	LOG("uiWindow ctor",0);
 
-	last_loop_state = 0;				// NONE = 0
+	last_running = 0;
 	last_num_used_tracks = 0;
 
 	setBackColor(wsDARK_BLUE);
@@ -296,15 +296,13 @@ void uiWindow::updateFrame()
 		}
 	}
 
-	#if 0
-		u16 state = pTheLooper->getLoopState();
-		u16 num = pTheLooper->getNumUsedTracks();
-		if (state != last_loop_state ||
-			num   != last_num_used_tracks)
+	#if 1
+		logString_t *msg = pTheLooper->getNextLogString();
+		if (msg)
 		{
-			last_loop_state = state;
-			last_num_used_tracks = num;
-			setBit(m_state,WIN_STATE_DRAW);
+			CLogger::Get()->Write(msg->lname,LogNotice,*msg->string);
+			delete msg->string;
+			delete msg;
 		}
 	#endif
 

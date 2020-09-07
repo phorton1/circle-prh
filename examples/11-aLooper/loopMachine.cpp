@@ -44,14 +44,6 @@ u16 control_default[NUM_CONTROLS] = {
 // static externs
 //-------------------------------------------
 
-const char *getLoopStateName(u16 state)
-{
-    if (state == LOOP_STATE_NONE)         return "NONE";
-    if (state == LOOP_STATE_RUNNING)      return "RUNNING";
-    if (state == LOOP_STATE_STOPPING)     return "STOPPING";
-    if (state == LOOP_STATE_STOPPED)      return "STOPPED";
-    return "UNKNOWN_LOOP_STATE";
-}
 
 const char *getLoopCommandName(u16 state)
 {
@@ -77,6 +69,9 @@ publicLoopMachine::publicLoopMachine() :
     LOG("publicLoopMachine ctor",0);
     pCodec = AudioCodec::getSystemCodec();
     assert(pCodec);
+
+    m_pFirstLogString = 0;
+    m_pLastLogString = 0;
 
     for (int i=0; i<NUM_CONTROLS; i++)
     {
@@ -106,6 +101,24 @@ publicLoopMachine::~publicLoopMachine()
     pCodec = 0;
 }
 
+
+
+
+logString_t *publicLoopMachine::getNextLogString()
+    // hand out the head of the list
+{
+	DisableIRQs();	// in synchronize.h
+    logString_t *retval =  m_pFirstLogString;
+    if (retval)
+    {
+        m_pFirstLogString = retval->next;
+        retval->next = 0;   // for safety
+    }
+    if (!m_pFirstLogString)
+        m_pLastLogString = 0;
+    EnableIRQs();
+    return retval;
+}
 
 
 float publicLoopMachine::getMeter(u16 meter, u16 channel)
@@ -203,7 +216,7 @@ void loopMachine::init()
 {
     publicLoopMachine::init();
 
-    m_prev_track_num = -1;
+    m_cur_command = 0;
     m_cur_track_num = -1;
     m_num_used_tracks = 0;
 
@@ -214,6 +227,39 @@ void loopMachine::init()
         m_tracks[i]->init();
     }
 }
+
+
+
+
+void loopMachine::LogUpdate(const char *lname, const char *format, ...)
+{
+	va_list vars;
+	va_start(vars, format);
+
+    #if 0
+        CString *msg;
+        msg.FormatV(format,vars);
+        va_end (vars);
+        CLogger::Get()->Write(lname,LogDebug,msg);
+    #else
+
+        logString_t *pMem = new logString_t;
+        pMem->next = 0;
+        pMem->lname = lname;
+        pMem->string = new CString();
+        pMem->string->FormatV(format,vars);
+        va_end (vars);
+
+        if (!m_pFirstLogString)
+            m_pFirstLogString = pMem;
+        if (m_pLastLogString)
+            m_pLastLogString->next = pMem;
+
+        m_pLastLogString = pMem;
+
+    #endif
+}
+
 
 
 //-------------------------------------------------
@@ -232,15 +278,6 @@ void loopMachine::selectTrack(u16 num)
 }
 
 
-void  loopMachine::setPendingCommand(u16 command)
-    // it's ok to LOG the pending command change
-    // because this is NOT called from update()
-{
-    m_pending_command = command;
-    #if DEBUG_LOOPER_UPDATE
-        LOG("setPendingCommand(%s)",getLoopCommandName(command));
-    #endif
-}
 
 
 // virtual
@@ -262,7 +299,7 @@ bool loopMachine::canDo(u16 command)
                 retval = true;
             break;
         case LOOP_COMMAND_STOP:
-            if (m_loop_state == LOOP_STATE_RUNNING)
+            if (m_running && m_num_used_tracks)
                 retval = true;
             break;
         case LOOP_COMMAND_SELECT_NEXT_CLIP:
@@ -274,12 +311,11 @@ bool loopMachine::canDo(u16 command)
                 return true;
             break;
         case LOOP_COMMAND_STOP_IMMEDIATE:
-            if (m_loop_state == LOOP_STATE_RUNNING ||
-                m_loop_state == LOOP_STATE_STOPPING)
+            if (m_running)
                 retval = true;
             break;
         case LOOP_COMMAND_CLEAR_ALL:
-            if (m_loop_state)
+            if (!m_running && m_num_used_tracks)
                 retval = true;
             break;
     }
@@ -292,6 +328,9 @@ bool loopMachine::canDo(u16 command)
 // virtual
 void loopMachine::command(u16 command)
 {
+    if (command == LOOP_COMMAND_NONE)
+        return;
+
     LOG("loopMachine::command(%s)",getLoopCommandName(command));
 
     if (canDo(command))
@@ -314,7 +353,7 @@ void loopMachine::command(u16 command)
                 m_tracks[m_selected_track_num]->setSelected(true);
             }
             LOG("SELECT_NEXT_TRACK(%d)",m_selected_track_num);
-            setPendingCommand(LOOP_COMMAND_NONE);
+            m_pending_command = 0;
         }
         else if (command == LOOP_COMMAND_SELECT_NEXT_CLIP)
         {
@@ -326,11 +365,12 @@ void loopMachine::command(u16 command)
                 clip_num = 0;
             LOG("SELECT_NEXT_CLIP(%d)",clip_num);
             pTrack->setSelectedClipNum(clip_num);
-            setPendingCommand(LOOP_COMMAND_NONE);
+            m_pending_command = 0;
         }
         else
         {
-            setPendingCommand(command);
+            m_pending_command = command;
+            LOG("PENDING_COMMAND(%s)",getLoopCommandName(m_pending_command));
         }
     }
     else
@@ -348,6 +388,11 @@ void loopMachine::command(u16 command)
 // virtual
 void loopMachine::update(void)
 {
+    m_cur_command = 0;
+        // the current command is a short-lived member variable,
+        // only valid for the duration of update.  It is "latched"
+        // from the pending command at "loopPoints".
+
     //--------------------------------------------------------------
     // receive the input audio blocks and create the output blocks
     //--------------------------------------------------------------
@@ -400,24 +445,22 @@ void loopMachine::update(void)
     // update the state
     //-------------------
     // and if the machine is still running,
-    // call update() on the previous and/or current track
+    // call update() on any running tracks
 
     if (in[0])
     {
         updateState();
 
-        if (m_loop_state == LOOP_STATE_RUNNING ||
-            m_loop_state == LOOP_STATE_STOPPING)
+        if (m_running)
         {
-            loopTrack *pPrevTrack = m_prev_track_num >= 0 ? getTrack(m_prev_track_num) : 0;
-            loopTrack *pCurTrack = m_cur_track_num >= 0 ? getTrack(m_cur_track_num) : 0;
+            for (int i=0; i<m_num_used_tracks; i++)
+            {
+                loopTrack *pTrack = getTrack(i);
+                if (pTrack->getNumRunningClips())
+                    pTrack->update(in,out);
+            }
+        }   // m_running
 
-            if (pPrevTrack)
-                pPrevTrack->update(in,out);
-            if (pCurTrack && pCurTrack != pPrevTrack)
-                pCurTrack->update(in,out);
-
-        }   // LOOP_STATE_RUNNING or LOOP_STATE_STOPPING
     }   // in[0] (audioSystem is started)
 
 
@@ -503,6 +546,9 @@ void loopMachine::update(void)
         AudioSystem::release(out[channel]);
     }
 
+    m_cur_command = 0;
+        // end of short lived command variable
+
 }   // loopMachine::update()
 
 
@@ -511,154 +557,83 @@ void loopMachine::update(void)
 // updateState()
 //--------------------------------------------------------------------------------
 
-void loopMachine::setLoopState(u16 loop_state)
-{
-    #if DEBUG_LOOPER_UPDATE
-        LOG("LOOP_STATE_%s",getLoopStateName(loop_state));
-    #endif
-    m_loop_state = loop_state;
-}
-void loopMachine::setCurTrackNum(int num)
-{
-    #if DEBUG_LOOPER_UPDATE
-        LOG("cur_track_num(%d) ----> %d",m_cur_track_num,num);
-    #endif
-    m_cur_track_num = num;
-}
-void loopMachine::setPrevTrackNum(int num)
-{
-    #if DEBUG_LOOPER_UPDATE
-        LOG("prev_track_num(%d) ----> %d",m_prev_track_num,num);
-    #endif
-    m_prev_track_num = num;
-}
 void loopMachine::incDecNumUsedTracks(int inc)
 {
     m_num_used_tracks += inc;
-    #if DEBUG_LOOPER_UPDATE
-        LOG("num_used_tracks(%d) --> %d",inc,m_num_used_tracks);
-    #endif
+    LOOPER_LOG("num_used_tracks(%d) --> %d",inc,m_num_used_tracks);
 }
 
+void loopMachine::incDecRunning(int inc)
+{
+    m_running += inc;
+    LOOPER_LOG("m_running=%d",m_running);
+}
 
 
 
 void loopMachine::updateState(void)
 {
-    loopTrack *pSelTrack = getTrack(m_selected_track_num);
-    loopTrack *pCurTrack = m_cur_track_num >= 0 ?  getTrack(m_cur_track_num) : 0;
-    loopTrack *pPrevTrack = m_prev_track_num >= 0 ?  getTrack(m_prev_track_num) : 0;
-    loopClip *pSelClip = pSelTrack->getSelectedClip();
-    u16 sel_clip_state = pSelClip->getClipState();
-
-    // filter out obvious bad commands
-    // can only issue RECORD command in LOOP_STATE_NONE
-
-    if (m_pending_command &&
-        m_loop_state == LOOP_STATE_NONE)
-    {
-        if (m_pending_command != LOOP_COMMAND_RECORD)
-        {
-            LOG_WARNING("attempt to issue command(%s) other than RECORD while in LOOP_STATE_NONE",getLoopCommandName(m_pending_command));
-            m_pending_command = 0;
-            return;
-        }
-    }
-
-    // verify that PLAY and RECORD commands have valid selected clips
-
-    else
-    {
-        if (m_pending_command == LOOP_COMMAND_PLAY)
-        {
-            if (!pSelTrack->getNumRecordedClips())
-            {
-                LOG_WARNING("attempt to issue command(PLAY) on empty track(%d)",m_selected_track_num);
-                m_pending_command = 0;
-                return;
-            }
-        }
-        else if (m_pending_command == LOOP_COMMAND_RECORD)
-        {
-            if (sel_clip_state != CLIP_STATE_NONE)
-            {
-                CString *state_msg = getClipStateName(sel_clip_state);
-                LOG_WARNING("attempt to issue command(RECORD) on clip(%d,%d) which is in state(%s)",
-                    m_selected_track_num,
-                    pSelTrack->getSelectedClipNum(),
-                    (const char *)*state_msg);
-                delete state_msg;
-                m_pending_command = 0;
-                return;
-            }
-        }
-
-        // any command besides PLAY or RECORD is illegal in state STOPPED
-
-        else if (m_loop_state == LOOP_STATE_STOPPED &&
-                 m_pending_command &&
-                 m_pending_command != LOOP_COMMAND_PLAY &&
-                 m_pending_command != LOOP_COMMAND_RECORD)
-        {
-            LOG_WARNING("attempt to issue command(%s) while in LOOP_STATE_STOPPED",getLoopCommandName(m_pending_command));
-            m_pending_command = 0;
-            return;
-        }
-    }
-
     // handle STOP_IMMEDIATE
     // bring everything to a screeching halt
 
-    if (m_pending_command  == LOOP_COMMAND_STOP_IMMEDIATE)
+    if (m_pending_command == LOOP_COMMAND_STOP_IMMEDIATE)
     {
-        // LOG("LOOP_COMMAND_STOP_IMMEDIATE",0);
+        for (int i=0; i<m_num_used_tracks; i++)
+            getTrack(i)->stopImmediate();
 
-        if (pPrevTrack)
-            pPrevTrack->stopImmediate();
-        if (pCurTrack && pCurTrack != pPrevTrack)
-            pCurTrack->stopImmediate();
-        if (pSelTrack != pCurTrack && pSelTrack != pPrevTrack)
-            pSelTrack->stopImmediate();
-
-        setLoopState(LOOP_STATE_STOPPED);
-            // needs to be NONE if was recording clip(0,0)
-
+        m_running = 0;
         m_cur_track_num = -1;
-        m_prev_track_num = -1;
+        m_pending_command = 0;
 
-        setPendingCommand(LOOP_COMMAND_NONE);
         return;
     }
 
-    // if stopping, we set the loop state here
-    // and rely on the tracks and clips to stop
-    // the looper
+    //----------------------------------------
+    // updateState() COMMAND processor.
+    //----------------------------------------
+    // Determine if we are at a "loop point" or a point
+    // at which we should latch the pending command into
+    // the current command ...
 
-    else if (m_pending_command == LOOP_COMMAND_STOP)
+    if (m_pending_command)
     {
-        setLoopState(LOOP_STATE_STOPPING);
-    }
+        loopTrack *pCurTrack = m_cur_track_num >= 0 ?  getTrack(m_cur_track_num) : 0;
+        loopTrack *pSelTrack = getTrack(m_selected_track_num);
+        loopClip  *pClip0 = pCurTrack ? pCurTrack->getClip(0) : 0;
+        u16 clip0_state = pClip0 ? pClip0->getClipState() : 0;
+            // the current base clip, and it's state, if any
 
+        bool at_loop_point = (clip0_state & CLIP_STATE_PLAY_MAIN) && !pClip0->getPlayBlockNum();
+        bool latch_command =
+            !m_running ||
+            at_loop_point ||
+            !clip0_state ||
+            !m_num_used_tracks ||
+            (clip0_state & CLIP_STATE_RECORD_MAIN);
 
-    // pass the updateState() to the prev_track if any,
-    // then to the current track, if any, then finally
-    // to the selected track, if any.  Only call updateState()
-    // once on any track.  We pass the loop_state and pending
-    // command up, as well as telling the track "how" it is
-    // begin called.
+        // LATCH IN A NEW COMMAND
 
-    if (pPrevTrack)
-        pPrevTrack->updateState(UPDATE_STATE_CALLED_AS_PREV,m_loop_state, m_pending_command);
-    if (pCurTrack && pCurTrack != pPrevTrack)
-        pCurTrack->updateState(UPDATE_STATE_CALLED_AS_CUR,m_loop_state, m_pending_command);
-    if (pSelTrack != pCurTrack && pSelTrack != pPrevTrack)
-        pSelTrack->updateState(UPDATE_STATE_CALLED_AS_SELECTED,m_loop_state, m_pending_command);
+        if (latch_command)
+        {
+            m_cur_command = m_pending_command;
+            m_pending_command = 0;
 
+            LOOPER_LOG("latching pending command(%s)",getLoopCommandName(m_cur_command));
 
-    if (m_pending_command == LOOP_COMMAND_STOP)
-    {
-        setPendingCommand(LOOP_COMMAND_NONE);
-    }
+            // the previous track is entirely handled in update().
+            // if we are changing tracks(), STOP the old track ...
+            // and start the new one with the given command
 
+            if (pCurTrack && pCurTrack != pSelTrack)
+                pCurTrack->updateState(LOOP_COMMAND_STOP);
+            pSelTrack->updateState(m_cur_command);
 
-}
+            // change the current track to the selected track
+
+            LOOPER_LOG("change m_cur_track_num(%d) to selected_track_num(%d)",m_cur_track_num,m_selected_track_num);
+
+            m_cur_track_num = m_selected_track_num;
+        }
+
+    }   // if m_pending_command
+}   // loopMachine::updateState()

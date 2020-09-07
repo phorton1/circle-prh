@@ -101,8 +101,6 @@ void uiClip::updateFrame()
 	u32 num 	= pClip->getNumBlocks();
 	u32 mx 		= pClip->getMaxBlocks();
 
-	// u16 pend = sel ? pTheLooper->getPendingCommand() : LOOP_COMMAND_NONE;
-
 	if (sel 	!= m_selected ||
 		state 	!= m_clip_state ||
 		rec 	!= m_rec_block ||
@@ -122,7 +120,8 @@ void uiClip::updateFrame()
 		setBit(m_state,WIN_STATE_DRAW);
 	}
 
-	if (sel && (state & (CLIP_STATE_PENDING_RECORD | CLIP_STATE_PENDING_PLAY)))
+	u16 pend = pTheLooper->getPendingCommand();
+	if (sel && pend)
 	{
 		u32 tm = CTimer::Get()->GetClockTicks();
 		if (tm > m_flash_time + PENDING_FLASH_TIME)
@@ -159,18 +158,18 @@ void uiClip::onDraw()
 
 	publicTrack *pTrack = pTheLooper->getPublicTrack(m_track_num);
 	publicClip *pClip = pTrack->getPublicClip(m_clip_num);
+	u16 pend = pTheLooper->getPendingCommand();
 
 	if (m_selected && pTrack->isSelected())
 	{
+		frame_color = m_clip_state & CLIP_STATE_RECORDED ? wsYELLOW : wsRED;
+
 		if (m_flash_time)
 		{
-			frame_color = m_flash ?
-				(m_clip_state & CLIP_STATE_PENDING_RECORD ? wsRED : wsYELLOW) :
-				(m_clip_state & CLIP_STATE_PENDING_RECORD ? wsWHITE : wsBLACK);
-		}
-		else
-		{
-			frame_color = m_clip_state & CLIP_STATE_RECORDED ? wsYELLOW : wsRED;
+			if (pend == LOOP_COMMAND_STOP)
+				frame_color = wsWHITE;
+			if (!m_flash)
+				frame_color = wsBLACK;
 		}
 	}
 
@@ -185,7 +184,7 @@ void uiClip::onDraw()
 
 	// only draw the inside on full REDRAW
 
-	if (!(m_state & WIN_STATE_REDRAW))
+	// if (!(m_state & WIN_STATE_REDRAW))
 	{
 		wsColor bc  = wsBLACK;
 		s32 xs = m_rect_client.xs;
@@ -197,10 +196,10 @@ void uiClip::onDraw()
 		float pct = 0;
 		float width = xe - xs + 1;
 
-		if (m_clip_state & (CLIP_STATE_RECORD_MAIN || CLIP_STATE_RECORD_MAIN))
+		if (m_clip_state & (CLIP_STATE_PLAY_MAIN | CLIP_STATE_RECORD_MAIN | CLIP_STATE_RECORD_IN))
 		{
 			float f_cur_block =
-				m_clip_state & CLIP_STATE_RECORD_MAIN ? m_rec_block :
+				m_clip_state & (CLIP_STATE_RECORD_MAIN | CLIP_STATE_RECORD_IN) ? m_rec_block :
 				m_clip_state & CLIP_STATE_PLAY_MAIN ? m_play_block : 0;
 
 			wsColor bar_color = wsDARK_RED;
@@ -246,14 +245,14 @@ void uiClip::onDraw()
 
 		m_pDC->setForeColor(m_fore_color);
 		CString *stateMessage = getClipStateName(m_clip_state);
-		m_pDC->putString(oxs+10,ys+5,(const char *)*stateMessage);
+		m_pDC->putString(oxs+5,ys+2,(const char *)*stateMessage);
 		delete stateMessage;
 
-		putInt(oxs+10,ys+23,m_pDC,m_rec_block);
-		putInt(oxs+10,ys+41,m_pDC,m_play_block);
-		putInt(oxs+10,ys+59,m_pDC,m_fade_block);
-		putInt(oxs+10,ys+77,m_pDC,m_num_blocks);
-		putInt(oxs+10,ys+95,m_pDC,m_max_blocks);
+		putInt(oxs+5,ys+20,m_pDC,m_rec_block);
+		putInt(oxs+5,ys+36,m_pDC,m_play_block);
+		putInt(oxs+5,ys+52,m_pDC,m_fade_block);
+		putInt(oxs+5,ys+68,m_pDC,m_num_blocks);
+		putInt(oxs+5,ys+84,m_pDC,m_max_blocks);
 
 		// CString msg;
 		// msg.Format("%6d/%-6d %-6d",

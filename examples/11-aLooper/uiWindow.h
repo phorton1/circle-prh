@@ -22,7 +22,7 @@ class uiWindow : public wsTopLevelWindow
 
 		u16 getButtonFunction(u16 num);
 
-		u16 last_loop_state;
+		u16 last_running;
 		u16 last_num_used_tracks;
 		u16 last_button_fxn[NUM_LOOP_BUTTONS];
 
