@@ -30,6 +30,7 @@ uiTrack::uiTrack(
 	m_selected = false;
 	m_num_used = 0;
 	m_num_recorded = 0;
+	m_num_running = 0;
 
 	setForeColor(wsWHITE);
     setFrameWidth(2);
@@ -74,8 +75,8 @@ void uiTrack::onDraw()
 		m_frame_width );
 
 	CString msg;
-	msg.Format("%d  %d",m_num_used,m_num_recorded);
-	m_pDC->putString( m_rect_client.xs+5, m_rect_client.ys+5,(const char *)msg);
+	msg.Format("%d/%d(%d)",m_num_running,m_num_used,m_num_recorded);
+	m_pDC->putString( m_rect_client.xs+5, m_rect_client.ys+2,(const char *)msg);
 }
 
 
@@ -85,14 +86,18 @@ void uiTrack::updateFrame()
 	bool sel = pTrack->isSelected();
 	u16  used = pTrack->getNumUsedClips();
 	u16  rec = pTrack->getNumRecordedClips();
+	u16  running = pTrack->getNumRunningClips();
+
 
 	if (sel != m_selected ||
 		used != m_num_used ||
+		running != m_num_running ||
 		rec != m_num_recorded)
 	{
 		m_selected = sel;
 		m_num_used = used;
 		m_num_recorded = rec;
+		m_num_running = running;
 		setBit(m_state,WIN_STATE_DRAW);
 	}
 

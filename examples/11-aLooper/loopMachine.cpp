@@ -291,7 +291,8 @@ bool loopMachine::canDo(u16 command)
 	switch (command)
     {
         case LOOP_COMMAND_PLAY:
-            if (pTrack->getNumUsedClips())
+            if (pTrack->getNumUsedClips() &&
+                !(clip_state & CLIP_STATE_PLAY_MAIN))
                 retval = true;
             break;
         case LOOP_COMMAND_RECORD:
@@ -630,9 +631,11 @@ void loopMachine::updateState(void)
 
             // change the current track to the selected track
 
-            LOOPER_LOG("change m_cur_track_num(%d) to selected_track_num(%d)",m_cur_track_num,m_selected_track_num);
-
-            m_cur_track_num = m_selected_track_num;
+            if (m_cur_track_num != m_selected_track_num)
+            {
+                LOOPER_LOG("change m_cur_track_num(%d) to selected_track_num(%d)",m_cur_track_num,m_selected_track_num);
+                m_cur_track_num = m_selected_track_num;
+            }
         }
 
     }   // if m_pending_command

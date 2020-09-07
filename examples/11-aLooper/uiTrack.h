@@ -29,6 +29,8 @@ class uiTrack : public wsWindow
 
 		u8 m_track_num;
 		bool m_selected;
+
+		u16 m_num_running;
 		u16 m_num_used;
 		u16 m_num_recorded;
 

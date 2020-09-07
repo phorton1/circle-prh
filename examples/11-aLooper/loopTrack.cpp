@@ -66,16 +66,11 @@ void loopTrack::incDecRunning(int inc)
 
 void loopTrack::stopImmediate()
 {
-    // back out of recording clip
-
-    // if (m_num_recorded_clips < LOOPER_NUM_LAYERS &&
-    // (m_clips[m_num_recorded_clips]->getClipState() && CLIP_STATE_RECORD_MAIN))
-    //  m_num_used_clips--;
-
     for (int i=0; i<m_num_used_clips; i++)
     {
         m_clips[i]->stopImmediate();
     }
+    m_num_running_clips = 0;
 }
 
 

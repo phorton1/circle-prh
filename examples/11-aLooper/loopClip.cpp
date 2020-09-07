@@ -78,6 +78,8 @@ void loopClip::stopImmediate()
 {
     if (m_state & (CLIP_STATE_RECORD_IN | CLIP_STATE_RECORD_MAIN | CLIP_STATE_RECORD_END))
     {
+        LOOPER_LOG("clip(%d,%d)::stopImmediate(WhileRecording)",m_track_num,m_clip_num);
+
         // the track was 'used' by virtue of being recorded
         m_pLoopTrack->incDecNumUsedClips(-1);
 
@@ -86,17 +88,21 @@ void loopClip::stopImmediate()
             m_pLoopTrack->incDecNumRecordedClips(-1);
 
         if (m_clip_num == 0)
-            pTheLoopMachine->incDecNumUsedTracks(1);
+            pTheLoopMachine->incDecNumUsedTracks(-1);
 
         init();
     }
     else
     {
+        LOOPER_LOG("clip(%d,%d)::stopImmediate()",m_track_num,m_clip_num);
+
         m_play_block = 0;
         m_crossfade_start = 0;
         m_crossfade_offset = 0;
-        m_state |= CLIP_STATE_RECORDED;
-            // maintain the recorded state
+        m_state &= CLIP_STATE_RECORDED;
+            // maintain only the recorded state
+
+
     }
 }
 
@@ -367,7 +373,10 @@ void loopClip::updateState(u16 cur_command)
         {
             _startEndingRecording();
         }
-        _startPlaying();
+        // don't do play command twice
+
+        if (!(m_state & CLIP_STATE_PLAY_MAIN))
+            _startPlaying();
     }
     else if (cur_command == LOOP_COMMAND_RECORD)
     {

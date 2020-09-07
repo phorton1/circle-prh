@@ -33,6 +33,7 @@ class uiClip : public wsWindow
 		u8 m_pressed;
 
 		u16 m_clip_state;	// last clip state from the clip
+
 		u32 m_rec_block;	// last record or play block from the clip
 		u32 m_play_block;	// last record or play block from the clip
 		u32 m_fade_block;	// last crossfade block number from the clip
@@ -41,6 +42,7 @@ class uiClip : public wsWindow
 		bool m_selected;	// last selected state from the clip
 
 		bool m_flash;
+		bool m_last_flash;
 		u32  m_flash_time;
 
 		virtual void onDraw();

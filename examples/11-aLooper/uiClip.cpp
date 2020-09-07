@@ -80,6 +80,7 @@ uiClip::uiClip(
 	setForeColor(wsWHITE);
 	// setBackColor(wsBLACK);
 
+	setBit(m_state, WIN_STATE_DRAW | WIN_STATE_REDRAW);
 }
 
 
@@ -117,7 +118,7 @@ void uiClip::updateFrame()
 		m_num_blocks = num;
 		m_max_blocks = mx;
 
-		setBit(m_state,WIN_STATE_DRAW);
+		setBit(m_state, WIN_STATE_DRAW | WIN_STATE_REDRAW);
 	}
 
 	u16 pend = pTheLooper->getPendingCommand();
@@ -130,7 +131,7 @@ void uiClip::updateFrame()
 			m_flash = !m_flash;
 		}
 
-		setBit(m_state,WIN_STATE_DRAW | WIN_STATE_REDRAW);
+		setBit(m_state,WIN_STATE_DRAW);
 	}
 	else if (m_flash_time)
 	{
@@ -163,7 +164,6 @@ void uiClip::onDraw()
 	if (m_selected && pTrack->isSelected())
 	{
 		frame_color = m_clip_state & CLIP_STATE_RECORDED ? wsYELLOW : wsRED;
-
 		if (m_flash_time)
 		{
 			if (pend == LOOP_COMMAND_STOP)
@@ -184,7 +184,7 @@ void uiClip::onDraw()
 
 	// only draw the inside on full REDRAW
 
-	// if (!(m_state & WIN_STATE_REDRAW))
+	if (m_state & WIN_STATE_REDRAW)
 	{
 		wsColor bc  = wsBLACK;
 		s32 xs = m_rect_client.xs;
