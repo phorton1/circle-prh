@@ -91,13 +91,20 @@ void setup()
 
     float default_out_val = pTheLooper->getControlDefault(CONTROL_OUTPUT_GAIN);
     float default_in_val = pTheLooper->getControlDefault(CONTROL_INPUT_GAIN);
-    for (int j=0; j<50; j++)
+
+    // bring the volume up over 1 second
+    // the delays seem to help with conflict of Wire.cpp
+    // versus rPi touch screen ... it always flails a little
+    // bit, but not fatally, here ..
+
+    for (int j=0; j<20; j++)
     {
-        u8 in_val = roundf(default_in_val * ((float)j)/50.00);
-        u8 out_val = roundf(default_out_val * ((float)j)/50.00 );
+        u8 in_val = roundf(default_in_val * ((float)j)/20.00);
+        u8 out_val = roundf(default_out_val * ((float)j)/20.00 );
         pTheLooper->setControl(CONTROL_INPUT_GAIN,in_val);
+        delay(30);
         pTheLooper->setControl(CONTROL_OUTPUT_GAIN,out_val);
-        delay(20);
+        delay(30);
     }
 
     printf("11-aLooper::audio.cpp setup() finished\n");

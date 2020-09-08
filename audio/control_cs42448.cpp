@@ -32,13 +32,13 @@
 #include <audio/bcm_pcm.h>
 #include "Wire.h"
 
-    
+
 #define log_name "cm42448"
 
 #define I2C_ADDR  0x48
 
 
-#ifdef AUDIO_INJECTOR_OCTO   
+#ifdef AUDIO_INJECTOR_OCTO
 
     // Note: for the Audio Injector Octo both the bcm and the codec
     // are set as slaves, and you wake up the fpga with reset() and
@@ -49,11 +49,11 @@
 	#define OCTO_PIN_MULT1  22
 	#define OCTO_PIN_MULT2  23
 	#define OCTO_PIN_MULT3  24
-    
+
     CGPIOPin *octo_reset;
     CGPIOPin *octo_mult[4];
     u32  g_sample_rate;
-    
+
 #endif
 
 
@@ -88,7 +88,7 @@
 // register values
 
 #define FM_MCLK_1_TO_12_MHZ             (0x0 << 1)
-#define FM_MCLK_2_TO_25_MHZ             (0x2 << 1) 
+#define FM_MCLK_2_TO_25_MHZ             (0x2 << 1)
 #define FM_MCLK_4_TO_51_MHZ             (0x4 << 1)
 
 #define FM_ADC_SPEED_SINGLE             (0x0 << 4)
@@ -150,11 +150,11 @@ AudioControlCS42448::AudioControlCS42448(void)
 	m_muteMask = 0xff;
 		// start with all channels un-muted
 		// should match setup bytes below
-	
+
 	#ifdef AUDIO_INJECTOR_OCTO
 		g_sample_rate = 44100;
 	#endif
-	
+
 	bcm_pcm.static_init(
 		true,               // bcm_pcm is slave device
 		g_sample_rate,      // sample_rate
@@ -169,8 +169,8 @@ AudioControlCS42448::AudioControlCS42448(void)
 	// This is not true TDM, but, rather, an Octo specific I2s variant,
 	// synchronized by starting the clock correctly.
 }
-    
-    
+
+
 
 static const uint8_t default_config[] =
 {
@@ -182,8 +182,8 @@ static const uint8_t default_config[] =
     FM_ADC_SPEED_AUTO_SLAVE | FM_DAC_SPEED_AUTO_SLAVE | FM_MCLK_2_TO_25_MHZ,
         // CS42448_Functional_Mode = 0xF6 = slave mode, MCLK 25.6 MHz max
 #endif
-        
-    INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S, 
+
+    INTFC_ADC_TDM | INTFC_DAC_TDM | INTFC_AUX_I2S,
         // CS42448_Interface_Formats = T0x76 = DM mode + aux I2s
     ADCC_ADC3_SINGLE | ADCC_ADC2_SINGLE | ADCC_ADC1_SINGLE,
         // CS42448_ADC_Control_DAC_DeEmphasis = 0x1C = single ended ADC
@@ -193,7 +193,7 @@ static const uint8_t default_config[] =
     0xff    // CS42448_DAC_Channel_Mute = 0xff = all outputs mute
 };
 
-            
+
 
 void AudioControlCS42448::start(void)
 {
@@ -202,14 +202,14 @@ void AudioControlCS42448::start(void)
     #ifdef AUDIO_INJECTOR_OCTO
         reset();
     #endif
-    
+
 	Wire.begin();
-	
+
 	// __circle__ sanity check code to make sure I am talking i2c
 	// My chip revision is 0x04 instead of documented 0x01
 
 	LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
-	
+
 	#if 0
 		LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
 		LOG("0x03. Functional_Mode    = 0x%02x",read(CS42448_Functional_Mode));
@@ -227,7 +227,7 @@ void AudioControlCS42448::start(void)
 		if (!write(CS42448_Power_Control,0x11)) return false;
 		assert(read(CS42448_Power_Control) == 0x11);
 	#endif
-	
+
 	write(CS42448_Power_Control, 0xFF);
     delay(200);
 
@@ -236,8 +236,8 @@ void AudioControlCS42448::start(void)
 
 	write(CS42448_Power_Control, 0); // power up
     delay(500);
-    
-	#if 0   
+
+	#if 0
 		LOG("cs42448 settings",0);
 		LOG("0x01. Chip_ID            = 0x%02x",read(CS42448_Chip_ID));
 		LOG("0x02. Power_Control      = 0x%02x",read(CS42448_Power_Control));
@@ -285,11 +285,11 @@ int32_t inputlevelbyte(float level)
 	//        1000 0000 -64 dB	        -128
 {
 	// pauls algorithm
-	// 
+	//
 	// if (level > 15.8489) return 48;
 	// if (level < 0.00063095734) return -128;
 	// return roundf(log10f(level) * 40.0);
-	
+
 	int32_t i = roundf(level * (128 + 1 + 48)) - 128;
 	// LOG("inputlevelbyte %0.2f==%d",level,i);
 	return i;
@@ -307,6 +307,7 @@ void AudioControlCS42448::volume(float level)
 	{
 		data[i] = n;
 	}
+	// display_bytes("cs2448::volume()",data,9);
 	write(CS42448_DAC_Channel_Mute, data, 9);
 }
 
@@ -328,7 +329,7 @@ void AudioControlCS42448::inputLevel(float level)
 	u32 n = inputlevelbyte(level);
 	for (int i=0; i<6; i++)
 		write(CS42448_AIN1_Volume_Control+i,n);
-		
+
 }
 void AudioControlCS42448::inputLevel(int channel, float level)
 {
@@ -357,7 +358,7 @@ void AudioControlCS42448::write(uint32_t address, uint32_t data)
 void AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len, bool auto_inc)
 {
 	Wire.beginTransmission(I2C_ADDR);
-    
+
     if (auto_inc)
     {
         Wire.write(address | 0x80); // 0x80 = auto increment bit
@@ -366,7 +367,7 @@ void AudioControlCS42448::write(uint32_t address, const void *data, uint32_t len
     {
         Wire.write(address); // he incorrectly does not set increment bit
     }
-    
+
 	const uint8_t *p = (const uint8_t *)data;
 	const uint8_t *end = p + len;
 	while (p < end)
@@ -394,11 +395,11 @@ u8 AudioControlCS42448::read(u8 address)
 
 
 //------------------------------
-// Octo specific GPIO 
+// Octo specific GPIO
 //------------------------------
 
 #ifdef AUDIO_INJECTOR_OCTO
-    
+
     void AudioControlCS42448::reset()
     {
         if (!octo_reset)
@@ -415,7 +416,7 @@ u8 AudioControlCS42448::read(u8 address)
             assert(octo_mult[2]);
             assert(octo_mult[3]);
         }
-        
+
         LOG("reset()",0);
         octo_reset->Write(1);
         delay(1000);
@@ -423,14 +424,14 @@ u8 AudioControlCS42448::read(u8 address)
         delay(200);
         octo_reset->Write(1);
     }
-    
-    
+
+
     void AudioControlCS42448::startClock()
     {
         u8 mult[4];
         memset(mult,0,4);
         LOG("setSamnpleRate(%d)",g_sample_rate);
-    
+
 		switch (g_sample_rate)
         {
             case 96000:
@@ -466,14 +467,12 @@ u8 AudioControlCS42448::read(u8 address)
             default:
                 break;
         }
-        
+
         for (u8 i=0; i<4; i++)
         {
             // printf("mult[%d]=%d\n",i,mult[i]);
             octo_mult[i]->Write(mult[i]);
         }
     }
-	
-#endif	// AUDIO_INJECTOR_OCTO
-    
 
+#endif	// AUDIO_INJECTOR_OCTO

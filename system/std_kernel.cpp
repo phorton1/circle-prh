@@ -141,9 +141,9 @@ CCoreTask::~CCoreTask()
 				CTouchScreenBase  *pTouch = &m_pKernel->m_xpt2046;
 			#else
 				CScreenDeviceBase *pUseScreen = &m_pKernel->m_Screen;
-				CTouchScreenBase  *pTouch = 0;
+				CTouchScreenBase  *pTouch =
 					// prh 2020-08-19 - no TouchScreen Device
-					// (CTouchScreenBase *) CDeviceNameService::Get ()->GetDevice ("touch1", FALSE);
+					(CTouchScreenBase *) CDeviceNameService::Get ()->GetDevice ("touch1", FALSE);
 			#endif
 
 			m_pKernel->m_app.Initialize(pUseScreen,pTouch,pMouse);
