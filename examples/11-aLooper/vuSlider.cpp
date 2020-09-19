@@ -87,6 +87,13 @@ vuSlider::vuSlider(wsWindow *pParent,u16 id, s32 xs, s32 ys, s32 xe, s32 ye,
 // virtual
 void vuSlider::updateFrame()
 {
+	m_next_control_value = pTheLooper->getControlValue(m_control_num);
+	if (m_next_control_value != m_last_control_value)
+	{
+		setBit(m_state,WIN_STATE_DRAW);
+	}
+
+
 	if (m_meter_num < 0)	// slider only
 		return;
 
@@ -118,6 +125,7 @@ void vuSlider::updateFrame()
 		m_next_value[1] = value1;
 		setBit(m_state,clear_red?WIN_STATE_DRAW:WIN_STATE_REDRAW);
 	}
+
 }
 
 
@@ -136,7 +144,8 @@ void vuSlider::onDraw()
 	if (m_control_num != -1 &&
 		next_control_value != last_control_value)
 	{
-		pTheLooper->setControl(m_control_num,next_control_value);
+		// DONE IN uiWindow.cpp on the serial event
+		// pTheLooper->setControl(m_control_num,next_control_value);
 			// SET THE CONTROL VALUE!
 			// we wait until here so that if there are multiple value events
 			// in a row on a single refresh cycle, we don't send a bunch of

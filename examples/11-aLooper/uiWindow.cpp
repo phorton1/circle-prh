@@ -272,16 +272,84 @@ void uiWindow::updateFrame()
 	#if 1
 			// use serial port input keys 1..5 for buttons 0..4
 		CSerialDevice *pSerial = CCoreTask::Get()->GetKernel()->GetSerial();
+
+		// This code allows for 1..5 to be typed into the buttons
+		// or for packets 0x0b 0xb0 NN 0x7f where NN is
+		// 21, 22, 23, 31, and 25, for buttons one through 5
+		// to be handled.
+
 		if (pSerial)
 		{
-			u8 c[1];
-			int num_read = pSerial->Read(c,1);
-			if (num_read)
+			u8 buf[4];
+			int num_read = pSerial->Read(buf,4);
+			if (num_read == 1)
 			{
-				u16 button_num = c[0] - '1';
+				// the 1 case is old, nearly obsolete, to control directly from windows machine
+				u16 button_num = buf[0] - '1';
 				u16 loop_command = getButtonFunction(button_num);
-				LOG("SERIAL(%c) button=%d command=%d '%s' RECEIVED",c[0],button_num,loop_command,getLoopCommandName(loop_command));
+				LOG("SERIAL(%c) button=%d command=%d '%s' RECEIVED",buf[0],button_num,loop_command,getLoopCommandName(loop_command));
 				pTheLooper->command(loop_command);
+			}
+
+			// handle encapsulated midi messages
+			else if (num_read == 4)
+			{
+				if (buf[0] == 0x0b &&			// CC messages
+					buf[1] == 0xb0)
+				{
+					// CC's that map to volume controls
+					// also works for the teensyExpression loop pedal
+
+					if (buf[2] >= 0x65 &&
+						buf[2] <= 0x69)
+					{
+						int control_num = buf[2] - 0x65;
+						pTheLooper->setControl(control_num,buf[3]);
+					}
+
+					// CC's that map to buttons
+
+					else if (
+						buf[2] == 21 ||
+					    buf[2] == 22 ||
+					    buf[2] == 23 ||
+					    buf[2] == 31 ||
+					    buf[2] == 25)
+					{
+						int button_num =
+							buf[2] == 21 ? 0 :
+							buf[2] == 22 ? 1 :
+							buf[2] == 23 ? 2 :
+							buf[2] == 31 ? 3 :
+							4;
+
+						u16 loop_command = getButtonFunction(button_num);
+						LOG("SERIAL_MIDI() button=%d command=%d '%s' RECEIVED",button_num,loop_command,getLoopCommandName(loop_command));
+						pTheLooper->command(loop_command);
+					}
+
+					// unknown CCs
+
+					else
+					{
+						LOG_WARNING("unknown serial midi Continuous Controller 0x%02",buf[2]);
+						display_bytes("midi buffer",buf,4);
+					}
+				}
+
+				// unknown midi serial messages
+
+				else
+				{
+					LOG_WARNING("unknown serial midi command",0);
+					display_bytes("unknown midi buffer",buf,4);
+				}
+
+				// weird number of bytes
+			}
+			else if (num_read)
+			{
+				LOG_WARNING("unexpected number of serial bytes: %d", num_read);
 			}
 		}
 	#endif

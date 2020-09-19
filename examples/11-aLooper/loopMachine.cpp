@@ -4,7 +4,7 @@
 
 #define log_name "lmachine"
 
-#define WITH_VOLUMES       0
+#define WITH_VOLUMES       1
 #define WITH_INT_VOLUMES   0
 
 #if WITH_VOLUMES
@@ -36,7 +36,7 @@ u16 control_default[NUM_CONTROLS] = {
     94,     // codec input
     63,     // thru
     63,     // loop
-    63,     // output
+    63,     // mix
     127};    // codec output defaults to 1.0
 
 
