@@ -4,6 +4,7 @@
 
 #include <ws/ws.h>
 
+
 #define ID_WIN_LOOPER    	100
 
 #define NUM_LOOP_BUTTONS 		5
@@ -32,6 +33,14 @@ class uiWindow : public wsTopLevelWindow
 			wsButton *pLoopButton[NUM_LOOP_BUTTONS];
 		#endif
 
+
+		CSerialDevice *m_pSerial;
+
+		static void staticSerialReceiveIRQHandler(void *pThis, unsigned char c);
+		void serialReceiveIRQHandler(unsigned char c);
+
+		int serial_midi_len;
+		unsigned char serial_midi_buf[4];
 
 };
 

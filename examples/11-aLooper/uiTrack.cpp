@@ -3,6 +3,9 @@
 #include "Looper.h"
 #include "uiClip.h"
 #include <circle/logger.h>
+#include <circle/synchronize.h>
+#include <system/std_kernel.h>
+
 #define log_name  "track_ctl"
 
 #define CLIP_BUTTON_SPACE 10
@@ -56,6 +59,9 @@ uiTrack::uiTrack(
 			offset + cheight-1);
 		offset += cheight + CLIP_BUTTON_SPACE;
 	}
+
+	m_last_te_track_state = 0;
+	m_pSerial = CCoreTask::Get()->GetKernel()->GetSerial();
 }
 
 
@@ -83,11 +89,37 @@ void uiTrack::onDraw()
 void uiTrack::updateFrame()
 {
 	publicTrack *pTrack = pTheLooper->getPublicTrack(m_track_num);
+
+	// kludgy place for this
+	// if the track state has changed,
+	// send a track state change message to the TE
+
+	int track_state = pTrack->getTrackState();
+	if (track_state != m_last_te_track_state)
+	{
+		LOG("track(%d) state changed to 0x%04x",m_track_num,track_state);
+
+		// send the message to the TE
+		// the CC is the track number plus 0x14
+		// the value is the state, which is 0..0x2f
+
+		if (m_pSerial)
+		{
+			unsigned char midi_buf[4];
+			midi_buf[0] = 0x0b;
+			midi_buf[1] = 0xb0;
+			midi_buf[2] = 0x14 + m_track_num;		// cc number
+			midi_buf[3] = track_state & 0xff;		// value
+			m_pSerial->Write((unsigned char *) midi_buf,4);
+		}
+
+		m_last_te_track_state = track_state;
+	}
+
 	bool sel = pTrack->isSelected();
 	u16  used = pTrack->getNumUsedClips();
 	u16  rec = pTrack->getNumRecordedClips();
 	u16  running = pTrack->getNumRunningClips();
-
 
 	if (sel != m_selected ||
 		used != m_num_used ||

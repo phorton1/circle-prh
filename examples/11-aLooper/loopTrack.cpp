@@ -4,6 +4,68 @@
 #define log_name "ltrack"
 
 
+// static
+CString *getTrackStateName(u16 track_state)
+{
+	CString *msg = new CString();
+
+    if (track_state == TRACK_STATE_EMPTY)
+        msg->Append("EMPTY ");
+    if (track_state & TRACK_STATE_RECORDING)
+        msg->Append("RECORDING ");
+    if (track_state & TRACK_STATE_PLAYING)
+        msg->Append("PLAYING ");
+    if (track_state & TRACK_STATE_STOPPED)
+        msg->Append("STOPPED ");
+    if (track_state & TRACK_STATE_PENDING_RECORD)
+        msg->Append("PEND_RECORD ");
+    if (track_state & TRACK_STATE_PENDING_PLAY)
+        msg->Append("PEND_PLAY ");
+    if (track_state & TRACK_STATE_PENDING_STOP)
+        msg->Append("PEND_STOP ");
+    return msg;
+}
+
+
+
+
+// virtual
+
+int loopTrack::getTrackState()
+{
+    int state = 0;
+    if (m_num_used_clips == 0)
+        state |= TRACK_STATE_EMPTY;
+
+    for (int i=0; i<m_num_used_clips; i++)
+    {
+        loopClip *pClip = m_clips[i];
+        int clip_state = pClip->getClipState();
+        if (clip_state & (CLIP_STATE_RECORD_IN | CLIP_STATE_RECORD_MAIN))
+            state |= TRACK_STATE_RECORDING;
+        if (clip_state & CLIP_STATE_PLAY_MAIN)
+            state |= TRACK_STATE_PLAYING;
+    }
+
+    if (m_num_used_clips && !(state & (TRACK_STATE_RECORDING | TRACK_STATE_PLAYING)))
+        state |= TRACK_STATE_STOPPED;
+
+    u16 pending = pTheLoopMachine->getPendingCommand();
+    u16 sel_num = pTheLoopMachine->getSelectedTrackNum();
+
+    if (pending && m_track_num == sel_num)
+    {
+        if (pending == LOOP_COMMAND_STOP)
+            state |= TRACK_STATE_PENDING_STOP;
+        else if (pending == LOOP_COMMAND_RECORD)
+            state |= TRACK_STATE_PENDING_RECORD;
+        else if (pending == LOOP_COMMAND_PLAY)
+            state |= TRACK_STATE_PENDING_PLAY;
+    }
+    return state;
+}
+
+
 loopTrack::loopTrack(u16 track_num) : publicTrack(track_num)
 {
     m_track_num = track_num;

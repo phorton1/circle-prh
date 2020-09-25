@@ -4,6 +4,7 @@
 
 #include <ws/wsControl.h>
 #include <system/midiEvent.h>
+// #include <circle/serial.h>
 
 
 #define NUM_LTB_ROWS   3
@@ -36,6 +37,10 @@ class uiTrack : public wsWindow
 
 		virtual void onDraw();
 		virtual void updateFrame();
+
+		int m_last_te_track_state;
+
+		CSerialDevice *m_pSerial;
 
 };	// _uiTrack_h
 

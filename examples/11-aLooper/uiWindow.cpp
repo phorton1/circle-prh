@@ -2,16 +2,21 @@
 #include "uiWindow.h"
 #include <circle/logger.h>
 #include <utils/myUtils.h>
-
 #include "Looper.h"
 #include "uiStatusBar.h"
 #include "uiTrack.h"
 #include "vuSlider.h"
-
 #include <system/std_kernel.h>
+	// to get to serial port
 
 
 #define log_name  "loopwin"
+
+#define USE_SERIAL_INTERRUPTS 1
+	// There was a lag when polling the serial port, so I (finally)
+	// went into circle and implemented a decent serial port interrupt
+	// API.  If this is set to 1, the interrupt handler is used, if
+	// not, polling is used.
 
 
 #define TOP_MARGIN 		32
@@ -260,6 +265,18 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 		}
 	#endif
 
+
+	serial_midi_len = 0;
+	m_pSerial = CCoreTask::Get()->GetKernel()->GetSerial();
+
+	#if USE_SERIAL_INTERRUPTS
+		if (m_pSerial)
+		{
+			LOG("Registering serial interrupt handler",0);
+			m_pSerial->RegisterReceiveIRQHandler(this,staticSerialReceiveIRQHandler);
+		}
+	#endif
+
 	LOG("uiWindow ctor finished",0);
 
 }	// uiWindow ctor
@@ -269,19 +286,18 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 // virtual
 void uiWindow::updateFrame()
 {
-	#if 1
-			// use serial port input keys 1..5 for buttons 0..4
-		CSerialDevice *pSerial = CCoreTask::Get()->GetKernel()->GetSerial();
+	#if !USE_SERIAL_INTERRUPTS
+		// polling approach
 
 		// This code allows for 1..5 to be typed into the buttons
 		// or for packets 0x0b 0xb0 NN 0x7f where NN is
 		// 21, 22, 23, 31, and 25, for buttons one through 5
 		// to be handled.
 
-		if (pSerial)
+		if (m_pSerial)
 		{
 			u8 buf[4];
-			int num_read = pSerial->Read(buf,4);
+			int num_read = m_pSerial->Read(buf,4);
 			if (num_read == 1)
 			{
 				// the 1 case is old, nearly obsolete, to control directly from windows machine
@@ -292,6 +308,7 @@ void uiWindow::updateFrame()
 			}
 
 			// handle encapsulated midi messages
+
 			else if (num_read == 4)
 			{
 				if (buf[0] == 0x0b &&			// CC messages
@@ -352,7 +369,8 @@ void uiWindow::updateFrame()
 				LOG_WARNING("unexpected number of serial bytes: %d", num_read);
 			}
 		}
-	#endif
+	#endif	// polling for serial midi
+
 
 	for (int i=0; i<NUM_LOOP_BUTTONS; i++)
 	{
@@ -410,4 +428,79 @@ u32 uiWindow::handleEvent(wsEvent *event)
 		result_handled = wsTopLevelWindow::handleEvent(event);
 
 	return result_handled;
+}
+
+
+
+//-------------------------------------------
+// interrupt driven serial midi
+//-------------------------------------------
+
+// static
+void uiWindow::staticSerialReceiveIRQHandler(void *pThis, unsigned char c)
+{
+	((uiWindow *)pThis)->serialReceiveIRQHandler(c);
+
+}
+
+void uiWindow::serialReceiveIRQHandler(unsigned char c)
+{
+	if (!serial_midi_len)
+	{
+		if (c < 0x0f && c != 13 && c != 10)
+		{
+			serial_midi_buf[serial_midi_len++] = c;		// start serial midi message
+		}
+		else
+		{
+			// the 1 case is old, nearly obsolete, to control directly from windows machine
+			u16 button_num = c - '1';
+			u16 loop_command = getButtonFunction(button_num);
+			pTheLooper->command(loop_command);
+		}
+	}
+	else
+	{
+		serial_midi_buf[serial_midi_len++] = c;		// add to buffer
+		if (serial_midi_len == 4)
+		{
+			if (serial_midi_buf[0] == 0x0b &&			// CC messages
+				serial_midi_buf[1] == 0xb0)
+			{
+				// CC's that map to volume controls
+				// also works for the teensyExpression loop pedal
+
+				if (serial_midi_buf[2] >= 0x65 &&
+					serial_midi_buf[2] <= 0x69)
+				{
+					int control_num = serial_midi_buf[2] - 0x65;
+					pTheLooper->setControl(control_num,serial_midi_buf[3]);
+				}
+
+				// CC's that map to buttons
+
+				else if (
+					serial_midi_buf[2] == 21 ||
+					serial_midi_buf[2] == 22 ||
+					serial_midi_buf[2] == 23 ||
+					serial_midi_buf[2] == 31 ||
+					serial_midi_buf[2] == 25)
+				{
+					int button_num =
+						serial_midi_buf[2] == 21 ? 0 :
+						serial_midi_buf[2] == 22 ? 1 :
+						serial_midi_buf[2] == 23 ? 2 :
+						serial_midi_buf[2] == 31 ? 3 :
+						4;
+
+					u16 loop_command = getButtonFunction(button_num);
+					// LOG("SERIAL_MIDI() button=%d command=%d '%s' RECEIVED",button_num,loop_command,getLoopCommandName(loop_command));
+					pTheLooper->command(loop_command);
+				}
+			}
+
+			serial_midi_len = 0;
+
+		}	// reached 4 bytes of midi data
+	}	// serial_midi_len != 0
 }

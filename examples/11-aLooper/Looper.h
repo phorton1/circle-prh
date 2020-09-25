@@ -92,6 +92,17 @@ typedef struct              // avoid byte sized structs
 #define CLIP_STATE_PLAY_MAIN        0x0020       // The clip is playing the main portion
 #define CLIP_STATE_PLAY_END         0x0040       // The clip is playing the crossfade out portion
 
+// semi-temporary imposition of "track state" with serial feedback to TE
+// bitwise
+
+#define TRACK_STATE_EMPTY               0x0000
+#define TRACK_STATE_RECORDING           0x0001
+#define TRACK_STATE_PLAYING             0x0002
+#define TRACK_STATE_STOPPED             0x0004
+#define TRACK_STATE_PENDING_RECORD      0x0008
+#define TRACK_STATE_PENDING_PLAY        0x0010
+#define TRACK_STATE_PENDING_STOP        0x0020
+
 // loopMachine commands
 
 #define LOOP_COMMAND_NONE               0
@@ -126,6 +137,9 @@ extern CString *getClipStateName(u16 clip_state);
 extern const char *getLoopStateName(u16 state);
 extern const char *getLoopCommandName(u16 name);
     // in loopMachine.cpp
+extern CString *getTrackStateName(u16 track_state);
+    // in loopTrack.cpp
+    // you must delete the CString when done
 
 
 //-----------------------------------------------------
@@ -337,6 +351,9 @@ class publicTrack
         virtual publicClip *getPublicClip(u16 clip_num) = 0;
         virtual publicClip *getSelectedPublicClip() = 0;
 
+        virtual int getTrackState() = 0;
+
+
     protected:
 
         void init()
@@ -409,6 +426,9 @@ class loopTrack : public publicTrack
         virtual publicClip *getSelectedPublicClip()     { return (publicClip *) m_clips[m_selected_clip_num]; }
 
         loopClip *m_clips[LOOPER_NUM_LAYERS];
+
+        virtual int getTrackState();
+
 };
 
 
