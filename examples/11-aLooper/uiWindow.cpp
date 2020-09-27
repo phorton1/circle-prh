@@ -305,31 +305,7 @@ void uiWindow::updateFrame()
 				if (buf[0] == 0x0b &&			// CC messages
 					buf[1] == 0xb0)
 				{
-					// CC's that map to volume controls
-					// also works for the teensyExpression loop pedal
-
-					if (buf[2] >= 0x65 &&
-						buf[2] <= 0x69)
-					{
-						int control_num = buf[2] - 0x65;
-						pTheLooper->setControl(control_num,buf[3]);
-					}
-
-					// CC's that map to buttons
-
-					else if (buf[2] == LOOP_COMMAND_CC)
-					{
-						LOG("SERIAL_MIDI() loop command 0x%02x - %s",buf[3],getLoopCommandName(buf[3]));
-						pTheLooper->command(buf[3]);
-					}
-
-					// unknown CCs
-
-					else
-					{
-						LOG_WARNING("unknown serial midi Continuous Controller 0x%02",buf[2]);
-						display_bytes("midi buffer",buf,4);
-					}
+					handleSerialCC(buf[2],buf[3]);
 				}
 
 				// unknown midi serial messages
@@ -471,6 +447,7 @@ void uiWindow::staticSerialReceiveIRQHandler(void *pThis, unsigned char c)
 
 }
 
+
 void uiWindow::serialReceiveIRQHandler(unsigned char c)
 {
 	if (!serial_midi_len)
@@ -503,22 +480,53 @@ void uiWindow::serialReceiveIRQHandler(unsigned char c)
 			if (serial_midi_buf[0] == 0x0b &&			// CC messages
 				serial_midi_buf[1] == 0xb0)
 			{
-				// CC's that map to volume controls
-				// also works for the teensyExpression loop pedal
-
-				if (serial_midi_buf[2] >= 0x65 &&
-					serial_midi_buf[2] <= 0x69)
-				{
-					int control_num = serial_midi_buf[2] - 0x65;
-					pTheLooper->setControl(control_num,serial_midi_buf[3]);
-				}
-
-				else if (serial_midi_buf[2] == LOOP_COMMAND_CC)
-					pTheLooper->command(serial_midi_buf[3]);
+				handleSerialCC(serial_midi_buf[2],serial_midi_buf[3]);
 			}
-
 			serial_midi_len = 0;
 
 		}	// reached 4 bytes of midi data
 	}	// serial_midi_len != 0
+}
+
+
+
+void uiWindow::handleSerialCC(u8 cc_num, u8 value)
+{
+	// CC's that map to volume controls
+	// also works for the teensyExpression loop pedal
+
+	if (cc_num >= 0x65 &&
+		cc_num <= 0x69)
+	{
+		int control_num = cc_num - 0x65;
+		pTheLooper->setControl(control_num,value);
+	}
+
+	// CC's that map to buttons
+
+	else if (cc_num == LOOP_COMMAND_CC)
+	{
+		pTheLooper->command(value);
+	}
+
+	else if (cc_num >= CLIP_VOL_BASE_CC &&
+			 cc_num <= CLIP_VOL_BASE_CC  + LOOPER_NUM_TRACKS * LOOPER_NUM_LAYERS)
+	{
+		int num = cc_num - CLIP_VOL_BASE_CC;
+		int track_num = num / LOOPER_NUM_LAYERS;
+		int clip_num = num % LOOPER_NUM_LAYERS;
+		publicTrack *pTrack = pTheLooper->getPublicTrack(track_num);
+		publicClip *pClip = pTrack->getPublicClip(clip_num);
+		pClip->setVolume(value);
+	}
+	else if (cc_num >= CLIP_MUTE_BASE_CC &&
+			 cc_num <= CLIP_MUTE_BASE_CC  + LOOPER_NUM_TRACKS * LOOPER_NUM_LAYERS)
+	{
+		int num = cc_num - CLIP_MUTE_BASE_CC;
+		int track_num = num / LOOPER_NUM_LAYERS;
+		int clip_num = num % LOOPER_NUM_LAYERS;
+		publicTrack *pTrack = pTheLooper->getPublicTrack(track_num);
+		publicClip *pClip = pTrack->getPublicClip(clip_num);
+		pClip->setMute(value);
+	}
 }

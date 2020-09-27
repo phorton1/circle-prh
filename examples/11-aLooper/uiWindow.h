@@ -29,6 +29,7 @@ class uiWindow : public wsTopLevelWindow
 
 		static void staticSerialReceiveIRQHandler(void *pThis, unsigned char c);
 		void serialReceiveIRQHandler(unsigned char c);
+		void handleSerialCC(u8 cc_num, u8 value);
 
 		int serial_midi_len;
 		unsigned char serial_midi_buf[4];
