@@ -105,14 +105,24 @@ typedef struct              // avoid byte sized structs
 
 // loopMachine commands
 
-#define LOOP_COMMAND_NONE               0
-#define LOOP_COMMAND_STOP_IMMEDIATE     10      // stop the looper immediately
-#define LOOP_COMMAND_CLEAR_ALL          20
-#define LOOP_COMMAND_STOP               30      // stop at next cycle point
-#define LOOP_COMMAND_PLAY               40
-#define LOOP_COMMAND_RECORD             50
-#define LOOP_COMMAND_SELECT_NEXT_TRACK  60
-#define LOOP_COMMAND_SELECT_NEXT_CLIP   70
+#define LOOP_COMMAND_NONE               0x00
+#define LOOP_COMMAND_CLEAR_ALL          0x01
+#define LOOP_COMMAND_STOP_IMMEDIATE     0x02      // stop the looper immediately
+#define LOOP_COMMAND_STOP               0x03      // stop at next cycle point
+#define LOOP_COMMAND_DUB_MODE           0x08      // the dub mode is a shift for the next track button
+#define LOOP_COMMAND_TRACK_BASE         0x10      // the seven possible "track" buttons are 0x10..0x17
+    // the above commands can be sent to the loop machine.
+    // the following are for internal "pending" command use only
+#define LOOP_COMMAND_RECORD             0x40
+#define LOOP_COMMAND_PLAY               0x50
+
+// Selected (new) Serial CC numbers
+
+#define LOOP_COMMAND_CC        0x24		// rpi recv: the value is the LOOP command
+#define TRACK_STATE_BASE_CC    0x14		// rpi send: value is track state
+#define CLIP_VOL_BASE_CC       0x30		// rpi recv: value is volume 0..127
+#define CLIP_MUTE_BASE_CC      0x40		// rpi recv: value is mute state
+
 
 // An in memory log message
 
@@ -210,8 +220,9 @@ class publicClip
         bool isMuted()              { return m_mute; }
         void setMute(bool mute)     { m_mute = mute; }
 
-        float getVolume()           { return m_volume; }
-        void setVolume(float vol)   { m_volume = vol; }
+        int getVolume()             { return m_volume * 100.00; }
+        void setVolume(int vol)     { m_volume = ((float)vol)/100.00; }
+            // midi volumes 0..127 result in 0-1.27 multiplier
 
     protected:
 
@@ -226,6 +237,7 @@ class publicClip
             m_crossfade_offset = 0;
             m_selected = !m_clip_num;
             m_mute = false;
+            m_volume = 1.0;
         }
 
         u16  m_track_num;
@@ -446,16 +458,16 @@ class publicLoopMachine : public AudioStream
 
         // public (UI) API
 
-		virtual bool canDo(u16 command) = 0;
         virtual void command(u16 command) = 0;
 
         u16 getRunning()            { return m_running; }
         u16 getPendingCommand()     { return m_pending_command; }
-        u16 getSelectedTrackNum()   { return m_selected_track_num; }
-        u16 getNumUsedTracks()      { return m_num_used_tracks; }
+        int getSelectedTrackNum()   { return m_selected_track_num; }
+
+        bool getDubMode()           { return m_dub_mode; }
+        void toggleDubMode()        { m_dub_mode = !m_dub_mode; }
 
         virtual publicTrack *getPublicTrack(u16 num) = 0;
-        virtual publicTrack *getSelectedPublicTrack(u16 num) = 0;
 
         // controls
 
@@ -478,8 +490,8 @@ class publicLoopMachine : public AudioStream
         {
             m_running = 0;
             m_pending_command = 0;
-            m_selected_track_num = 0;
-            m_num_used_tracks = 0;
+            m_selected_track_num = -1;
+            m_dub_mode = false;
         }
 
         // member variables
@@ -490,7 +502,7 @@ class publicLoopMachine : public AudioStream
         int m_running;
         u16 m_pending_command;
         int m_selected_track_num;
-        u16 m_num_used_tracks;
+        bool m_dub_mode;
 
         meter_t m_meter[NUM_METERS];
         controlDescriptor_t m_control[NUM_CONTROLS];
@@ -511,9 +523,7 @@ class loopMachine : public publicLoopMachine
         ~loopMachine();
 
         loopTrack *getTrack(u16 num)            { return m_tracks[num]; }
-        loopTrack *getSelectedTrack(u16 num)    { return m_tracks[m_selected_track_num]; }
 
-        void incDecNumUsedTracks(int inc);
         void incDecRunning(int inc);
 
         void LogUpdate(const char *lname, const char *format, ...);
@@ -522,17 +532,14 @@ class loopMachine : public publicLoopMachine
 
         // implementation of public (UI) API
 
-		virtual bool canDo(u16 command);
         virtual void command(u16 command);
         virtual publicTrack *getPublicTrack(u16 num)            { return (publicTrack *) m_tracks[num]; }
-        virtual publicTrack *getSelectedPublicTrack(u16 num)    { return (publicTrack *) m_tracks[m_selected_track_num]; }
         virtual void update(void);
 
         // internal implementation
 
         void init();
         void updateState();
-        void selectTrack(u16 num);
 
         // member variables
 

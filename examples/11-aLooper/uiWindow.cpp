@@ -20,7 +20,7 @@
 
 
 #define TOP_MARGIN 		32
-#define BOTTOM_MARGIN  	50
+#define BOTTOM_MARGIN  	60
 #define LEFT_MARGIN    	150
 
 #define VU_TOP  	TOP_MARGIN+40
@@ -37,12 +37,16 @@
 
 #define ID_VU_SLIDER           250
 
-#define ID_TRACK_CONTROL_BASE  300  // ..311
-#define ID_LOOP_BUTTON_BASE    400  // ..403
+#define ID_TRACK_CONTROL_BASE  300
+
+#define ID_LOOP_STOP_BUTTON         401
+#define ID_LOOP_DUB_BUTTON    		401
+#define ID_LOOP_TRACK_BUTTON_BASE   410
 
 
 //----------------------------------------------------------------
 
+#if 0
 u16 uiWindow::getButtonFunction(u16 num)
 {
 	if (!pTheLooper)
@@ -79,6 +83,7 @@ u16 uiWindow::getButtonFunction(u16 num)
 	}
 	return LOOP_COMMAND_NONE;
 }
+#endif
 
 
 
@@ -90,7 +95,6 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 	LOG("uiWindow ctor",0);
 
 	last_running = 0;
-	last_num_used_tracks = 0;
 
 	setBackColor(wsDARK_BLUE);
 
@@ -188,55 +192,28 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 
 
 	// UI TRACKS
+	// and TRACK buttons
 
-	#if 1
+	LOG("creating ui_tracks and track buttons",0);
 
-		LOG("creating ui_tracks",0);
-
-		int cheight = height-TOP_MARGIN-BOTTOM_MARGIN-TRACK_VSPACE*2;
-		int cwidth = (width-LEFT_MARGIN-1-TRACK_HSPACE*(LOOPER_NUM_TRACKS+1)) / LOOPER_NUM_TRACKS;
-		int step = LEFT_MARGIN + TRACK_HSPACE;
-
-		for (int i=0; i<LOOPER_NUM_TRACKS; i++)
-		{
-			LOG("creating ui_track(%d)",i);
-			new uiTrack(
-				i,
-				this,
-				ID_TRACK_CONTROL_BASE + i,
-				step,
-				TOP_MARGIN + TRACK_VSPACE,
-				step + cwidth -1,
-				TOP_MARGIN + TRACK_VSPACE + cheight - 1);
-
-			step += cwidth + TRACK_HSPACE;
-			LOG("finished creating ui_track(%d)",i);
-		}
-	#endif
+	int btop = height-BOTTOM_MARGIN;
+	int cheight = height-TOP_MARGIN-BOTTOM_MARGIN-TRACK_VSPACE*2;
+	int cwidth = (width-LEFT_MARGIN-1-TRACK_HSPACE*(LOOPER_NUM_TRACKS+1)) / LOOPER_NUM_TRACKS;
+	int step = LEFT_MARGIN + TRACK_HSPACE;
+	for (int i=0; i<LOOPER_NUM_TRACKS; i++)
+	{
+		LOG("creating ui_track(%d)",i);
+		new uiTrack(
+			i,
+			this,
+			ID_TRACK_CONTROL_BASE + i,
+			step,
+			TOP_MARGIN + TRACK_VSPACE,
+			step + cwidth -1,
+			TOP_MARGIN + TRACK_VSPACE + cheight - 1);
 
 
-	// LOOPER BUTTONS
-	// This MPD preset outputs a note on and off event for the
-	// notes numbered 0x20 .. 0x2f (32 thru 47) from the top
-	// left corner.
-
-	#if 1
-
-		LOG("creating buttons",0);
-
-		// buttons hardwired for 600x800 screen or whatever
-
-		#define BUTTON_LEFT     40
-		#define BUTTON_WIDTH    130
-		#define BUTTON_SPACING 	20
-
-	    int offset = BUTTON_LEFT;
-		int btop = height-BOTTOM_MARGIN;
-		for (int i=0; i<NUM_LOOP_BUTTONS; i++)
-		{
-			LOG("creating ui_button(%d)",i);
-			u16 fxn = last_button_fxn[i] = getButtonFunction(i);
-			pLoopButton[i] = new
+		pTrackButtons[i] = new
 
 			#if USE_MIDI_SYSTEM
 				wsMidiButton(
@@ -244,27 +221,47 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 				wsButton(
 			#endif
 				this,
-				ID_LOOP_BUTTON_BASE + i,
-				getLoopCommandName(fxn),
-				offset,
-				btop+10,
-				offset+BUTTON_WIDTH,
-				btop+39
+				ID_LOOP_TRACK_BUTTON_BASE + i,
+				getLoopCommandName(LOOP_COMMAND_TRACK_BASE + i),
+				step+5,
+				btop+5,
+				step + cwidth - 5,
+				btop+49);
 
-			#if USE_MIDI_SYSTEM
-				,
-				-1,
-				-1,
-				0x2c+i);
-			#else
-				);
-			#endif
+		step += cwidth + TRACK_HSPACE;
+		LOG("finished creating ui_track(%d)",i);
+	}
 
-			offset += BUTTON_WIDTH + BUTTON_SPACING;
-			LOG("finished creating ui_button(%d)",i);
-		}
-	#endif
+	pStopButton = new
+		#if USE_MIDI_SYSTEM
+			wsMidiButton(
+		#else
+			wsButton(
+		#endif
+			this,
+			ID_LOOP_STOP_BUTTON,
+			getLoopCommandName(LOOP_COMMAND_STOP_IMMEDIATE),
+			20,
+			320,
+			120,
+			380);
 
+	pDubButton = new
+		#if USE_MIDI_SYSTEM
+			wsMidiButton(
+		#else
+			wsButton(
+		#endif
+			this,
+			ID_LOOP_DUB_BUTTON,
+			getLoopCommandName(LOOP_COMMAND_DUB_MODE),
+			20,
+			400,
+			120,
+			460);
+
+
+	// register handler
 
 	serial_midi_len = 0;
 	m_pSerial = CCoreTask::Get()->GetKernel()->GetSerial();
@@ -302,9 +299,18 @@ void uiWindow::updateFrame()
 			{
 				// the 1 case is old, nearly obsolete, to control directly from windows machine
 				u16 button_num = buf[0] - '1';
-				u16 loop_command = getButtonFunction(button_num);
-				LOG("SERIAL(%c) button=%d command=%d '%s' RECEIVED",buf[0],button_num,loop_command,getLoopCommandName(loop_command));
-				pTheLooper->command(loop_command);
+				// the 1 case is old, nearly obsolete, to control directly from windows machine
+				u16 button_num = c - '1';
+				if (button_num == 7)
+					pTheLooper->command(LOOP_COMMAND_DUB_MODE);
+				if (button_num == 6)
+					pTheLooper->command(LOOP_COMMAND_CLEAR_ALL);
+				else if (button_num == 5)
+					pTheLooper->command(LOOP_COMMAND_STOP_IMMEDIATE);
+				else if (button_num == 4)
+					pTheLooper->command(LOOP_COMMAND_CLEAR_ALL);
+				else if (button_num < 4)
+					pTheLooper->command(LOOP_COMMAND_TRACK_BASE + button_num);
 			}
 
 			// handle encapsulated midi messages
@@ -326,23 +332,10 @@ void uiWindow::updateFrame()
 
 					// CC's that map to buttons
 
-					else if (
-						buf[2] == 21 ||
-					    buf[2] == 22 ||
-					    buf[2] == 23 ||
-					    buf[2] == 31 ||
-					    buf[2] == 25)
+					else if (buf[2] == LOOP_COMMAND_CC)
 					{
-						int button_num =
-							buf[2] == 21 ? 0 :
-							buf[2] == 22 ? 1 :
-							buf[2] == 23 ? 2 :
-							buf[2] == 31 ? 3 :
-							4;
-
-						u16 loop_command = getButtonFunction(button_num);
-						LOG("SERIAL_MIDI() button=%d command=%d '%s' RECEIVED",button_num,loop_command,getLoopCommandName(loop_command));
-						pTheLooper->command(loop_command);
+						LOG("SERIAL_MIDI() loop command 0x%02x - %s",buf[3],getLoopCommandName(buf[3]));
+						pTheLooper->command(buf[3]);
 					}
 
 					// unknown CCs
@@ -371,16 +364,6 @@ void uiWindow::updateFrame()
 		}
 	#endif	// polling for serial midi
 
-
-	for (int i=0; i<NUM_LOOP_BUTTONS; i++)
-	{
-		u16 fxn = getButtonFunction(i);
-		if (fxn != last_button_fxn[i])
-		{
-			pLoopButton[i]->setText(getLoopCommandName(fxn));
-			last_button_fxn[i] = fxn;
-		}
-	}
 
 	#if 1
 		logString_t *msg = pTheLooper->getNextLogString();
@@ -411,17 +394,17 @@ u32 uiWindow::handleEvent(wsEvent *event)
 	if (type == EVT_TYPE_BUTTON &&
 		event_id == EVENT_CLICK)
 	{
-		if (id >= ID_LOOP_BUTTON_BASE &&
-			id < ID_LOOP_BUTTON_BASE + NUM_LOOP_BUTTONS)
+		if (id == ID_LOOP_STOP_BUTTON)
+			pTheLooper->command(LOOP_COMMAND_STOP_IMMEDIATE);
+		else if (id == ID_LOOP_DUB_BUTTON)
+			pTheLooper->command(LOOP_COMMAND_DUB_MODE);
+		else if (id >= ID_LOOP_TRACK_BUTTON_BASE &&
+				 id < ID_LOOP_TRACK_BUTTON_BASE + NUM_TRACK_BUTTONS)
 		{
-			u16 button_num = id - ID_LOOP_BUTTON_BASE;
-			u16 loop_command = getButtonFunction(button_num);
-
-			LOG("BUTTON(%d) command=%d '%s' PRESSED",button_num,loop_command,getLoopCommandName(loop_command));
-
-			pTheLooper->command(loop_command);
-			result_handled = 1;
+			int track_num = id = ID_LOOP_TRACK_BUTTON_BASE;
+			pTheLooper->command(LOOP_COMMAND_TRACK_BASE + track_num);
 		}
+		result_handled = 1;
 	}
 
 	if (!result_handled)
@@ -447,7 +430,7 @@ void uiWindow::serialReceiveIRQHandler(unsigned char c)
 {
 	if (!serial_midi_len)
 	{
-		if (c < 0x0f && c != 13 && c != 10)
+		if (c == 0x0b)
 		{
 			serial_midi_buf[serial_midi_len++] = c;		// start serial midi message
 		}
@@ -455,8 +438,16 @@ void uiWindow::serialReceiveIRQHandler(unsigned char c)
 		{
 			// the 1 case is old, nearly obsolete, to control directly from windows machine
 			u16 button_num = c - '1';
-			u16 loop_command = getButtonFunction(button_num);
-			pTheLooper->command(loop_command);
+			if (button_num == 7)
+				pTheLooper->command(LOOP_COMMAND_DUB_MODE);
+			if (button_num == 6)
+				pTheLooper->command(LOOP_COMMAND_CLEAR_ALL);
+			else if (button_num == 5)
+				pTheLooper->command(LOOP_COMMAND_STOP_IMMEDIATE);
+			else if (button_num == 4)
+				pTheLooper->command(LOOP_COMMAND_CLEAR_ALL);
+			else if (button_num < 4)
+				pTheLooper->command(LOOP_COMMAND_TRACK_BASE + button_num);
 		}
 	}
 	else
@@ -477,26 +468,8 @@ void uiWindow::serialReceiveIRQHandler(unsigned char c)
 					pTheLooper->setControl(control_num,serial_midi_buf[3]);
 				}
 
-				// CC's that map to buttons
-
-				else if (
-					serial_midi_buf[2] == 21 ||
-					serial_midi_buf[2] == 22 ||
-					serial_midi_buf[2] == 23 ||
-					serial_midi_buf[2] == 31 ||
-					serial_midi_buf[2] == 25)
-				{
-					int button_num =
-						serial_midi_buf[2] == 21 ? 0 :
-						serial_midi_buf[2] == 22 ? 1 :
-						serial_midi_buf[2] == 23 ? 2 :
-						serial_midi_buf[2] == 31 ? 3 :
-						4;
-
-					u16 loop_command = getButtonFunction(button_num);
-					// LOG("SERIAL_MIDI() button=%d command=%d '%s' RECEIVED",button_num,loop_command,getLoopCommandName(loop_command));
-					pTheLooper->command(loop_command);
-				}
+				else if (serial_midi_buf[2] == LOOP_COMMAND_CC)
+					pTheLooper->command(serial_midi_buf[3]);
 			}
 
 			serial_midi_len = 0;

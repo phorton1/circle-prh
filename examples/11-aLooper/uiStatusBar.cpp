@@ -39,11 +39,9 @@ void uiStatusBar::updateFrame()
 {
 	if (pTheLooper)
 	{
-		if (loop_running 	!= pTheLoopMachine->getRunning() ||
-			num_used_tracks  != pTheLoopMachine->getNumUsedTracks())
+		if (loop_running 	!= pTheLoopMachine->getRunning())
 		{
 			loop_running    = pTheLoopMachine->getRunning();
-			num_used_tracks  = pTheLoopMachine->getNumUsedTracks();
 			setBit(m_state,WIN_STATE_DRAW);
 		}
 		else if (out_irq_count != bcm_pcm.out_irq_count)

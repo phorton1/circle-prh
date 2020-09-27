@@ -97,7 +97,13 @@ void uiTrack::updateFrame()
 	int track_state = pTrack->getTrackState();
 	if (track_state != m_last_te_track_state)
 	{
-		LOG("track(%d) state changed to 0x%04x",m_track_num,track_state);
+		#if 1
+			CString *ts_name = getTrackStateName(track_state);
+			LOG("track(%d) state changed to 0x%04x - %s",m_track_num,track_state,(const char *)*ts_name);
+			delete ts_name;
+		#else
+			LOG("track(%d) state changed to 0x%04x",m_track_num,track_state);
+		#endif
 
 		// send the message to the TE
 		// the CC is the track number plus 0x14
@@ -108,7 +114,7 @@ void uiTrack::updateFrame()
 			unsigned char midi_buf[4];
 			midi_buf[0] = 0x0b;
 			midi_buf[1] = 0xb0;
-			midi_buf[2] = 0x14 + m_track_num;		// cc number
+			midi_buf[2] = TRACK_STATE_BASE_CC + m_track_num;		// cc number
 			midi_buf[3] = track_state & 0xff;		// value
 			m_pSerial->Write((unsigned char *) midi_buf,4);
 		}

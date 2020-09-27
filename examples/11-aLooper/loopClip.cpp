@@ -87,9 +87,6 @@ void loopClip::stopImmediate()
         if (m_state & CLIP_STATE_RECORD_END)
             m_pLoopTrack->incDecNumRecordedClips(-1);
 
-        if (m_clip_num == 0)
-            pTheLoopMachine->incDecNumUsedTracks(-1);
-
         init();
     }
     else
@@ -101,8 +98,6 @@ void loopClip::stopImmediate()
         m_crossfade_offset = 0;
         m_state &= CLIP_STATE_RECORDED;
             // maintain only the recorded state
-
-
     }
 }
 
@@ -125,8 +120,6 @@ void loopClip::_startRecording()
     m_state |= CLIP_STATE_RECORD_IN;    // CLIP_STATE_RECORD_MAIN;
     m_pLoopTrack->incDecNumUsedClips(1);
     m_pLoopTrack->incDecRunning(1);
-    if (m_clip_num == 0)
-        pTheLoopMachine->incDecNumUsedTracks(1);
 }
 
 
@@ -269,29 +262,30 @@ void loopClip::update(audio_block_t *in[], audio_block_t *out[])
 
             if (rp) *rp++ = *ip++;
 
-            // add the main input (subject to in-fading)
-
-            if (pp_main)
+            if (!m_mute)
             {
-                if (fade_in)
+                // add the main input (subject to in-fading)
+
+                if (pp_main)
                 {
                     float val = *pp_main++;
-                    val = val * i_fade;
+                    val = val * m_volume;
+                    if (fade_in)
+                    {
+                        val = val * i_fade;
+                        i_fade += sample_fade;
+                    }
                     *op += (s16) val;
-                    i_fade += sample_fade;
                }
-                else
-                {
-                    *op += *pp_main++;
-                }
-            }
 
-            if (pp_fade)
-            {
-                float val = *pp_fade++;
-                val = val * o_fade;
-                *op += (s16) val;
-                o_fade -= sample_fade;
+                if (pp_fade)
+                {
+                    float val = *pp_fade++;
+                    val = val * m_volume;
+                    val = val * o_fade;
+                    *op += (s16) val;
+                    o_fade -= sample_fade;
+                }
             }
 
             op++;

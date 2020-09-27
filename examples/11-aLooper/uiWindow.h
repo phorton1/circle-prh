@@ -6,9 +6,7 @@
 
 
 #define ID_WIN_LOOPER    	100
-
-#define NUM_LOOP_BUTTONS 		5
-
+#define NUM_TRACK_BUTTONS   4
 
 class uiWindow : public wsTopLevelWindow
 {
@@ -24,15 +22,10 @@ class uiWindow : public wsTopLevelWindow
 		u16 getButtonFunction(u16 num);
 
 		u16 last_running;
-		u16 last_num_used_tracks;
-		u16 last_button_fxn[NUM_LOOP_BUTTONS];
 
-		#if USE_MIDI_SYSTEM
-			wsMidiButton *pLoopButton[NUM_LOOP_BUTTONS];
-		#else
-			wsButton *pLoopButton[NUM_LOOP_BUTTONS];
-		#endif
-
+		wsButton *pStopButton;
+		wsButton *pDubButton;
+		wsButton *pTrackButtons[NUM_TRACK_BUTTONS];
 
 		CSerialDevice *m_pSerial;
 
