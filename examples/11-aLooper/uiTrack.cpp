@@ -2,17 +2,21 @@
 #include "uiTrack.h"
 #include "Looper.h"
 #include "uiClip.h"
+#include "uiWindow.h"
 #include <circle/logger.h>
 #include <circle/synchronize.h>
 #include <system/std_kernel.h>
 
 #define log_name  "track_ctl"
 
-#define CLIP_BUTTON_SPACE 5
+#if WITH_DEBUG_TRACK_HEADER
+	#define CLIP_BUTTON_SPACE 5
+	#define TRACK_MARGIN   36	// title frame for track
+#else
+	#define CLIP_BUTTON_SPACE 10
+	#define TRACK_MARGIN   0
+#endif
 
-#define ID_CLIP_BUTTON_BASE 500
-
-#define TRACK_MARGIN   36	// title frame for track
 
 
 
@@ -48,11 +52,12 @@ uiTrack::uiTrack(
 
 	for (int i=0; i<LOOPER_NUM_LAYERS; i++)
 	{
+		int id = ID_CLIP_BUTTON_BASE + m_track_num * LOOPER_NUM_LAYERS + i;
 		new uiClip(
 			m_track_num,
 			i,
 			this,
-			ID_CLIP_BUTTON_BASE + i,
+			id,
 			0,
 			offset,
 			m_rect_client.xe-m_rect_client.xs+1,
@@ -61,7 +66,6 @@ uiTrack::uiTrack(
 	}
 
 	m_last_te_track_state = 0;
-	m_pSerial = CCoreTask::Get()->GetKernel()->GetSerial();
 }
 
 
@@ -80,9 +84,11 @@ void uiTrack::onDraw()
 		color,
 		m_frame_width );
 
-	CString msg;
-	msg.Format("%d/%d(%d)",m_num_running,m_num_used,m_num_recorded);
-	m_pDC->putString( m_rect_client.xs+5, m_rect_client.ys+2,(const char *)msg);
+	#if WITH_DEBUG_TRACK_HEADER
+		CString msg;
+		msg.Format("%d/%d(%d)",m_num_running,m_num_used,m_num_recorded);
+		m_pDC->putString( m_rect_client.xs+5, m_rect_client.ys+2,(const char *)msg);
+	#endif
 }
 
 
@@ -109,16 +115,7 @@ void uiTrack::updateFrame()
 		// the CC is the track number plus 0x14
 		// the value is the state, which is 0..0x2f
 
-		if (m_pSerial)
-		{
-			unsigned char midi_buf[4];
-			midi_buf[0] = 0x0b;
-			midi_buf[1] = 0xb0;
-			midi_buf[2] = TRACK_STATE_BASE_CC + m_track_num;		// cc number
-			midi_buf[3] = track_state & 0xff;		// value
-			m_pSerial->Write((unsigned char *) midi_buf,4);
-		}
-
+		sendSerialMidiCC(TRACK_STATE_BASE_CC + m_track_num,track_state & 0xff);
 		m_last_te_track_state = track_state;
 	}
 

@@ -174,6 +174,8 @@ class loopBuffer
 
          s16 *getBuffer()     { return &m_buffer[m_top]; }
 
+        u32 getSize()        { return m_size; }
+        u32 getSizeBlocks()  { return m_size / AUDIO_BLOCK_BYTES; }
         u32 getFreeBytes()   { return m_size - m_top; }
         u32 getFreeBlocks()  { return (m_size - m_top) / AUDIO_BLOCK_BYTES; }
         u32 getUsedBytes()   { return m_top; }

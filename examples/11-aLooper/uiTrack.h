@@ -11,6 +11,11 @@
 #define NUM_LTB_COLS   4
 
 
+#define ID_CLIP_BUTTON_BASE 2000
+
+#define WITH_DEBUG_TRACK_HEADER 0
+
+
 class uiTrack : public wsWindow
 {
 	public:
@@ -39,8 +44,6 @@ class uiTrack : public wsWindow
 		virtual void updateFrame();
 
 		int m_last_te_track_state;
-
-		CSerialDevice *m_pSerial;
 
 };	// _uiTrack_h
 

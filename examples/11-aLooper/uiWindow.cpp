@@ -41,6 +41,22 @@
 #define TRACK_VSPACE  	5
 #define TRACK_HSPACE  	5
 
+CSerialDevice *s_pSerial = 0;
+
+// extern
+void sendSerialMidiCC(int cc_num, int value)
+{
+	if (s_pSerial)
+	{
+		unsigned char midi_buf[4];
+		midi_buf[0] = 0x0b;
+		midi_buf[1] = 0xb0;
+		midi_buf[2] = cc_num;
+		midi_buf[3] = value;
+		s_pSerial->Write((unsigned char *) midi_buf,4);
+	}
+}
+
 
 //----------------------------------------------------------------
 
@@ -181,7 +197,10 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 				step+10,
 				btop+5,
 				step + cwidth - 10,
-				btop+49);
+				btop+49,
+				BTN_STYLE_USE_ALTERNATE_COLORS);
+		pTrackButtons[i]->setFont(wsFont12x16);
+		pTrackButtons[i]->setAltBackColor(wsSLATE_GRAY);
 
 		step += cwidth + TRACK_HSPACE;
 		LOG("finished creating ui_track(%d)",i);
@@ -202,8 +221,11 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			btop-65+5,
 			width - 12,
 			btop-65+49,
-			0,
+			BTN_STYLE_USE_ALTERNATE_COLORS,
 			WIN_STYLE_CLICK_LONG);
+	pStopButton->setAltBackColor(wsSLATE_GRAY);
+	pStopButton->setFont(wsFont12x16);
+
 
 	pDubButton = new
 		#if USE_MIDI_SYSTEM
@@ -218,20 +240,22 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			btop+5,
 			width - 12,
 			btop+49,
-			0,
+			BTN_STYLE_USE_ALTERNATE_COLORS,
 			WIN_STYLE_CLICK_LONG);
+	pDubButton->setAltBackColor(wsSLATE_GRAY);
+	pDubButton->setFont(wsFont12x16);
 
 
 	// register handler
 
 	serial_midi_len = 0;
-	m_pSerial = CCoreTask::Get()->GetKernel()->GetSerial();
+	s_pSerial = CCoreTask::Get()->GetKernel()->GetSerial();
 
 	#if USE_SERIAL_INTERRUPTS
-		if (m_pSerial)
+		if (s_pSerial)
 		{
 			LOG("Registering serial interrupt handler",0);
-			m_pSerial->RegisterReceiveIRQHandler(this,staticSerialReceiveIRQHandler);
+			s_pSerial->RegisterReceiveIRQHandler(this,staticSerialReceiveIRQHandler);
 		}
 	#endif
 
@@ -252,10 +276,10 @@ void uiWindow::updateFrame()
 		// 21, 22, 23, 31, and 25, for buttons one through 5
 		// to be handled.
 
-		if (m_pSerial)
+		if (s_pSerial)
 		{
 			u8 buf[4];
-			int num_read = m_pSerial->Read(buf,4);
+			int num_read = s_pSerial->Read(buf,4);
 			if (num_read == 1)
 			{
 				// the 1 case is old, nearly obsolete, to control directly from windows machine
@@ -351,15 +375,7 @@ void uiWindow::updateFrame()
 	{
 		stop_button_cmd = t_command;
 		pStopButton->setText(getLoopCommandName(t_command));
-		if (m_pSerial)
-		{
-			unsigned char midi_buf[4];
-			midi_buf[0] = 0x0b;
-			midi_buf[1] = 0xb0;
-			midi_buf[2] = LOOP_STOP_CMD_STATE_CC;
-			midi_buf[3] = stop_button_cmd;		// value
-			m_pSerial->Write((unsigned char *) midi_buf,4);
-		}
+		sendSerialMidiCC(LOOP_STOP_CMD_STATE_CC,stop_button_cmd);
 	}
 
 	// DUB Button changes based on looper dub mode,
@@ -373,17 +389,7 @@ void uiWindow::updateFrame()
 		int bc = dub_mode ? wsORANGE : defaultButtonReleasedColor;
 		pDubButton->setBackColor(bc);
 		pDubButton->setStateBits(WIN_STATE_DRAW);
-
-		if (m_pSerial)
-		{
-			unsigned char midi_buf[4];
-			midi_buf[0] = 0x0b;
-			midi_buf[1] = 0xb0;
-			midi_buf[2] = LOOP_DUB_STATE_CC;
-			midi_buf[3] = dub_mode;		// value
-			m_pSerial->Write((unsigned char *) midi_buf,4);
-		}
-
+		sendSerialMidiCC(LOOP_DUB_STATE_CC,dub_mode);
 	}
 
 	wsWindow::updateFrame();
@@ -400,7 +406,7 @@ u32 uiWindow::handleEvent(wsEvent *event)
 	u32 event_id = event->getEventID();
 	u32 id = event->getID();
 	// wsWindow *obj = event->getObject();
-	LOG("handleEvent(%08x,%d,%d)",type,event_id,id);
+	LOG("uiWindow::handleEvent(%08x,%d,%d)",type,event_id,id);
 
 	if (type == EVT_TYPE_WINDOW &&
 	   event_id == EVENT_LONG_CLICK)
@@ -426,6 +432,23 @@ u32 uiWindow::handleEvent(wsEvent *event)
 			int track_num = id - ID_LOOP_TRACK_BUTTON_BASE;
 			pTheLooper->command(LOOP_COMMAND_TRACK_BASE + track_num);
 		}
+		result_handled = 1;
+	}
+	else if (type == EVT_TYPE_WINDOW &&
+		     event_id == EVENT_CLICK &&
+			 id >= ID_CLIP_BUTTON_BASE &&
+			 id <= ID_CLIP_BUTTON_BASE + LOOPER_NUM_TRACKS*LOOPER_NUM_LAYERS)
+	{
+		int num = id - ID_CLIP_BUTTON_BASE;
+		int track_num = num / LOOPER_NUM_LAYERS;
+		int clip_num = num % LOOPER_NUM_LAYERS;
+
+		publicTrack *pTrack = pTheLooper->getPublicTrack(track_num);
+		publicClip  *pClip  = pTrack->getPublicClip(clip_num);
+		bool mute = pClip->isMuted();
+
+		LOG("setting clip(%d,%d) mute=%d",track_num,clip_num,!mute);
+		pClip->setMute(!mute);
 		result_handled = 1;
 	}
 

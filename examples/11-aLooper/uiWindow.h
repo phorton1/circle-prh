@@ -7,6 +7,8 @@
 #define ID_WIN_LOOPER    	100
 #define NUM_TRACK_BUTTONS   4
 
+extern void sendSerialMidiCC(int cc_num, int value);
+
 class uiWindow : public wsTopLevelWindow
 {
 	public:
@@ -24,8 +26,6 @@ class uiWindow : public wsTopLevelWindow
 		wsButton *pStopButton;
 		wsButton *pDubButton;
 		wsButton *pTrackButtons[NUM_TRACK_BUTTONS];
-
-		CSerialDevice *m_pSerial;
 
 		static void staticSerialReceiveIRQHandler(void *pThis, unsigned char c);
 		void serialReceiveIRQHandler(unsigned char c);

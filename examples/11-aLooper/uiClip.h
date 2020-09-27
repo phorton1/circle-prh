@@ -45,12 +45,19 @@ class uiClip : public wsWindow
 		bool m_last_flash;
 		u32  m_flash_time;
 
+		bool m_mute;
+		int m_volume;
+
+		bool m_draw_text;
+
 		virtual void onDraw();
 		virtual void updateFrame();
 		virtual void onUpdateTouch(bool touched);
+		virtual void onUpdateDragMove();
 
 		static void staticHandleMidiEvent(void *pObj, midiEvent *event);
 		void handleMidiEvent(midiEvent *event);
+
 
 
 };	// uiClip

@@ -57,10 +57,7 @@ class vuSlider : public wsWindow
 		u16 m_bar_height;
 		u16 m_bar_width;
 
-		// virtual void onUpdateDragBegin();
 		virtual void onUpdateDragMove();
-		// virtual void onUpdateDragEnd();
-
 
 };
 
