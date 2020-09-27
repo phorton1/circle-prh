@@ -29,8 +29,13 @@
 // The default input gain for the cs42448 of 0db
 // 0.723 = (128.0 / (128.0 + 1.0 + 48.0))
 // 91.84 =  0.723 * 127
+//
 // My volumes are 100 based to allow for gain
 // The output gain is limited to 1.0
+//
+// These values are emulated (owned) by the TeensyExpression pedal
+// as it assumes initial values for the rotaries .... and zero
+// for the loop volume pedal ...
 
 u16 control_default[NUM_CONTROLS] = {
     94,     // codec input

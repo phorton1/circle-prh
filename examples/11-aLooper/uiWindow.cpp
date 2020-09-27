@@ -201,7 +201,9 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			right_col + 3,
 			btop-65+5,
 			width - 12,
-			btop-65+49);
+			btop-65+49,
+			0,
+			WIN_STYLE_CLICK_LONG);
 
 	pDubButton = new
 		#if USE_MIDI_SYSTEM
@@ -215,7 +217,9 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			right_col + 3,
 			btop+5,
 			width - 12,
-			btop+49);
+			btop+49,
+			0,
+			WIN_STYLE_CLICK_LONG);
 
 
 	// register handler
@@ -398,8 +402,14 @@ u32 uiWindow::handleEvent(wsEvent *event)
 	// wsWindow *obj = event->getObject();
 	LOG("handleEvent(%08x,%d,%d)",type,event_id,id);
 
-	if (type == EVT_TYPE_BUTTON &&
-		event_id == EVENT_CLICK)
+	if (type == EVT_TYPE_WINDOW &&
+	   event_id == EVENT_LONG_CLICK)
+	{
+		if (id == ID_LOOP_STOP_BUTTON || id == ID_LOOP_DUB_BUTTON)
+			pTheLooper->command(LOOP_COMMAND_CLEAR_ALL);
+	}
+	else if (type == EVT_TYPE_BUTTON &&
+		     event_id == EVENT_CLICK)
 	{
 		if (id == ID_LOOP_STOP_BUTTON)
 		{

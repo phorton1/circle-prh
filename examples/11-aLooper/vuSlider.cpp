@@ -23,7 +23,7 @@ vuSlider::vuSlider(wsWindow *pParent,u16 id, s32 xs, s32 ys, s32 xe, s32 ye,
 		midiEventType_t midi_type,
 		s16 midi_param1,		// midi cc control number or nrpn MSB
 		s16 midi_param2) :	    // LSB
-    wsWindow(pParent,id,xs,ys,xe,ye,0)
+    wsWindow(pParent,id,xs,ys,xe,ye,WIN_STYLE_TOUCH | WIN_STYLE_DRAG)
 {
 	LOG("vuSlider(%08x,%d,%d) ctor",(u32)this,meter_num,control_num);
 
@@ -157,10 +157,10 @@ void vuSlider::onDraw()
 		s32 yoff = m_horz ? 0 : pos;
 
 		m_pDC->fillFrame(
-			m_rect_client.xs + xoff,
-			m_rect_client.ys + yoff,
-			m_rect_client.xs + xoff + m_bar_width - 1,
-			m_rect_client.ys + yoff + m_bar_height - 1,
+			m_rect_abs.xs + xoff,
+			m_rect_abs.ys + yoff,
+			m_rect_abs.xs + xoff + m_bar_width - 1,
+			m_rect_abs.ys + yoff + m_bar_height - 1,
 			m_back_color);
 	}
 
@@ -221,8 +221,8 @@ void vuSlider::onDraw()
 			// so num_divs-1 becomes 0, and the last one num_divs-1
 			//
 			s32 inv_i = m_horz ? i : (m_num_divs-1 - i);
-			s32 box_x = m_rect_client.xs + use_x + inv_i*m_xoffset;
-			s32 box_y = m_rect_client.ys + use_y + inv_i*m_yoffset;
+			s32 box_x = m_rect_abs.xs + use_x + inv_i*m_xoffset;
+			s32 box_y = m_rect_abs.ys + use_y + inv_i*m_yoffset;
 
 			m_pDC->fillFrame(
 				box_x,
@@ -242,10 +242,10 @@ void vuSlider::onDraw()
 		s32 yoff = m_horz ? 0 : pos;
 
 		m_pDC->fillFrame(
-			m_rect_client.xs + xoff,
-			m_rect_client.ys + yoff,
-			m_rect_client.xs + xoff + m_bar_width - 1,
-			m_rect_client.ys + yoff + m_bar_height - 1,
+			m_rect_abs.xs + xoff,
+			m_rect_abs.ys + yoff,
+			m_rect_abs.xs + xoff + m_bar_width - 1,
+			m_rect_abs.ys + yoff + m_bar_height - 1,
 			wsWHITE);
 	}
 }
@@ -279,4 +279,54 @@ void vuSlider::handleMidiEvent(midiEvent *event)
 		m_next_control_value = val;
 		setBit(m_state,WIN_STATE_DRAW);
 	}
+}
+
+
+
+
+//------------------------------------------------------
+// Dragging
+//------------------------------------------------------
+// These values are NOT sent to the TeensyExpression pedal !!!
+// TE assumes it "owns" the volumes and is currently initialized
+// to the control defaults from loopMachine.cpp.
+
+void vuSlider::onUpdateDragMove()
+{
+	wsApplication *app = getApplication();
+	touchState_t *touch_state = app->getTouchState();
+
+	float pct = 1.0;
+	if (m_horz)
+	{
+		s32 w = m_rect_abs.xe - m_rect_abs.xs;
+		s32 x = touch_state->x - m_rect_abs.xs;
+		if (x < 0) x = 0;
+		if (x > w) x = w;
+		pct = ((float)x) / ((float)w);
+		LOG("DragMove: touch_x=%d xs=%d  x=%d w=%d  pct=%0.2f",
+			touch_state->x,
+			m_rect_abs.xs,
+			x,
+			w,
+			pct);
+	}
+	else
+	{
+		s32 h = m_rect_abs.ye - m_rect_abs.ys + 1;
+		s32 y = touch_state->y - m_rect_abs.ys;
+		if (y < 0) y = 0;
+		if (y > h) y = h;
+		pct = 1.0 - (((float)y) / ((float)h));
+		LOG("DragMove: touch_y=%d ys=%d  y=%d h=%d  pct=%0.2f",
+			touch_state->y,
+			m_rect_abs.ys,
+			y,
+			h,
+			pct);
+	}
+
+	float val = pct * 127.0;
+	int int_val = val;
+	pTheLooper->setControl(m_control_num,int_val);
 }
