@@ -4,7 +4,6 @@
 
 #include <ws/ws.h>
 
-
 #define ID_WIN_LOOPER    	100
 #define NUM_TRACK_BUTTONS   4
 
@@ -19,9 +18,8 @@ class uiWindow : public wsTopLevelWindow
 		virtual void updateFrame();
 		virtual u32 handleEvent(wsEvent *event);
 
-		u16 getButtonFunction(u16 num);
-
-		u16 last_running;
+		u16  stop_button_cmd;
+		bool last_shown_dub_mode;
 
 		wsButton *pStopButton;
 		wsButton *pDubButton;

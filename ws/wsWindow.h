@@ -32,21 +32,21 @@
 // wsEventHandler
 //------------------------------------
 
-class wsEventHandler 
+class wsEventHandler
 {
 	public:
-		
+
 		wsEventHandler() {}
 		~wsEventHandler() {}
-		
+
 		virtual u32 handleEvent(wsEvent *event) { return 0; };
 			// at this time the semantics of the return value are unclear
 			// I was thinking it could be the object, if any, that handled
 			// the event, but it would probably be better to have explicit
 			// bits, like STOP_PROPOGATION, ALLOW, etc.
-	
+
 	private:
-		
+
 };	// wsEventHandler
 
 
@@ -142,7 +142,7 @@ class wsEventHandler
 //    should not be drawn (or accept hit tests), while yet allowing
 //    each object to maintain it's own visibility state.
 
-	
+
 // #define WIN_STATE_ENABLE            	0x00000002
 // #define WIN_STATE_UPDATE            	0x00000004
 // #define WIN_STATE_MOUSE_OVER        	0x00000010
@@ -163,51 +163,52 @@ class wsEventHandler
 class wsWindow : public wsEventHandler
 {
 	public:
-	
+
 		wsWindow(wsWindow *pParent, u16 id, s32 xs, s32 ys, s32 xe, s32 ye, u32 style=0);
 		virtual ~wsWindow();
 
 		u16 getID() const			{ return m_id; }
 		u32 getStyle() const	   	{ return m_style; };
 		u32 getState() const		{ return m_state; }
+		void setStateBits(u32 bits)	{ setBit(m_state,bits); }
 		void setStyle(u32 style)	{ m_style = style; };
-		
+
 		wsColor getForeColor() const	{ return m_fore_color; }
 		wsColor getBackColor() const	{ return m_back_color; }
 		wsAlignType getAlign() const 	{ return m_align; }
-		
+
 		const wsFont *getFont()				{ return m_pFont; }
 		void setFont(const wsFont *pFont) 	{ m_pFont = pFont; }
 		void setForeColor(wsColor color) 	{ m_fore_color = color; m_pDC->invalidate(m_rect_abs);}
 		void setBackColor(wsColor color) 	{ m_back_color = color; m_pDC->invalidate(m_rect_abs);}
 		void setAlign(wsAlignType align)	{ m_align = align; }
-		void setFrameWidth(u16 width);	
-		
+		void setFrameWidth(u16 width);
+
 		void show();
 		void hide();
 		void resize(s32 xs, s32 ys, s32 xe, s32 ye );
 		void move( s32 x, s32 y );
-		
-		const wsRect &getRect() const				{ return m_rect; }			
-		const wsRect &getOuterRect() const 			{ return m_rect_abs; }		
+
+		const wsRect &getRect() const				{ return m_rect; }
+		const wsRect &getOuterRect() const 			{ return m_rect_abs; }
 		const wsRect &getClientRect() const 		{ return m_rect_client; }
-		
+
 		const s32 getWidth() const  { return m_rect.getWidth(); }
 		const s32 getHeight() const { return m_rect.getHeight(); }
 		const s32 getClientWidth() const  { return m_rect_client.getWidth(); }
 		const s32 getClientHeight() const { return m_rect_client.getHeight(); }
-		
+
 		const char *getText()				{ return (const char *) m_text; }
 		const CString &getString()			{ return (const CString &) m_text; }
 		void  setText(const char *text);
 		void  setText(const CString &text);
-		
+
 		wsWindow *getParent()   	{ return m_pParent;       }
 		wsWindow *getPrevSibling()  { return m_pPrevSibling;  }
 		wsWindow *getNextSibling()  { return m_pNextSibling;  }
 		wsWindow *getFirstChild()   { return m_pFirstChild;   }
 		wsWindow *getLastChild()    { return m_pLastChild;    }
-		
+
 		void addChild(wsWindow *pWin);
 		void deleteChild(wsWindow *pWin);
 		u16 getNumChildren()		{ return m_numChildren; }
@@ -218,19 +219,19 @@ class wsWindow : public wsEventHandler
 
 		// void setVirtualSize(s32 width, s32 height);
 		// void setVirtualOffset(s32 xoff, s32 yoff);
-		// const wsRect &getVirtualRect() const  		{ return m_rect_virt;  }  
+		// const wsRect &getVirtualRect() const  		{ return m_rect_virt;  }
 		// const wsRect &getVirtualVisibleRect() const { return m_rect_vis;  }
 		// wsRect m_rect_virt;		// visible virtual screen size (0..any number) (not limited to screen size)
 		// wsRect m_rect_vis;		// visible virtual screen rectangle (clipped to window size)
-		
+
 		void setDragConstraint(u8 constraint)  		{ m_drag_constraint = constraint; }
 		u8  getDragConstraint() const 				{ return m_drag_constraint; }
-		
+
 	protected:
-		
+
 		friend class wsApplication;
 		friend class wsTopLevelWindow;
-		
+
 		wsDC *getDC() const		{ return m_pDC; }
 		void setDC(wsDC *pDC)	{ m_pDC = pDC; }
 
@@ -239,7 +240,7 @@ class wsWindow : public wsEventHandler
 		virtual void onDraw();
 		virtual void onSize();
 		virtual wsWindow *hitTest(s32 x, s32 y);
-		
+
 		void updateTouch(touchState_t *touch_state);
 			// called directly by mouse and touch handlers
 		virtual void onUpdateTouch(bool touched);
@@ -250,7 +251,7 @@ class wsWindow : public wsEventHandler
 		// call setInvalidate() if they want to update, draw, or redraw
 		// the object, as they are called from update() after m_pDC->validate(),
 		// and thus must expand the invalid region to include the object.
-		
+
 		virtual void onUpdateClick();
 		virtual void onUpdateDblClick();
 		virtual void onUpdateLongClick();
@@ -267,14 +268,14 @@ class wsWindow : public wsEventHandler
 		wsRect m_rect_client;   // absolute inner (client) screen coordinates
 		wsRect m_clip_abs;   	// the client rect clipped by the parent client area
 		wsRect m_clip_client;   // the abs rect clipped by the parent client area
-		
+
 		u16 m_numChildren;
 		wsWindow *m_pParent;
 		wsWindow *m_pPrevSibling;
 		wsWindow *m_pNextSibling;
 		wsWindow *m_pFirstChild;
 		wsWindow *m_pLastChild;
-		
+
 		wsDC *m_pDC;
 		const wsFont *m_pFont;
 		wsColor m_fore_color;

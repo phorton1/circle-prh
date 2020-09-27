@@ -118,10 +118,12 @@ typedef struct              // avoid byte sized structs
 
 // Selected (new) Serial CC numbers
 
+#define LOOP_STOP_CMD_STATE_CC 0x26		// rpi send: the value is 0, LOOP_COMMAND_STOP or STOP_IMMEDIATE
+#define LOOP_DUB_STATE_CC      0x25		// rpi send: the value is currently only the DUB state
 #define LOOP_COMMAND_CC        0x24		// rpi recv: the value is the LOOP command
 #define TRACK_STATE_BASE_CC    0x14		// rpi send: value is track state
-#define CLIP_VOL_BASE_CC       0x30		// rpi recv: value is volume 0..127
-#define CLIP_MUTE_BASE_CC      0x40		// rpi recv: value is mute state
+#define CLIP_VOL_BASE_CC       0x30		// rpi recv ONLY: value is volume 0..127
+#define CLIP_MUTE_BASE_CC      0x40		// rpi send and recv: value is mute state
 
 
 // An in memory log message
@@ -216,7 +218,6 @@ class publicClip
         u32 getRecordBlockNum()     { return m_record_block; }
         u32 getCrossfadeBlockNum()  { return m_crossfade_start + m_crossfade_offset; }
 
-        bool isSelected()           { return m_selected; }
         bool isMuted()              { return m_mute; }
         void setMute(bool mute)     { m_mute = mute; }
 
@@ -235,7 +236,6 @@ class publicClip
             m_record_block = 0;
             m_crossfade_start = 0;
             m_crossfade_offset = 0;
-            m_selected = !m_clip_num;
             m_mute = false;
             m_volume = 1.0;
         }
@@ -250,7 +250,6 @@ class publicClip
         u32  m_crossfade_start;
         u32  m_crossfade_offset;
 
-        bool m_selected;
         bool m_mute;
 
         float m_volume;
@@ -313,7 +312,6 @@ class loopClip : public publicClip
         // in the update() method ... as updateState() is only
         // called on the current and/or selected tracks()
 
-        void setSelected(bool selected)  { m_selected = selected; }
         void update(audio_block_t *in[], audio_block_t *out[]);
         void updateState(u16 cur_command);
         void stopImmediate();
@@ -357,14 +355,10 @@ class publicTrack
         u16 getNumUsedClips()       { return m_num_used_clips; }
         u16 getNumRecordedClips()   { return m_num_recorded_clips; }
         u16 getNumRunningClips()    { return m_num_running_clips; }
-        u16 getSelectedClipNum()    { return m_selected_clip_num; }
         bool isSelected()           { return m_selected; }
 
         virtual publicClip *getPublicClip(u16 clip_num) = 0;
-        virtual publicClip *getSelectedPublicClip() = 0;
-
         virtual int getTrackState() = 0;
-
 
     protected:
 
@@ -373,14 +367,12 @@ class publicTrack
             m_num_used_clips = 0;
             m_num_recorded_clips = 0;
             m_num_running_clips = 0;
-            m_selected_clip_num = 0;
-            m_selected = !m_track_num;
+            m_selected = 0;
         }
 
         u16  m_track_num;
         u16  m_num_used_clips;
         u16  m_num_recorded_clips;
-        u16  m_selected_clip_num;
         u16  m_num_running_clips;
 
         bool m_selected;
@@ -406,17 +398,7 @@ class loopTrack : public publicTrack
         void init();                // called to clear the loopMachine
 
         loopClip *getClip(u16 num)  { return m_clips[num]; }
-        loopClip *getSelectedClip() { return m_clips[m_selected_clip_num]; }
         void setSelected(bool selected)  { m_selected = selected; }
-        void setSelectedClipNum(u16 num)
-        {
-            if (m_selected_clip_num != num)
-            {
-                m_clips[m_selected_clip_num]->setSelected(false);
-                m_selected_clip_num = num;
-                m_clips[m_selected_clip_num]->setSelected(true);
-            }
-        }
 
         void updateState(u16 cur_command);
             // called before update() if there is a command for the
@@ -435,7 +417,6 @@ class loopTrack : public publicTrack
     private:
 
         virtual publicClip *getPublicClip(u16 clip_num) { return (publicClip *) m_clips[clip_num]; }
-        virtual publicClip *getSelectedPublicClip()     { return (publicClip *) m_clips[m_selected_clip_num]; }
 
         loopClip *m_clips[LOOPER_NUM_LAYERS];
 
@@ -465,7 +446,7 @@ class publicLoopMachine : public AudioStream
         int getSelectedTrackNum()   { return m_selected_track_num; }
 
         bool getDubMode()           { return m_dub_mode; }
-        void toggleDubMode()        { m_dub_mode = !m_dub_mode; }
+        void setDubMode(bool dub)   { m_dub_mode = dub; }
 
         virtual publicTrack *getPublicTrack(u16 num) = 0;
 

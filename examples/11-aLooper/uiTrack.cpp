@@ -8,11 +8,11 @@
 
 #define log_name  "track_ctl"
 
-#define CLIP_BUTTON_SPACE 10
+#define CLIP_BUTTON_SPACE 5
 
 #define ID_CLIP_BUTTON_BASE 500
 
-#define TRACK_MARGIN   20	// title frame for track
+#define TRACK_MARGIN   36	// title frame for track
 
 
 

@@ -92,9 +92,10 @@ void uiClip::updateFrame()
 	// detect if something has changed that should
 	// cause a redraw, with some debugging output
 {
-	publicClip *pClip = pTheLooper->getPublicTrack(m_track_num)->getPublicClip(m_clip_num);
+	publicTrack *pTrack = pTheLooper->getPublicTrack(m_track_num);
+	publicClip *pClip = pTrack->getPublicClip(m_clip_num);
 
-	bool sel 	= pClip->isSelected();
+	bool sel 	= pTrack->isSelected();
 	u16 state 	= pClip->getClipState();
 	u32 rec 	= pClip->getRecordBlockNum();
 	u32 play 	= pClip->getPlayBlockNum();
@@ -161,16 +162,41 @@ void uiClip::onDraw()
 	publicClip *pClip = pTrack->getPublicClip(m_clip_num);
 	u16 pend = pTheLooper->getPendingCommand();
 
-	if (m_selected && pTrack->isSelected())
+	if (m_selected)
 	{
-		frame_color = m_clip_state & CLIP_STATE_RECORDED ? wsYELLOW : wsRED;
-		if (m_flash_time)
+		bool playing = m_clip_state & CLIP_STATE_PLAY_MAIN;
+		bool recording = m_clip_state & (CLIP_STATE_RECORD_IN | CLIP_STATE_RECORD_MAIN);
+		bool recorded = m_clip_state & CLIP_STATE_RECORDED;
+		bool will_play = recording || recorded;
+
+		if (pend == LOOP_COMMAND_STOP)
 		{
-			if (pend == LOOP_COMMAND_STOP)
+			if (playing || recording)
 				frame_color = wsWHITE;
-			if (!m_flash)
-				frame_color = wsBLACK;
 		}
+		else if (pend == LOOP_COMMAND_RECORD)
+		{
+			if (m_clip_num == pTrack->getNumUsedClips())
+			    frame_color = wsRED;
+			else if (will_play)
+			    frame_color = wsYELLOW;
+		}
+		else if (pend == LOOP_COMMAND_PLAY)
+		{
+			if (will_play)
+			    frame_color = wsYELLOW;
+		}
+		else if (m_clip_state & CLIP_STATE_PLAY_MAIN)
+		{
+			frame_color = wsYELLOW;
+		}
+		else if (m_clip_state & (CLIP_STATE_RECORD_IN | CLIP_STATE_RECORD_MAIN))
+		{
+			frame_color = wsRED;
+		}
+
+		if (m_flash_time && !m_flash)
+			frame_color = wsBLACK;
 	}
 
 	m_pDC->drawFrame(

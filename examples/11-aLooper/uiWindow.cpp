@@ -19,72 +19,27 @@
 	// not, polling is used.
 
 
+#define ID_LOOP_STATUS_BAR     		101
+#define ID_VU1                		201
+#define ID_VU2                		202
+#define ID_VU3                		203
+#define ID_VU4                		204
+#define ID_VU_SLIDER           		250
+#define ID_TRACK_CONTROL_BASE  		300
+#define ID_LOOP_STOP_BUTTON         401
+#define ID_LOOP_DUB_BUTTON    		402
+#define ID_LOOP_TRACK_BUTTON_BASE   410
+
+
 #define TOP_MARGIN 		32
 #define BOTTOM_MARGIN  	60
-#define LEFT_MARGIN    	150
+#define RIGHT_MARGIN    	150
 
-#define VU_TOP  	TOP_MARGIN+40
+#define VU_TOP  	TOP_MARGIN+46
 #define VU_BOTTOM   VU_TOP + 180
 
 #define TRACK_VSPACE  	5
 #define TRACK_HSPACE  	5
-
-#define ID_LOOP_STATUS_BAR     101
-#define ID_VU1                201
-#define ID_VU2                202
-#define ID_VU3                203
-#define ID_VU4                204
-
-#define ID_VU_SLIDER           250
-
-#define ID_TRACK_CONTROL_BASE  300
-
-#define ID_LOOP_STOP_BUTTON         401
-#define ID_LOOP_DUB_BUTTON    		401
-#define ID_LOOP_TRACK_BUTTON_BASE   410
-
-
-//----------------------------------------------------------------
-
-#if 0
-u16 uiWindow::getButtonFunction(u16 num)
-{
-	if (!pTheLooper)
-		return LOOP_COMMAND_NONE;
-
-	if (num == 0)
-	{
-		if (pTheLooper->canDo(LOOP_COMMAND_RECORD))
-			return LOOP_COMMAND_RECORD;
-		if (pTheLooper->canDo(LOOP_COMMAND_PLAY))
-			return LOOP_COMMAND_PLAY;
-	}
-	if (num == 1)
-	{
-		if (pTheLooper->canDo(LOOP_COMMAND_STOP))
-			return LOOP_COMMAND_STOP;
-	}
-	if (num == 2)
-	{
-		if (pTheLooper->canDo(LOOP_COMMAND_SELECT_NEXT_CLIP))
-			return LOOP_COMMAND_SELECT_NEXT_CLIP;
-	}
-	if (num == 3)
-	{
-		if (pTheLooper->canDo(LOOP_COMMAND_SELECT_NEXT_TRACK))
-			return LOOP_COMMAND_SELECT_NEXT_TRACK;
-	}
-	if (num == 4)
-	{
-		if (pTheLooper->canDo(LOOP_COMMAND_STOP_IMMEDIATE))
-			return LOOP_COMMAND_STOP_IMMEDIATE;
-		if (pTheLooper->canDo(LOOP_COMMAND_CLEAR_ALL))
-			return LOOP_COMMAND_CLEAR_ALL;
-	}
-	return LOOP_COMMAND_NONE;
-}
-#endif
-
 
 
 //----------------------------------------------------------------
@@ -94,18 +49,18 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 {
 	LOG("uiWindow ctor",0);
 
-	last_running = 0;
+	last_shown_dub_mode = 0;
 
 	setBackColor(wsDARK_BLUE);
 
 	int height = ye-ys+1;
     int width = xe-xs+1;
+	int right_col = width - RIGHT_MARGIN;
 
 	new uiStatusBar(this,ID_LOOP_STATUS_BAR,165,0,width-165,TOP_MARGIN-1);
 	LOG("status bar created",0);
 
 	// TOP LEFT INPUT VU METER - CODEC audio input, period
-
 	// mpd knobs, double numbers are inc_dec msb lsb's
 	// ith increments of two
 	//
@@ -139,12 +94,12 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 	// LEFT - THRU vu
 
 	#if WITH_METERS
-		wsStaticText *pt1 = new wsStaticText(this,0,"THRU",6,TOP_MARGIN+23,42,TOP_MARGIN+39);
+		wsStaticText *pt1 = new wsStaticText(this,0,"THRU",right_col+6,TOP_MARGIN+23,right_col+42,TOP_MARGIN+39);
 		pt1->setAlign(ALIGN_CENTER);
 		pt1->setForeColor(wsWHITE);
 		pt1->setFont(wsFont7x12);
 
-		new vuSlider(this,ID_VU2, 8, VU_TOP, 40, VU_BOTTOM, false, 12,
+		new vuSlider(this,ID_VU2,right_col+8, VU_TOP, right_col+40, VU_BOTTOM, false, 12,
 			METER_THRU,
 			CONTROL_THRU_VOLUME,
 			-1,		// cable
@@ -157,12 +112,12 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 	// MIDDLE - LOOP vu
 
 	#if WITH_METERS
-		wsStaticText *pt2 = new wsStaticText(this,0,"LOOP",50,TOP_MARGIN+23,86,TOP_MARGIN+39);
+		wsStaticText *pt2 = new wsStaticText(this,0,"LOOP",right_col+50,TOP_MARGIN+23,right_col+86,TOP_MARGIN+39);
 		pt2->setAlign(ALIGN_CENTER);
 		pt2->setForeColor(wsWHITE);
 		pt2->setFont(wsFont7x12);
 
-		new vuSlider(this,ID_VU3, 52, VU_TOP, 84, VU_BOTTOM, false, 12,
+		new vuSlider(this,ID_VU3, right_col+52, VU_TOP, right_col+84, VU_BOTTOM, false, 12,
 			METER_LOOP,
 			CONTROL_LOOP_VOLUME,
 			-1,		// cable
@@ -174,12 +129,12 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 	// RIGHT - MIX vu
 
 	#if WITH_METERS
-		wsStaticText *pt3 = new wsStaticText(this,0,"MIX",94,TOP_MARGIN+23,130,TOP_MARGIN+39);
+		wsStaticText *pt3 = new wsStaticText(this,0,"MIX",right_col+94,TOP_MARGIN+23,right_col+130,TOP_MARGIN+39);
 		pt3->setAlign(ALIGN_CENTER);
 		pt3->setForeColor(wsWHITE);
 		pt3->setFont(wsFont7x12);
 
-		new vuSlider(this,ID_VU4, 96, VU_TOP, 128, VU_BOTTOM, false, 12,
+		new vuSlider(this,ID_VU4, right_col+96, VU_TOP, right_col+128, VU_BOTTOM, false, 12,
 			METER_MIX,
 			CONTROL_MIX_VOLUME,
 			-1,		// cable
@@ -198,8 +153,8 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 
 	int btop = height-BOTTOM_MARGIN;
 	int cheight = height-TOP_MARGIN-BOTTOM_MARGIN-TRACK_VSPACE*2;
-	int cwidth = (width-LEFT_MARGIN-1-TRACK_HSPACE*(LOOPER_NUM_TRACKS+1)) / LOOPER_NUM_TRACKS;
-	int step = LEFT_MARGIN + TRACK_HSPACE;
+	int cwidth = (width-RIGHT_MARGIN-1-TRACK_HSPACE*(LOOPER_NUM_TRACKS+1)) / LOOPER_NUM_TRACKS;
+	int step = TRACK_HSPACE;
 	for (int i=0; i<LOOPER_NUM_TRACKS; i++)
 	{
 		LOG("creating ui_track(%d)",i);
@@ -223,15 +178,17 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 				this,
 				ID_LOOP_TRACK_BUTTON_BASE + i,
 				getLoopCommandName(LOOP_COMMAND_TRACK_BASE + i),
-				step+5,
+				step+10,
 				btop+5,
-				step + cwidth - 5,
+				step + cwidth - 10,
 				btop+49);
 
 		step += cwidth + TRACK_HSPACE;
 		LOG("finished creating ui_track(%d)",i);
 	}
 
+	stop_button_cmd = 0;
+		// goes with the blank below
 	pStopButton = new
 		#if USE_MIDI_SYSTEM
 			wsMidiButton(
@@ -240,11 +197,11 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 		#endif
 			this,
 			ID_LOOP_STOP_BUTTON,
-			getLoopCommandName(LOOP_COMMAND_STOP_IMMEDIATE),
-			20,
-			320,
-			120,
-			380);
+			"",		// button does not start off with a function: getLoopCommandName(LOOP_COMMAND_STOP),
+			right_col + 3,
+			btop-65+5,
+			width - 12,
+			btop-65+49);
 
 	pDubButton = new
 		#if USE_MIDI_SYSTEM
@@ -255,10 +212,10 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			this,
 			ID_LOOP_DUB_BUTTON,
 			getLoopCommandName(LOOP_COMMAND_DUB_MODE),
-			20,
-			400,
-			120,
-			460);
+			right_col + 3,
+			btop+5,
+			width - 12,
+			btop+49);
 
 
 	// register handler
@@ -375,6 +332,56 @@ void uiWindow::updateFrame()
 		}
 	#endif
 
+	// STOP button is blank if not running,
+	// says STOP if running and pending command is not STOP
+	// says STOP! if running AND pending command is STOP
+
+	bool running = pTheLooper->getRunning();
+	u16  pending = pTheLooper->getPendingCommand();
+	u16 t_command = running ?
+		pending == LOOP_COMMAND_STOP ?
+			LOOP_COMMAND_STOP_IMMEDIATE :
+			LOOP_COMMAND_STOP : 0;
+
+	if (stop_button_cmd != t_command)
+	{
+		stop_button_cmd = t_command;
+		pStopButton->setText(getLoopCommandName(t_command));
+		if (m_pSerial)
+		{
+			unsigned char midi_buf[4];
+			midi_buf[0] = 0x0b;
+			midi_buf[1] = 0xb0;
+			midi_buf[2] = LOOP_STOP_CMD_STATE_CC;
+			midi_buf[3] = stop_button_cmd;		// value
+			m_pSerial->Write((unsigned char *) midi_buf,4);
+		}
+	}
+
+	// DUB Button changes based on looper dub mode,
+	// and notifies the TE of any changes
+
+	bool dub_mode = pTheLooper->getDubMode();
+	if (dub_mode != last_shown_dub_mode)
+	{
+		LOG("updateState dub mode=%d",dub_mode);
+		last_shown_dub_mode = dub_mode;
+		int bc = dub_mode ? wsORANGE : defaultButtonReleasedColor;
+		pDubButton->setBackColor(bc);
+		pDubButton->setStateBits(WIN_STATE_DRAW);
+
+		if (m_pSerial)
+		{
+			unsigned char midi_buf[4];
+			midi_buf[0] = 0x0b;
+			midi_buf[1] = 0xb0;
+			midi_buf[2] = LOOP_DUB_STATE_CC;
+			midi_buf[3] = dub_mode;		// value
+			m_pSerial->Write((unsigned char *) midi_buf,4);
+		}
+
+	}
+
 	wsWindow::updateFrame();
 }
 
@@ -395,13 +402,18 @@ u32 uiWindow::handleEvent(wsEvent *event)
 		event_id == EVENT_CLICK)
 	{
 		if (id == ID_LOOP_STOP_BUTTON)
-			pTheLooper->command(LOOP_COMMAND_STOP_IMMEDIATE);
+		{
+			if (stop_button_cmd)
+				pTheLooper->command(stop_button_cmd);
+		}
 		else if (id == ID_LOOP_DUB_BUTTON)
+		{
 			pTheLooper->command(LOOP_COMMAND_DUB_MODE);
+		}
 		else if (id >= ID_LOOP_TRACK_BUTTON_BASE &&
 				 id < ID_LOOP_TRACK_BUTTON_BASE + NUM_TRACK_BUTTONS)
 		{
-			int track_num = id = ID_LOOP_TRACK_BUTTON_BASE;
+			int track_num = id - ID_LOOP_TRACK_BUTTON_BASE;
 			pTheLooper->command(LOOP_COMMAND_TRACK_BASE + track_num);
 		}
 		result_handled = 1;

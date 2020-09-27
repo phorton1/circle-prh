@@ -266,6 +266,9 @@ void loopMachine::LogUpdate(const char *lname, const char *format, ...)
 //-------------------------------------------------
 // command processor
 //-------------------------------------------------
+// Note that the DUB button must be pressed BEFORE
+// the given TRACK button, AND that it is cleared
+// also on any accepting of a pending command
 
 
 // virtual
@@ -338,6 +341,9 @@ void loopMachine::command(u16 command)
 
         bool recording = false;
         bool recording_base = false;
+        int  num_recorded = pSelTrack->getNumRecordedClips();
+        bool recordable = num_recorded < LOOPER_NUM_LAYERS;
+
         if (pCurTrack)
         {
             int used = pCurTrack->getNumUsedClips();
@@ -355,70 +361,107 @@ void loopMachine::command(u16 command)
 
         if (!m_running)
         {
-            if (pSelTrack->getNumRecordedClips())
-                pending_command = LOOP_COMMAND_PLAY;
-            else
+            if (recordable && (m_dub_mode || !num_recorded))
+            {
                 pending_command = LOOP_COMMAND_RECORD;
+            }
+            else if (num_recorded)
+            {
+                pending_command = LOOP_COMMAND_PLAY;
+            }
         }
+
         else if (recording_base)
         {
             if (track_changed)
             {
-                if (pSelTrack->getNumRecordedClips())
-                    pending_command = LOOP_COMMAND_PLAY;
-                else
+                if (recordable && (m_dub_mode || !num_recorded))
+                {
                     pending_command = LOOP_COMMAND_RECORD;
+                }
+                else if (num_recorded)
+                {
+                    pending_command = LOOP_COMMAND_PLAY;
+                }
+            }
+            else if (recordable && m_dub_mode)
+            {
+                pending_command = LOOP_COMMAND_RECORD;
             }
             else
+            {
                 pending_command = LOOP_COMMAND_PLAY;
+            }
         }
-        else if (recording)
+
+        else if (!track_changed)
         {
-            if (!track_changed)
+            // the definition of "recordable" changes if we are currently
+            // recording ... we need ONE MORE empty track to pull it off
+
+            if (recording)
+                recordable = num_recorded < LOOPER_NUM_LAYERS - 1;
+
+            // dub mode FORCES another recording if possible
+            // regardless of the "toggle" state
+
+            if (!pending_command)
             {
-                if (!pending_command)
+                if (recordable && m_dub_mode)
+                    pending_command = LOOP_COMMAND_RECORD;
+                else if (recording)
+                    pending_command = LOOP_COMMAND_PLAY;
+                else if (pSelTrack->getNumUsedClips())
+                    pending_command = LOOP_COMMAND_STOP;
+            }
+
+            // erase the pending command
+            // and re-select the current track if it's different
+            // for there to be a pending command, there MUST be a pCurTrack
+
+            else
+            {
+                pending_command = LOOP_COMMAND_NONE;
+
+                if (pCurTrack->getTrackNum() != m_selected_track_num)
+                {
+                    m_tracks[m_selected_track_num]->setSelected(false);
+                    m_selected_track_num = pCurTrack->getTrackNum();
+                    pCurTrack->setSelected(true);
+                }
+            }
+
+
+            /*
                     pending_command = LOOP_COMMAND_PLAY;
                 else if (pending_command == LOOP_COMMAND_PLAY)
                     pending_command = LOOP_COMMAND_STOP;
                 else if (pending_command == LOOP_COMMAND_STOP)
-                    pending_command = LOOP_COMMAND_RECORD;
-                else if (pending_command == LOOP_COMMAND_RECORD)
+                    pending_command = LOOP_COMMAND_RECORD;          // may want this to be "NONE"
+                else if (pending_command == LOOP_COMMAND_RECORD)    // and to get rid of this state
                     pending_command = LOOP_COMMAND_NONE;
-            }
-            else
-            {
-                if (pSelTrack->getNumRecordedClips())
-                    pending_command = LOOP_COMMAND_PLAY;
-                else
-                    pending_command = LOOP_COMMAND_RECORD;
-            }
+            */
         }
-        else
+        else    // changed tracks, so it's just like all the others
         {
-            if (!track_changed)
+            if (recordable && (m_dub_mode || !num_recorded))
             {
-                if (!pending_command)
-                    pending_command = LOOP_COMMAND_PLAY;
-                else if (pending_command == LOOP_COMMAND_PLAY)
-                    pending_command = LOOP_COMMAND_STOP;
-                else if (pending_command == LOOP_COMMAND_STOP)
-                    pending_command = LOOP_COMMAND_RECORD;
-                else if (pending_command == LOOP_COMMAND_RECORD)
-                    pending_command = LOOP_COMMAND_NONE;
+                pending_command = LOOP_COMMAND_RECORD;
             }
-            else
+            else if (num_recorded)
             {
-                if (pSelTrack->getNumRecordedClips())
-                    pending_command = LOOP_COMMAND_PLAY;
-                else
-                    pending_command = LOOP_COMMAND_RECORD;
+                pending_command = LOOP_COMMAND_PLAY;
             }
         }
+
+        // set the actual pending command
+        // and clear the dub mode
 
         m_pending_command = pending_command;
+        m_dub_mode = 0;
         LOG("--> pending command %s",getLoopCommandName(m_pending_command));
 
-    }
+    }   // TRACK COMMAND
 
 }   // loopMachine::command()
 
@@ -604,6 +647,12 @@ void loopMachine::update(void)
 void loopMachine::incDecRunning(int inc)
 {
     m_running += inc;
+    if (m_selected_track_num >=0 && !m_running)
+    {
+        m_tracks[m_selected_track_num]->setSelected(false);
+        m_selected_track_num = -1;
+
+    }
     LOOPER_LOG("m_running=%d",m_running);
 }
 
@@ -660,6 +709,10 @@ void loopMachine::updateState(void)
                 LOOPER_LOG("change m_cur_track_num(%d) to selected_track_num(%d)",m_cur_track_num,m_selected_track_num);
                 m_cur_track_num = m_selected_track_num;
             }
+
+            // we clear any erroneous out-of-order dub mode presses here
+
+            m_dub_mode = false;
         }
 
     }   // if m_pending_command
