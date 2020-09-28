@@ -12,7 +12,7 @@
 
 #define log_name  "loopwin"
 
-#define USE_SERIAL_INTERRUPTS 1
+#define USE_SERIAL_INTERRUPTS 0
 	// There was a lag when polling the serial port, so I (finally)
 	// went into circle and implemented a decent serial port interrupt
 	// API.  If this is set to 1, the interrupt handler is used, if
@@ -285,7 +285,6 @@ void uiWindow::updateFrame()
 				// the 1 case is old, nearly obsolete, to control directly from windows machine
 				u16 button_num = buf[0] - '1';
 				// the 1 case is old, nearly obsolete, to control directly from windows machine
-				u16 button_num = c - '1';
 				if (button_num == 7)
 					pTheLooper->command(LOOP_COMMAND_DUB_MODE);
 				if (button_num == 6)
