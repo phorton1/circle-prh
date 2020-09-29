@@ -12,11 +12,14 @@
 
 #define log_name  "loopwin"
 
-#define USE_SERIAL_INTERRUPTS 0
+#define USE_SERIAL_INTERRUPTS 1
 	// There was a lag when polling the serial port, so I (finally)
 	// went into circle and implemented a decent serial port interrupt
 	// API.  If this is set to 1, the interrupt handler is used, if
 	// not, polling is used.
+	//
+	// See note about using LOOPER_LOG() in loopMachine.cpp to
+	// prevent "noise" when turning this on.
 
 
 #define ID_LOOP_STATUS_BAR     		101

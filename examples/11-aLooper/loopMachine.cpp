@@ -278,11 +278,16 @@ void loopMachine::LogUpdate(const char *lname, const char *format, ...)
 
 // virtual
 void loopMachine::command(u16 command)
+    // it is important to use LOOPER_LOG instead of LOG here
+    // as this *may* be called from a serial interrupt, and
+    // you don't want to serial output in the middle of a
+    // serial input interrupt ... it causes "noise" in the
+    // bcm_pcm machine.
 {
     if (command == LOOP_COMMAND_NONE)
         return;
 
-    LOG("loopMachine::command(%s)",getLoopCommandName(command));
+    LOOPER_LOG("loopMachine::command(%s)",getLoopCommandName(command));
 
     // immediate commands ...
 
@@ -298,13 +303,13 @@ void loopMachine::command(u16 command)
     }
     else if (command == LOOP_COMMAND_CLEAR_ALL)
     {
-        LOG("LOOP_COMMAND_CLEAR",0);
+        LOOPER_LOG("LOOP_COMMAND_CLEAR",0);
         init();
     }
     else if (command == LOOP_COMMAND_DUB_MODE)
     {
         m_dub_mode = !m_dub_mode;
-        LOG("DUB_MODE=%d",m_dub_mode);
+        LOOPER_LOG("DUB_MODE=%d",m_dub_mode);
     }
 
     // STOP is a "pending" command
@@ -312,7 +317,7 @@ void loopMachine::command(u16 command)
     else if (command == LOOP_COMMAND_STOP)
     {
         m_pending_command = command;
-        LOG("PENDING_STOP_COMMAND(%s)",getLoopCommandName(m_pending_command));
+        LOOPER_LOG("PENDING_STOP_COMMAND(%s)",getLoopCommandName(m_pending_command));
     }
 
     // we are going to use the same "selected track" mechanism
@@ -326,12 +331,12 @@ void loopMachine::command(u16 command)
         bool track_changed = false;
         u16 pending_command = m_pending_command;
         u16 track_num = command - LOOP_COMMAND_TRACK_BASE;
-        LOG("LOOP_COMMAND_TRACK(%d)",track_num);
+        LOOPER_LOG("LOOP_COMMAND_TRACK(%d)",track_num);
 
         if (track_num != m_selected_track_num)
         {
             track_changed = true;
-            LOG("--> selected track changed from (%d)",m_selected_track_num);
+            LOOPER_LOG("--> selected track changed from (%d)",m_selected_track_num);
             if (m_selected_track_num != -1)
                 m_tracks[m_selected_track_num]->setSelected(false);
             m_selected_track_num = track_num;
@@ -464,7 +469,7 @@ void loopMachine::command(u16 command)
 
         m_pending_command = pending_command;
         m_dub_mode = 0;
-        LOG("--> pending command %s",getLoopCommandName(m_pending_command));
+        LOOPER_LOG("--> pending command %s",getLoopCommandName(m_pending_command));
 
     }   // TRACK COMMAND
 
