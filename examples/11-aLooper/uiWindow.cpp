@@ -497,10 +497,10 @@ void uiWindow::handleSerialCC(u8 cc_num, u8 value)
 	// CC's that map to volume controls
 	// also works for the teensyExpression loop pedal
 
-	if (cc_num >= 0x65 &&
-		cc_num <= 0x69)
+	if (cc_num >= LOOP_CONTROL_BASE_CC &&
+		cc_num < LOOP_CONTROL_BASE_CC + LOOPER_NUM_CONTROLS)
 	{
-		int control_num = cc_num - 0x65;
+		int control_num = cc_num - LOOP_CONTROL_BASE_CC;
 		pTheLooper->setControl(control_num,value);
 	}
 

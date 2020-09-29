@@ -72,7 +72,7 @@ typedef struct
 #define CONTROL_LOOP_VOLUME         2
 #define CONTROL_MIX_VOLUME          3
 #define CONTROL_OUTPUT_GAIN         4
-#define NUM_CONTROLS                5
+#define LOOPER_NUM_CONTROLS                5
 
 typedef struct              // avoid byte sized structs
 {
@@ -92,38 +92,46 @@ typedef struct              // avoid byte sized structs
 #define CLIP_STATE_PLAY_MAIN        0x0020       // The clip is playing the main portion
 #define CLIP_STATE_PLAY_END         0x0040       // The clip is playing the crossfade out portion
 
-// semi-temporary imposition of "track state" with serial feedback to TE
-// bitwise
 
-#define TRACK_STATE_EMPTY               0x0000
-#define TRACK_STATE_RECORDING           0x0001
-#define TRACK_STATE_PLAYING             0x0002
-#define TRACK_STATE_STOPPED             0x0004
-#define TRACK_STATE_PENDING_RECORD      0x0008
-#define TRACK_STATE_PENDING_PLAY        0x0010
-#define TRACK_STATE_PENDING_STOP        0x0020
+#if 1
+    #include "commonDefines.h"
+#else
+    // semi-temporary imposition of "track state" with serial feedback to TE
+    // bitwise
 
-// loopMachine commands
+    #define TRACK_STATE_EMPTY               0x0000
+    #define TRACK_STATE_RECORDING           0x0001
+    #define TRACK_STATE_PLAYING             0x0002
+    #define TRACK_STATE_STOPPED             0x0004
+    #define TRACK_STATE_PENDING_RECORD      0x0008
+    #define TRACK_STATE_PENDING_PLAY        0x0010
+    #define TRACK_STATE_PENDING_STOP        0x0020
 
-#define LOOP_COMMAND_NONE               0x00
-#define LOOP_COMMAND_CLEAR_ALL          0x01
-#define LOOP_COMMAND_STOP_IMMEDIATE     0x02      // stop the looper immediately
-#define LOOP_COMMAND_STOP               0x03      // stop at next cycle point
-#define LOOP_COMMAND_DUB_MODE           0x08      // the dub mode is a shift for the next track button
-#define LOOP_COMMAND_TRACK_BASE         0x10      // the seven possible "track" buttons are 0x10..0x17
-    // the above commands can be sent to the loop machine.
-    // the following are for internal "pending" command use only
-#define LOOP_COMMAND_RECORD             0x40
-#define LOOP_COMMAND_PLAY               0x50
+    // loopMachine commands
 
-// Selected (new) Serial CC numbers
+    #define LOOP_COMMAND_NONE               0x00
+    #define LOOP_COMMAND_CLEAR_ALL          0x01
+    #define LOOP_COMMAND_STOP_IMMEDIATE     0x02      // stop the looper immediately
+    #define LOOP_COMMAND_STOP               0x03      // stop at next cycle point
+    #define LOOP_COMMAND_DUB_MODE           0x08      // the dub mode is a shift for the next track button
+    #define LOOP_COMMAND_TRACK_BASE         0x10      // the seven possible "track" buttons are 0x10..0x17
+        // the above commands can be sent to the loop machine.
+        // the following are for internal "pending" command use only
+    #define LOOP_COMMAND_RECORD             0x40
+    #define LOOP_COMMAND_PLAY               0x50
 
-#define LOOP_STOP_CMD_STATE_CC 0x26		// rpi send: the value is 0, LOOP_COMMAND_STOP or STOP_IMMEDIATE
-#define LOOP_DUB_STATE_CC      0x25		// rpi send: the value is currently only the DUB state
-#define LOOP_COMMAND_CC        0x24		// rpi recv: the value is the LOOP command
-#define TRACK_STATE_BASE_CC    0x14		// rpi send: value is track state
-#define CLIP_VOL_BASE_CC       0x30		// rpi recv ONLY: value is volume 0..127
-#define CLIP_MUTE_BASE_CC      0x40		// rpi send and recv: value is mute state
+    // Selected (new) Serial CC numbers
+
+    #define LOOP_CONTROL_BASE_CC   0x65     // rpi recv: for 0..LOOPER_NUM_CONTROLS the value is the volume control (Looper pedal == 0x67)
+    #define LOOP_STOP_CMD_STATE_CC 0x26		// rpi send: the value is 0, LOOP_COMMAND_STOP or STOP_IMMEDIATE
+    #define LOOP_DUB_STATE_CC      0x25		// rpi send: the value is currently only the DUB state
+    #define LOOP_COMMAND_CC        0x24		// rpi recv: the value is the LOOP command
+    #define TRACK_STATE_BASE_CC    0x14		// rpi send: value is track state
+    #define CLIP_VOL_BASE_CC       0x30		// rpi recv ONLY: for 4 tracks * 3 clips - value is volume 0..127
+    #define CLIP_MUTE_BASE_CC      0x40		// rpi send and recv: for 4 tracks * 3 clips - value is mute state
+
+#endif
+
 
 
 // An in memory log message
@@ -488,7 +496,7 @@ class publicLoopMachine : public AudioStream
         bool m_dub_mode;
 
         meter_t m_meter[NUM_METERS];
-        controlDescriptor_t m_control[NUM_CONTROLS];
+        controlDescriptor_t m_control[LOOPER_NUM_CONTROLS];
 
         logString_t *m_pFirstLogString;
         logString_t *m_pLastLogString;

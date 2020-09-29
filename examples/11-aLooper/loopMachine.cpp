@@ -2,6 +2,23 @@
 #include <circle/logger.h>
 #include <circle/synchronize.h>
 
+// 2020-09-29 - there are issues with the state machine from real world testing
+//    It fairly often stops or fails to play a track, which suddenly appears to
+//    have no content?   Other times, all tracks started playing at once.
+//    I fear this is time to dig into the state machine
+//
+// THINGS TO DO
+//
+//   1. rock solid state machine ... NO COMMANDS DURING fade in or fade out ...
+
+//   2. TE: get rid of "quick mode" ... make it a full blown mode (turn off other leds)
+//   3. TE: Turn clip controls "sideways" and move to top row (allowing for four clips + erase buttons)
+//   4. TE & LOOPER: add Erase Track controls.   If you Erase the track that is currently playing
+//      it stops the looper.
+//
+//   5. Bump number of clips to 4
+
+
 #define log_name "lmachine"
 
 #define WITH_VOLUMES       1
@@ -37,7 +54,7 @@
 // as it assumes initial values for the rotaries .... and zero
 // for the loop volume pedal ...
 
-u16 control_default[NUM_CONTROLS] = {
+u16 control_default[LOOPER_NUM_CONTROLS] = {
     94,     // codec input
     63,     // thru
     63,     // loop
@@ -81,7 +98,7 @@ publicLoopMachine::publicLoopMachine() :
     m_pFirstLogString = 0;
     m_pLastLogString = 0;
 
-    for (int i=0; i<NUM_CONTROLS; i++)
+    for (int i=0; i<LOOPER_NUM_CONTROLS; i++)
     {
         m_control[i].value = 0;
         m_control[i].default_value = control_default[i];
