@@ -17,6 +17,8 @@
 #define _loopMachine_h_
 
 #include <audio/Audio.h>
+#include "commonDefines.h"
+    // LOOPER_NUM_TRACKS and LAYERS, TRACK_STATES, LOOP_COMMANDS, and common CC's
 
 #define WITH_METERS   1
 
@@ -33,8 +35,10 @@
 // CONSTANTS AND STRUCTS
 //------------------------------------------------------
 
-#define LOOPER_NUM_TRACKS     4
-#define LOOPER_NUM_LAYERS     3
+// #define LOOPER_NUM_TRACKS     4
+// #define LOOPER_NUM_LAYERS     3
+    // in common defines.h
+
 #define LOOPER_NUM_CHANNELS   2
     // the whole thing is stereo
 
@@ -94,7 +98,6 @@ typedef struct              // avoid byte sized structs
 
 
 #if 1
-    #include "commonDefines.h"
 #else
     // semi-temporary imposition of "track state" with serial feedback to TE
     // bitwise
@@ -180,7 +183,7 @@ class loopBuffer
 
         void init()          { m_top = 0; }
 
-         s16 *getBuffer()     { return &m_buffer[m_top]; }
+        s16 *getBuffer()     { return &m_buffer[m_top]; }
 
         u32 getSize()        { return m_size; }
         u32 getSizeBlocks()  { return m_size / AUDIO_BLOCK_BYTES; }

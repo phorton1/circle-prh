@@ -22,7 +22,7 @@
 
 uiTrack::uiTrack(
 		u8 track_num,
-		wsWindow *pParent,
+		uiWindow *pParent,
 		u16 id,
 		s32 xs,
 		s32 ys,
@@ -33,6 +33,8 @@ uiTrack::uiTrack(
 		// WIN_STYLE_TOUCH
 		// WIN_STYLE_CLICK
 {
+	m_pUIWindow = pParent;
+
 	m_track_num = track_num;
 	m_selected = false;
 	m_num_used = 0;
@@ -50,7 +52,7 @@ uiTrack::uiTrack(
 
 	// LOG("ctor height=%d cheight=%d",height,cheight);
 
-	for (int i=0; i<LOOPER_NUM_LAYERS; i++)
+	for (int i=LOOPER_NUM_LAYERS-1; i>=0; i--)
 	{
 		int id = ID_CLIP_BUTTON_BASE + m_track_num * LOOPER_NUM_LAYERS + i;
 		new uiClip(
@@ -117,6 +119,9 @@ void uiTrack::updateFrame()
 
 		sendSerialMidiCC(TRACK_STATE_BASE_CC + m_track_num,track_state & 0xff);
 		m_last_te_track_state = track_state;
+
+		m_pUIWindow->enableEraseButton(m_track_num,track_state);
+
 	}
 
 	bool sel = pTrack->isSelected();

@@ -15,6 +15,9 @@ class uiWindow : public wsTopLevelWindow
 
 		uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye);
 
+		void enableEraseButton(int i, bool enable);
+
+
 	private:
 
 		virtual void updateFrame();
@@ -26,6 +29,7 @@ class uiWindow : public wsTopLevelWindow
 		wsButton *pStopButton;
 		wsButton *pDubButton;
 		wsButton *pTrackButtons[NUM_TRACK_BUTTONS];
+		wsButton *pEraseButtons[NUM_TRACK_BUTTONS];
 
 		static void staticSerialReceiveIRQHandler(void *pThis, unsigned char c);
 		void serialReceiveIRQHandler(unsigned char c);

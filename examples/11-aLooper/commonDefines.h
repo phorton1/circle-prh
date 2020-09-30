@@ -9,6 +9,9 @@
 // Previously from rPi Looper.h
 //---------------------------------------------
 
+#define LOOPER_NUM_TRACKS     4
+#define LOOPER_NUM_LAYERS     4
+
 #define TRACK_STATE_EMPTY               0x0000
 #define TRACK_STATE_RECORDING           0x0001
 #define TRACK_STATE_PLAYING             0x0002
@@ -24,6 +27,8 @@
 #define LOOP_COMMAND_STOP               0x03      // stop at next cycle point
 #define LOOP_COMMAND_DUB_MODE           0x08      // the dub mode is handled by rPi and modeled here
 #define LOOP_COMMAND_TRACK_BASE         0x10      // the seven possible "track" buttons are 0x10..0x17
+#define LOOP_COMMAND_ERASE_TRACK_BASE   0x20      // erase the given track (stops it if playing)
+
         // the above commands can be sent to the loop machine.
         // the following are for internal "pending" command use only
 #define LOOP_COMMAND_RECORD             0x40
@@ -37,7 +42,7 @@
 #define LOOP_COMMAND_CC        0x24		// send     recv        the value is the LOOP command
 #define TRACK_STATE_BASE_CC    0x14		// recv     send        for 0..3 tracks, value is track state
 #define CLIP_VOL_BASE_CC       0x30		// send     recv        for 4 tracks * 3 clips - value is volume 0..127
-#define CLIP_MUTE_BASE_CC      0x40		// both     both        for 4 tracks * 3 clips - value is mute state
+#define CLIP_MUTE_BASE_CC      0x50		// both     both        for 4 tracks * 3 clips - value is mute state
 
 
 #endif

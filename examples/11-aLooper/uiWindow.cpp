@@ -32,10 +32,11 @@
 #define ID_LOOP_STOP_BUTTON         401
 #define ID_LOOP_DUB_BUTTON    		402
 #define ID_LOOP_TRACK_BUTTON_BASE   410
+#define ID_ERASE_TRACK_BUTTON_BASE  430
 
 
-#define TOP_MARGIN 		32
-#define BOTTOM_MARGIN  	60
+#define TOP_MARGIN 			72
+#define BOTTOM_MARGIN  		50
 #define RIGHT_MARGIN    	150
 
 #define VU_TOP  	TOP_MARGIN+46
@@ -43,6 +44,7 @@
 
 #define TRACK_VSPACE  	5
 #define TRACK_HSPACE  	5
+#define BUTTON_HEIGHT   35
 
 CSerialDevice *s_pSerial = 0;
 
@@ -186,24 +188,30 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			step + cwidth -1,
 			TOP_MARGIN + TRACK_VSPACE + cheight - 1);
 
-
-		pTrackButtons[i] = new
-
-			#if USE_MIDI_SYSTEM
-				wsMidiButton(
-			#else
-				wsButton(
-			#endif
-				this,
-				ID_LOOP_TRACK_BUTTON_BASE + i,
-				getLoopCommandName(LOOP_COMMAND_TRACK_BASE + i),
-				step+10,
-				btop+5,
-				step + cwidth - 10,
-				btop+49,
-				BTN_STYLE_USE_ALTERNATE_COLORS);
+		pTrackButtons[i] = new 	wsButton(
+			this,
+			ID_LOOP_TRACK_BUTTON_BASE + i,
+			getLoopCommandName(LOOP_COMMAND_TRACK_BASE + i),
+			step+10,
+			btop+5,
+			step + cwidth - 10,
+			btop+5+BUTTON_HEIGHT-1,
+			BTN_STYLE_USE_ALTERNATE_COLORS);
 		pTrackButtons[i]->setFont(wsFont12x16);
 		pTrackButtons[i]->setAltBackColor(wsSLATE_GRAY);
+
+		pEraseButtons[i] = new wsButton(
+			this,
+			ID_ERASE_TRACK_BUTTON_BASE + i,
+			"erase",
+			step+10,
+			40,
+			step + cwidth - 10,
+			40+BUTTON_HEIGHT-10-1,
+			BTN_STYLE_USE_ALTERNATE_COLORS);
+		// pEraseButtons[i]->setFont(wsFont12x16);
+		pEraseButtons[i]->setAltBackColor(wsSLATE_GRAY);
+		pEraseButtons[i]->hide();
 
 		step += cwidth + TRACK_HSPACE;
 		LOG("finished creating ui_track(%d)",i);
@@ -219,15 +227,16 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 		#endif
 			this,
 			ID_LOOP_STOP_BUTTON,
-			"",		// button does not start off with a function: getLoopCommandName(LOOP_COMMAND_STOP),
+			"blah",		// button does not start off with a function: getLoopCommandName(LOOP_COMMAND_STOP),
 			right_col + 3,
-			btop-65+5,
+			btop+5-55,
 			width - 12,
-			btop-65+49,
+			btop+5-55+BUTTON_HEIGHT+5-1,
 			BTN_STYLE_USE_ALTERNATE_COLORS,
 			WIN_STYLE_CLICK_LONG);
 	pStopButton->setAltBackColor(wsSLATE_GRAY);
 	pStopButton->setFont(wsFont12x16);
+	pStopButton->hide();
 
 
 	pDubButton = new
@@ -242,7 +251,7 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 			right_col + 3,
 			btop+5,
 			width - 12,
-			btop+49,
+			btop+5+BUTTON_HEIGHT-1,
 			BTN_STYLE_USE_ALTERNATE_COLORS,
 			WIN_STYLE_CLICK_LONG);
 	pDubButton->setAltBackColor(wsSLATE_GRAY);
@@ -266,6 +275,14 @@ uiWindow::uiWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) 
 
 }	// uiWindow ctor
 
+
+void uiWindow::enableEraseButton(int i, bool enable)
+{
+	if (enable)
+		pEraseButtons[i]->show();
+	else
+		pEraseButtons[i]->show();
+}
 
 
 // virtual
@@ -354,6 +371,11 @@ void uiWindow::updateFrame()
 		stop_button_cmd = t_command;
 		pStopButton->setText(getLoopCommandName(t_command));
 		sendSerialMidiCC(LOOP_STOP_CMD_STATE_CC,stop_button_cmd);
+
+		if (!t_command)
+			pStopButton->hide();
+		else
+			pStopButton->show();
 	}
 
 	// DUB Button changes based on looper dub mode,
@@ -409,6 +431,12 @@ u32 uiWindow::handleEvent(wsEvent *event)
 		{
 			int track_num = id - ID_LOOP_TRACK_BUTTON_BASE;
 			pTheLooper->command(LOOP_COMMAND_TRACK_BASE + track_num);
+		}
+		else if (id >= ID_ERASE_TRACK_BUTTON_BASE &&
+				 id < ID_ERASE_TRACK_BUTTON_BASE + NUM_TRACK_BUTTONS)
+		{
+			int track_num = id - ID_ERASE_TRACK_BUTTON_BASE;
+			pTheLooper->command(LOOP_COMMAND_ERASE_TRACK_BASE + track_num);
 		}
 		result_handled = 1;
 	}
@@ -494,6 +522,8 @@ void uiWindow::serialReceiveIRQHandler(unsigned char c)
 
 void uiWindow::handleSerialCC(u8 cc_num, u8 value)
 {
+	// LOOPER_LOG("handleSerialCC(0x%02x,0x%02x)",cc_num,value);
+
 	// CC's that map to volume controls
 	// also works for the teensyExpression loop pedal
 
@@ -512,21 +542,23 @@ void uiWindow::handleSerialCC(u8 cc_num, u8 value)
 	}
 
 	else if (cc_num >= CLIP_VOL_BASE_CC &&
-			 cc_num <= CLIP_VOL_BASE_CC  + LOOPER_NUM_TRACKS * LOOPER_NUM_LAYERS)
+			 cc_num < CLIP_VOL_BASE_CC  + LOOPER_NUM_TRACKS * LOOPER_NUM_LAYERS)
 	{
 		int num = cc_num - CLIP_VOL_BASE_CC;
 		int track_num = num / LOOPER_NUM_LAYERS;
 		int clip_num = num % LOOPER_NUM_LAYERS;
+		// LOOPER_LOG("Serial clip(%d,%d) volume=%d",track_num,clip_num,value);
 		publicTrack *pTrack = pTheLooper->getPublicTrack(track_num);
 		publicClip *pClip = pTrack->getPublicClip(clip_num);
 		pClip->setVolume(value);
 	}
 	else if (cc_num >= CLIP_MUTE_BASE_CC &&
-			 cc_num <= CLIP_MUTE_BASE_CC  + LOOPER_NUM_TRACKS * LOOPER_NUM_LAYERS)
+			 cc_num < CLIP_MUTE_BASE_CC  + LOOPER_NUM_TRACKS * LOOPER_NUM_LAYERS)
 	{
 		int num = cc_num - CLIP_MUTE_BASE_CC;
 		int track_num = num / LOOPER_NUM_LAYERS;
 		int clip_num = num % LOOPER_NUM_LAYERS;
+		// LOOPER_LOG("Serial clip(%d,%d) mute=%d",track_num,clip_num,value);
 		publicTrack *pTrack = pTheLooper->getPublicTrack(track_num);
 		publicClip *pClip = pTrack->getPublicClip(clip_num);
 		pClip->setMute(value);

@@ -328,6 +328,28 @@ void loopMachine::command(u16 command)
         m_dub_mode = !m_dub_mode;
         LOOPER_LOG("DUB_MODE=%d",m_dub_mode);
     }
+    else if (command >= LOOP_COMMAND_ERASE_TRACK_BASE &&
+             command < LOOP_COMMAND_ERASE_TRACK_BASE + LOOPER_NUM_TRACKS)
+    {
+        int track_num = command - LOOP_COMMAND_ERASE_TRACK_BASE;
+        LOOPER_LOG("LOOP_COMMAND_ERASE_TRACK(%d)",track_num);
+        loopTrack *pTrack = getTrack(track_num);
+        int num_running = pTrack->getNumRunningClips();
+
+        // if the track has running clips, this is essentially a stop immediate
+
+        if (num_running)
+        {
+            for (int i=0; i<LOOPER_NUM_TRACKS; i++)
+                getTrack(i)->stopImmediate();
+            m_running = 0;
+            m_cur_track_num = -1;
+            m_selected_track_num = -1;
+            m_pending_command = 0;
+        }
+
+        pTrack->init();
+    }
 
     // STOP is a "pending" command
 

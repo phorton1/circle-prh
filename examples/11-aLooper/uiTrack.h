@@ -4,6 +4,7 @@
 
 #include <ws/wsControl.h>
 #include <system/midiEvent.h>
+#include "uiWindow.h"
 // #include <circle/serial.h>
 
 
@@ -24,7 +25,7 @@ class uiTrack : public wsWindow
 
 		uiTrack(
 				u8 track_num,
-				wsWindow *pParent,
+				uiWindow *pParent,
 				u16 id,
 				s32 xs,
 				s32 ys,
@@ -32,6 +33,8 @@ class uiTrack : public wsWindow
 				s32 ye);
 
 	protected:
+
+		uiWindow *m_pUIWindow;
 
 		u8 m_track_num;
 		bool m_selected;

@@ -238,7 +238,7 @@ void uiClip::onDraw()
 
 
 
-	#define BAR_HEIGHT  40
+	#define BAR_HEIGHT  30
 
 	s32 xs = m_rect_client.xs;
 	s32 ys = m_rect_client.ys;
@@ -259,13 +259,11 @@ void uiClip::onDraw()
 		m_pDC->setForeColor(color);
 		m_pDC->setBackColor(m_back_color);
 
-		int y = ye - 45;
-		m_pDC->putString(xs+5,y,m_mute ? "MUTE" : "    ");
+		m_pDC->putString(xs+5,ye-20,m_mute ? "MUTE" : "    ");
 
-		y += 20;
 		CString msg;
 		msg.Format("%-3d",m_volume);
-		m_pDC->putString(xs+5,y,(const char *)msg);
+		m_pDC->putString(xs+100,ye-20,(const char *)msg);
 	}
 
 	// only draw the bar if it moved
