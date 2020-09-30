@@ -182,7 +182,7 @@ void loopClip::_startCrossFadeOut()
 
 void loopClip::_startFadeOut()
     // start a fade out, but do NOT start playing next time through
-    // so we decrement the 'loop' running count
+    // so we do not increment OR decrement the 'loop' running count
     //
     // effectively 'cancel' the PLAY_MAIN bit, and start, or
     // continue fading out where we are ..
@@ -197,7 +197,7 @@ void loopClip::_startFadeOut()
     m_state |= CLIP_STATE_PLAY_END;
     m_crossfade_offset = 0;
     m_play_block = 0;
-    m_pLoopTrack->incDecRunning(-1);
+    // m_pLoopTrack->incDecRunning(-1);
 }
 
 

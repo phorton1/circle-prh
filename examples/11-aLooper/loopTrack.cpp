@@ -119,7 +119,7 @@ void loopTrack::incDecNumRecordedClips(int inc)
 void loopTrack::incDecRunning(int inc)
 {
     m_num_running_clips += inc;
-    LOOPER_LOG("track(%d) m_num_running_clips=%d",m_track_num,m_num_running_clips);
+    LOOPER_LOG("track(%d) incDecRunning(%d) m_num_running_clips=%d",m_track_num,inc,m_num_running_clips);
     pTheLoopMachine->incDecRunning(inc);
 
 }

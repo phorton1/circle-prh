@@ -680,7 +680,7 @@ void loopMachine::incDecRunning(int inc)
         m_selected_track_num = -1;
 
     }
-    LOOPER_LOG("m_running=%d",m_running);
+    LOOPER_LOG("incDecRunning(%d) m_running=%d",inc,m_running);
 }
 
 
