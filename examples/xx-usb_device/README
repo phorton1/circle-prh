@@ -1,0 +1,35 @@
+prh - a circle based USB device
+
+Circle provides a nice USB host library and functionality but it does
+not contain any way to make an rPI zero into a USB device.
+
+This library is an attempt to reverse engineer the the raspian/dwc2
+"dreamware" USB OTG driver to create a USB device on an rPi Zero.
+
+Even though it does not currently work, it also serves as a test program
+kernel.img for my bootloader (recovery.img).
+
+My bootloader is included in my /src/circle source tree as part of
+my circle GIT project.   Programs, like this, that run within that
+environment, are managed under my /src/Arduino source GIT tree, so
+as to minimize fluctuations in my circle codebase.
+
+Such Arduino programs (sub projects) like this start with "circle",
+and have makefiles that can be run within their directories that
+setup the path to /src/circle in order to compile and link.
+
+
+
+ORIGINAL README:
+
+MMU and frame buffer are on by default now. First blink 5 times to show the image was loaded right. Write character set to screen. Write some logging messages to screen or UART. debug_hexdump() of the starting bytes of the ATAG structure at 0x100. Show usage of assert() and stack-trace.
+
+You can create a file cmdline.txt like this on the SD(HC) card to change the frame buffer size:
+
+width=640 height=480
+
+In the same file you can control the logging feature by these options (append them to the same line):
+
+logdev=ttyS1 loglevel=4
+
+(write logging messages to UART now, default is to screen ("tty1"), the loglevel controls the amount of messages produced (0: only panic, 1: also errors, 2: also warnings, 3: also notices, 4: also debug output (default))
