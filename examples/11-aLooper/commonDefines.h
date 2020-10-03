@@ -1,9 +1,9 @@
-// Defines that are common between rPi Looper and Arduino TeensyExpression projects
-// are kept here in the Looper project
+// Defines that are common between rPi Looper and Arduino TeensyExpression projects.
+// This file is currently denormalized and stored in both the Arduino-TeensyExpresiona
+// project and in the circle-Looper projecte
 
 #ifndef __common_defines_h__
 #define __common_defines_h__
-
 
 //---------------------------------------------
 // Previously from rPi Looper.h
