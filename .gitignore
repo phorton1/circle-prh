@@ -88,3 +88,5 @@ Config2.mk
 doc/html/
 test/
 tmp/
+
+_apps/*
