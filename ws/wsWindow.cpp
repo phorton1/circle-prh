@@ -30,7 +30,7 @@
 	{
 		debug_update = num;
 	}
-	
+
 	void debug_indent(int addl)
 	{
 		for (int i=0; i<debug_update_level + addl; i++)
@@ -38,11 +38,11 @@
 	}
 	#define INC_UPDATE_LEVEL()		debug_update_level++;
 	#define DEC_UPDATE_LEVEL()		debug_update_level--;
-	
+
 #else
 	#define DBG_UPDATE(l,f,...)
-	#define INC_UPDATE_LEVEL()	
-	#define DEC_UPDATE_LEVEL()	
+	#define INC_UPDATE_LEVEL()
+	#define DEC_UPDATE_LEVEL()
 #endif
 
 
@@ -56,7 +56,7 @@
 wsWindow::~wsWindow()
 {
 	DisableIRQs();	// in synchronize.h
-	
+
 	// LOG("wsWindow(%X) dtor",(u32)this);
     while (m_pFirstChild)
 	{
@@ -89,11 +89,11 @@ wsWindow::wsWindow(
 	// m_rect_client(xs,ys,xe,ye)
 {
 	// LOG("wsWindow(0x%08x,%d, %d,%d,%d,%d, 0x%08x)",(u32) this, id,xs,ys,xe,ye,style);
-	
+
 	m_pDC = 0;
 	m_state = WIN_STATE_VISIBLE | WIN_STATE_UPDATE | WIN_STATE_DRAW;
 	m_pFont = 0;
-	
+
 	m_pParent = pParent;
 	m_pPrevSibling = 0;
 	m_pNextSibling = 0;
@@ -136,7 +136,7 @@ void wsWindow::onSize()
 
 	m_rect_abs.assign(m_rect);
 	m_rect_client.assign(m_rect);
-	
+
 	if (m_style & WIN_STYLE_2D)
 	{
 		m_rect_client.xs += m_frame_width;
@@ -151,10 +151,10 @@ void wsWindow::onSize()
 		m_rect_client.xe -= 3;
 		m_rect_client.ye -= 3;
 	}
-	
+
 	m_clip_abs.assign(m_rect_abs);
 	m_clip_client.assign(m_rect_client);
-	
+
 	if (m_pParent)
 	{
 		const wsRect &parent_rect = m_pParent->getClientRect();
@@ -168,12 +168,12 @@ void wsWindow::onSize()
 		m_clip_client.assign(m_rect_client);
 		m_clip_client.intersect(parent_rect);
 	}
-	
+
 	DBG_UPDATE(2,"m_rect_abs(%d,%d,%d,%d)\n",m_rect_abs.xs,m_rect_abs.ys,m_rect_abs.xe,m_rect_abs.ye);
 	DBG_UPDATE(2,"m_rect_client(%d,%d,%d,%d)\n",m_rect_client.xs,m_rect_client.ys,m_rect_client.xe,m_rect_client.ye);
 	DBG_UPDATE(2,"m_clip_abs(%d,%d,%d,%d)\n",m_clip_abs.xs,m_clip_abs.ys,m_clip_abs.xe,m_clip_abs.ye);
 	DBG_UPDATE(2,"m_clip_client(%d,%d,%d,%d)\n",m_clip_client.xs,m_clip_client.ys,m_clip_client.xe,m_clip_client.ye);
-	
+
 }
 
 
@@ -208,7 +208,7 @@ wsTopLevelWindow *wsWindow::getTopWindow() const
 void wsWindow::addChild(wsWindow *pWin)
 {
 	// LOG("win(%X)::addChild(%X) numChildren=%d",(u32)this, (u32) pWin, m_numChildren);
-	
+
 	if (m_pLastChild)
 	{
 		m_pLastChild->m_pNextSibling = pWin;
@@ -226,10 +226,10 @@ void wsWindow::addChild(wsWindow *pWin)
 void wsWindow::deleteChild(wsWindow *pWin)
 {
 	// LOG("win(%X)::deleteChild(%X) numChildren=%d",(u32)this, (u32) pWin, m_numChildren);
-	
+
 	assert(pWin);
 	assert(pWin->m_pParent == this);
-	
+
 	if (pWin->m_pNextSibling)
 		pWin->m_pNextSibling->m_pPrevSibling = pWin->m_pPrevSibling;
 	if (pWin->m_pPrevSibling)
@@ -238,10 +238,10 @@ void wsWindow::deleteChild(wsWindow *pWin)
 		m_pFirstChild = pWin->m_pNextSibling;
 	if (pWin == m_pLastChild)
 		m_pLastChild = pWin->m_pPrevSibling;
-	
+
 	m_numChildren--;
-	
-	m_pDC->invalidate(pWin->m_rect_abs);	
+
+	m_pDC->invalidate(pWin->m_rect_abs);
 }
 
 
@@ -284,7 +284,7 @@ void wsWindow::onDraw()
 		}
 		printf("\n");
 	#endif
-	
+
 	// draw self
 	#ifdef DEBUG_UPDATE
 		if (!m_pDC->getInvalid().isEmpty())
@@ -294,7 +294,7 @@ void wsWindow::onDraw()
 				m_pDC->getInvalid().xe,
 				m_pDC->getInvalid().ye);
 	#endif
-	
+
 	if (m_style & WIN_STYLE_3D)
 	{
 		DBG_UPDATE(1,"draw(%08x:%d) 2d frame(%d,%d,%d,%d)\n",(u32)this,m_id,m_rect.xs,m_rect.ys,m_rect.xe,m_rect.ye);
@@ -322,7 +322,7 @@ void wsWindow::onDraw()
 			m_fore_color,
 			m_frame_width );
 	}
-	
+
 	if (!(m_style & WIN_STYLE_TRANSPARENT))
 	{
 		DBG_UPDATE(2,"draw(%08x) fill(%d,%d,%d,%d)\n",(u32)this,m_rect_client.xs,m_rect_client.ys,m_rect_client.xe,m_rect_client.ye);
@@ -373,7 +373,7 @@ void wsWindow::move( s32 x, s32 y )
 	s32 h = m_rect.ye - m_rect.ys + 1;
 	m_rect.assign(x,y,x+w-1,y+h-1);
 	setBit(m_state,WIN_STATE_UPDATE);
-		
+
 }
 
 
@@ -403,7 +403,7 @@ void wsWindow::hide()
 	{
 		m_pDC->invalidate(m_rect_abs);
 		clearBit(m_state,WIN_STATE_VISIBLE);
-	}		
+	}
 }
 
 
@@ -449,7 +449,7 @@ wsWindow* wsWindow::hitTest(s32 x, s32 y)
 
 void wsWindow::updateTouch(touchState_t *touch_state)
 	// after a hitTest, this is called by the application
-	// on actual subsequent touch events, as well as 
+	// on actual subsequent touch events, as well as
 	// from the main loop (very quickly) for windows
 	// with timing based touch flags.  It is called
 	// with the WIN_STATE_TOUCH_CHANGED bit set BEFORE
@@ -461,13 +461,13 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 	// which are NOT event handlers!
 {
 	u8 state = touch_state->state;
-		
+
 	//-------------------------------
 	// non timing related changes
 	//-------------------------------
 	// if the mouse has strayed out of the object,
-	// lose focus, 
-	
+	// lose focus,
+
 	if (m_state & WIN_STATE_TOUCH_CHANGED)
 	{
 		#if DEBUG_TOUCH
@@ -475,7 +475,7 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 		#endif
 
 		m_state &= ~WIN_STATE_TOUCH_CHANGED;
-		
+
 		if (state & TOUCH_MOVE)
 		{
 			if (!(m_state & WIN_STATE_DRAGGING) &&
@@ -484,9 +484,9 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 				#if DEBUG_TOUCH
 					printf("updateTouch: touch strayed\n");
 				#endif
-				
+
 				// if they dragged outside of area start dragging immediately
-				
+
 				if (m_style & WIN_STYLE_DRAG)
 				{
 					setBit(m_state,WIN_STATE_DRAGGING);
@@ -502,19 +502,19 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 				return;
 			}
 		}
-	
+
 		// otherwise, if the mouse has been released, generate
 		// an onClick() event and lose focus
-		
+
 		if (state & TOUCH_UP)
 		{
 			#if DEBUG_TOUCH
 				printf("updateTouch: touch up m_state=%08x\n",m_state);
 			#endif
-			
+
 			clearBit(m_state,WIN_STATE_IS_TOUCHED);
 			onUpdateTouch(0);
-			
+
 			if (m_state & WIN_STATE_DRAGGING)
 			{
 				clearBit(m_state,WIN_STATE_DRAGGING);
@@ -530,8 +530,8 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 		}
 		return;
 	}
-	
-	
+
+
 	//-------------------------------
 	// handle time related events
 	//-------------------------------
@@ -543,7 +543,7 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 	#define TOUCH_RATE_INC               (TOUCH_REPEAT_INC_INTERVAL - TOUCH_RATE_MAX) / TOUCH_NUM_INTERVALS;
 
 	u32 now = CTimer::GetClockTicks() / 1000;
-	
+
 	if (m_style & WIN_STYLE_CLICK_REPEAT)
 	{
 		u32 interval_num = (now - touch_state->time) / TOUCH_REPEAT_INC_INTERVAL;
@@ -597,9 +597,9 @@ void wsWindow::updateTouch(touchState_t *touch_state)
 		return;
 	}
 
-	
+
 	#define TOUCH_LONG_INTERVAL  800
-	
+
 	if (m_style & WIN_STYLE_CLICK_LONG &&
 		!touch_state->event_sent &&
 		now > touch_state->time + TOUCH_LONG_INTERVAL)
@@ -661,7 +661,7 @@ void wsWindow::onUpdateDragBegin()
 {
 	wsApplication *app = getApplication();
 	touchState_t *touch_state = app->getTouchState();
-	
+
 	// the drag could begin due to timing, or
 	// the mouse being dragged off the object
 	// in either case, we start by corraling
@@ -669,7 +669,7 @@ void wsWindow::onUpdateDragBegin()
 
 	s32 x = touch_state->x;
 	s32 y = touch_state->y;
-	
+
 	if (m_drag_constraint & DRAG_CONSTRAINT_OBJECT)
 	{
 		if (x < m_rect_abs.xs) x = m_rect_abs.xs;
@@ -677,7 +677,7 @@ void wsWindow::onUpdateDragBegin()
 		if (x > m_rect_abs.xe) x = m_rect_abs.xe;
 		if (y > m_rect_abs.ye) y = m_rect_abs.ye;
 	}
-	
+
 	// make it relative to the object
 	// and remember it
 
@@ -715,7 +715,7 @@ void wsWindow::onUpdateDragMove()
 	s32 drag_y = touch_state->drag_y;
 	s32 width = m_rect.getWidth();
 	s32 height = m_rect.getHeight();
-	
+
 	// offset the abs coordinates to the
 	// upper left corner of the object
 	// constrained by absolute 0,0
@@ -727,7 +727,7 @@ void wsWindow::onUpdateDragMove()
 	#endif
 
 	// make sure it fits in the client area if requested
-	
+
 	if (m_drag_constraint & DRAG_CONSTRAINT_FIT)
 	{
 		if (x + width-1 > client_rect.xe) x = client_rect.xe - width + 1;
@@ -742,7 +742,7 @@ void wsWindow::onUpdateDragMove()
 		if (x + width - 1 < client_rect.xs + DRAG_OUT_MARGIN) x = client_rect.xs + DRAG_OUT_MARGIN - width + 1;
 		if (y + height - 1 < client_rect.ys + DRAG_OUT_MARGIN) y = client_rect.ys + DRAG_OUT_MARGIN - height + 1;
 	}
-	
+
 	if (m_drag_constraint & DRAG_CONSTRAINT_X)
 	{
 		y = m_rect_abs.ys;
@@ -755,17 +755,17 @@ void wsWindow::onUpdateDragMove()
 	#if DEBUG_DRAG
 		LOG("  constrained=%d,%d",x,y);
 	#endif
-	
+
 	// make it relative to the parent client area
 	// and move it
-	
+
 	x -= client_rect.xs;
 	y -= client_rect.ys;
-	
+
 	#if DEBUG_DRAG
 		LOG("     relative=%d,%d",x,y);
 	#endif
-	
+
 	move(x,y);
 }
 
@@ -780,8 +780,8 @@ void wsWindow::onUpdateDragEnd()
 			touch_state->y);
 	#endif
 }
-	
-	
+
+
 
 
 
@@ -789,7 +789,7 @@ void wsWindow::onUpdateDragEnd()
 void wsWindow::update()
 {
 	// inherit bits from parent
-	
+
 	if (m_pParent)
 	{
 		DBG_UPDATE(0,"update(%08x:%d) start m_state(%08x) inheriting(%08x)\n",
@@ -801,13 +801,13 @@ void wsWindow::update()
 		// we inherit the update, draw and redraw bits directly,
 		// but we set out own parent visible based on the parent's
 		// state.
-		
+
 		setBit(m_state,m_pParent->m_state & (
 			WIN_STATE_UPDATE |
 			WIN_STATE_DRAW |
 			WIN_STATE_REDRAW ));
 		clearBit(m_state,WIN_STATE_PARENT_VISIBLE);
-		
+
 		if ((m_pParent->m_state & WIN_STATE_VISIBLE) &&
 			(m_pParent->m_state & WIN_STATE_PARENT_VISIBLE))
 			setBit(m_state,WIN_STATE_PARENT_VISIBLE);
@@ -816,16 +816,16 @@ void wsWindow::update()
 	}
 
 	// resize the window if needed
-	
+
 	if (m_state & WIN_STATE_UPDATE)
 	{
 		DBG_UPDATE(1,"calling onSize()\n",0);
 		setBit(m_state,WIN_STATE_DRAW);
 		onSize();
 	}
-	
+
 	// draw the window if neeeded
-	
+
 	if ((m_state & WIN_STATE_PARENT_VISIBLE) &&
 		(m_state & WIN_STATE_VISIBLE))
 	{
@@ -833,7 +833,7 @@ void wsWindow::update()
 		if (!(m_state & (WIN_STATE_DRAW | WIN_STATE_REDRAW)) &&
 		    m_rect_abs.intersects(invalid))
 			setBit(m_state,WIN_STATE_INVALID);
-			
+
 		if (m_state & (WIN_STATE_DRAW | WIN_STATE_REDRAW | WIN_STATE_INVALID))
 		{
 			DBG_UPDATE(1,"calling onDraw()\n",0);
@@ -847,29 +847,29 @@ void wsWindow::update()
 	{
 		p->update();
 	}
-	
+
 	// clear our handled state bits
-	
+
 	clearBit(m_state,
 		WIN_STATE_UPDATE |
 		WIN_STATE_DRAW |
 		WIN_STATE_REDRAW |
 		WIN_STATE_INVALID);
-	
+
 	#ifdef DEBUG_UPDATE
 		if (m_pParent)
 		{
 			DEC_UPDATE_LEVEL();
 			DBG_UPDATE(0,"end update(%08x:%d)  m_state(%08x)\n",(u32)this,m_id,m_state);
 		}
-	#endif	
+	#endif
 }
 
 
 // virtual
 
 void wsWindow::updateFrame()
-	// an update call tree that is 10 times per second
+	// an update call tree that is called UI_FRAME_RATE times per second
 {
 	for (wsWindow *p = m_pFirstChild; p; p=p->m_pNextSibling)
 	{

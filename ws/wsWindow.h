@@ -235,7 +235,7 @@ class wsWindow : public wsEventHandler
 		wsDC *getDC() const		{ return m_pDC; }
 		void setDC(wsDC *pDC)	{ m_pDC = pDC; }
 
-		virtual void updateFrame();		// an update call tree that is 10 times per second
+		virtual void updateFrame();		// an update call tree that is called UI_FRAME_RATE times per second
 		virtual void update();
 		virtual void onDraw();
 		virtual void onSize();
