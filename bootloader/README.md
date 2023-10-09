@@ -15,28 +15,31 @@ So far, the iterations of rPi bare metal bootloaders has been
 * **none** - no config.txt, just manually copy the compiled kernel.img to the sdcard.
 
 * **SREC** - the initial dave welch bootloader10 that I started working with. I don't think it had a timer.  It just waited for the srec's. i'm not sure how far I got integrating this into the devleopment environment, but I'm pretty sure I got it into an earlier version of the console program.
-		
+
 * **PLACID XMODEM** - that was weird and hard, and there may be some good code in Placid worth moving forward, but I think I can do without the xmodem stuff. Has a timer, though.
-		
+
 * **CIRCLE** - amazed and amused by running circle with an ethernet cable from an rPi b3+ on a fixed ip address to the laptop ("sharing" the wifi connection so that there's dhcp someplace), logging to the hdmi screen, there's an HTTP server as well as the TFTP server.
-		
+
 Although I used the Circle bootloader with TFTP as is (with only minor mods) for quite a while, since the rPi zero does not have an ethernet port, at some point I decided to go back through to dave welch's stuff (SREC) and ended up adding my own **binary protocol** which is documented in the source code.
 
-console.pm
+
+console&#46;pm and Buddy
 ----------
 
-Although any serial console program (i.e. Putty) is compatible with this rPi bootloader (i.e. with XMODEM) at some point I decided also to write my own serial monitor program.   I am including a (denormalized) copy of this program in the source directory.  It normally lives, on my machine, in a folder **base/bat** which is in my **path** variable
+console&#46; pm has been superceded by [**Buddy**](https://github.com/phorton1/base-Pub-buddy),
+a completely ready-to-go serial console program with a
+[**Windows Installer**](https://github.com/phorton1/base-Pub-buddy/tree/master/releases)
 
-The **Perl** program **console.pm** implements host support for the various protocols (SREC, XMODEM, and TFTP) as well as providing the reference implementation of the host side of my binary protocol.  So, if nothing more, it can serve as an example of how you might encode similar functionality ih any other language.
+Although any serial console program (i.e. Putty) is compatible with this rPi bootloader (
+i.e. with XMODEM) at some point I decided also to write my own serial monitor program.
 
-If you want to use the actual Perl script itself, there are some variables in the program that you *may* (would) need to change to get it to work on your machine.  Specifically, the script is called from a windows batch file to invoke it with Perl and pass arguments to it:
+So, for posterities sake, there is also a Perl version of a predecessor
+to buddy in this folder in **console&#46;pm**. It normally lived, on my machine,
+which has ActivePerl 5.8 installed on it, in a folder **base/bat** which is in
+my **path** variable.
 
-    rem console.bat
-    perl /base/bat/console.pm  %1  %2  %3  %4
 
-The perl code also references a file **$registry_filename** = "/base/bat/console_autobuild_kernel.txt" which contains the name of a kernelN.img file that gets auto-uploaded to the rPi.  This level of indirection allows the console program to detect changes (rebuilds) of the kernel (the program you are uploading) as well as allowing you to change the program by merely rewriting the registry file.
 
-Once again, please see the source for **console.pm** for details on the binary protocol and usage scheme.
 
 
 TeensyPi.ino
@@ -47,8 +50,8 @@ TeensyPi.ino
 I present TeensyPi, and the associated circuit that I use separately, as a Hackaday project, at
 
     http:://blah.blah
-    
-    
+
+
 Previous Notes on the Circle Bootloader
 ---------------------------------------
 
@@ -113,4 +116,3 @@ note that:
 
 * The source file main.cpp of this sample is slightly different from that,
   which is used in other sample programs.
-
