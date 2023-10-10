@@ -26,9 +26,9 @@ Although I used the Circle bootloader with TFTP as is (with only minor mods) for
 console&#46;pm and Buddy
 ----------
 
-console&#46; pm has been superceded by [**Buddy**](https://github.com/phorton1/base-Pub-buddy),
+console&#46; pm has been superceded by [**Buddy**](https://github.com/phorton1/base-apps-buddy),
 a completely ready-to-go serial console program with a
-[**Windows Installer**](https://github.com/phorton1/base-Pub-buddy/tree/master/releases)
+[**Windows Installer**](https://github.com/phorton1/base-apps-buddy/tree/master/releases)
 
 Although any serial console program (i.e. Putty) is compatible with this rPi bootloader (
 i.e. with XMODEM) at some point I decided also to write my own serial monitor program.
