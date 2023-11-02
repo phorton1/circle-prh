@@ -1,4 +1,7 @@
 # GIT Ignore
+# prh - ignore my subproject
+
+_apps/
 
 # Mac OS X
 # ----------------------------------------------
@@ -89,4 +92,3 @@ doc/html/
 test/
 tmp/
 
-_apps/*
