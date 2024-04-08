@@ -34,15 +34,20 @@
 //---------------------------------------------------------------------------------
 // pin  gpioname    fxn             desc
 //---------------------------------------------------------------------------------
+// prh 2024-04-06 - Grumble.  The ""datasheet" for the "Blue rPi 3.5" 320x480 ILI9486
+// SPI" XPT2046 Touch Screen is useless.  It does not agree with the Wiki Page, and
+// I believe is inherently incorrect.  These values are from the Wiki Page, and agree
+// with my (working, tested) implementation.
+//
 // 11 	gpio17		TP_IRQ 	        Touch panel interrupt, pulled low during touch
 // 18 	gpio24		LCD_RS 	        LCD instruction control, Instruction/Data register selection
-// 19 	spmos1		LCD_SI/TP_SI 	SPI data input of both LCD & touch panel
-// 21 	spmos0		TP_S0 	        SPI data output of touch panel
+//									called 'CD' in my code
+// 19 	spi_mosi	LCD_SI/TP_SI 	SPI data input of both LCD & touch panel
+// 21 	spi_miso	TP_S0 	        SPI data output of touch panel
 // 22 	gpio25		RST 	        Reset
-// 23 	spisclk		LCD_SCK/TP_SCK 	SPI clock for both LCD & touch panel
-// 24 	spice0		LCD_CS 	        LCD chip select (active low)
-// 26 	spice1		TP_CS 	        Touch panel chip select (active low)
-
+// 23 	spi_sclk	LCD_SCK/TP_SCK 	SPI clock for both LCD & touch panel
+// 24 	gpio8		LCD_CS 	        LCD chip select (active low)
+// 26 	gpio27		TP_CS 	        Touch panel chip select (active low)
 
 // #define PIN_CS_TOUCH    7
 // #define PIN_CS_LCD      8
@@ -50,10 +55,14 @@
 // #define PIN_MOSI        10
 // #define PIN_SCLK        11
 // #define PIN_TP_IRQ      17
+
+
 #define PIN_CD          24
 #define PIN_RESET       25
-
+	// prh 2024-04-06 - pin25 conflicts with my current SYSTEM_RPI_READY pin
 #define PIN_DEBUG       6
+	// prh 2024-04-06 - this debug pin is virtually useless, it turns on
+	// if the Initialize() method is called.
 #define DLY  			255
 
 
@@ -91,7 +100,7 @@ ILI9846::~ILI9846()
 {
 }
 
- 
+
 ILI9846::ILI9846(CSPIMaster *pSPI) :
     m_pSPI(pSPI),
     m_pinCD(PIN_CD,GPIOModeOutput),
@@ -103,7 +112,7 @@ ILI9846::ILI9846(CSPIMaster *pSPI) :
 	m_rotation = 0;
     LOG("ctor",0,0);
 }
-        
+
 
 // virtual
 void ILI9846::InitializeUI(void *pUI, DriverRegisterFxn registerFxn)
@@ -139,7 +148,7 @@ boolean ILI9846::Initialize()
 {
     LOG("initialize",0);
     m_pinCD.Write(1);
-    
+
     m_pinRESET.Write(1);
     CTimer::Get()->usDelay(1000);
     m_pinRESET.Write(0);
@@ -152,7 +161,7 @@ boolean ILI9846::Initialize()
         m_pinDebug.Write(1);
         CTimer::Get()->usDelay(50);
     #endif
-    
+
     u8 *p = init_sequence;
     while (*p)
     {
@@ -170,25 +179,25 @@ boolean ILI9846::Initialize()
             CTimer::Get()->usDelay(20);
         }
     }
-    
+
 	setRotation(3);
 		// prh - right now it's upside down on my desk :-)
-	
+
     #if SHOW_DISTINCTIVE_STARTUP_PATTERN
         LOG("test",0,0);
 		#if ILI9846_WITH_DEBUG_PIN
 			m_pinDebug.Write(1);
 		#endif
-		
+
         fillRect(0,0,GetWidth()-1,GetHeight()-1,C_BLACK);
         fillRect(GetWidth()/3,GetHeight()/3,2*GetWidth()/3-1,2*GetHeight()/3-1,C_CYAN);
-		
+
         fillRect(0,0,20,20,C_RED);
         fillRect(GetWidth()-1-30,0,GetWidth()-1,30,C_GREEN);
         fillRect(0,GetHeight()-1-40,40,GetHeight()-1,C_BLUE);
         fillRect(GetWidth()-1-50,GetHeight()-1-50,GetWidth()-1,GetHeight()-1,C_WHITE);
     #endif
-	
+
 	return true;
 }
 
@@ -212,7 +221,7 @@ void ILI9846::setRotation(u8 rotation)
 	rotation = rotation % 4;
 	m_rotation = rotation;
 	LOG("setRotation(%d)",m_rotation);
-	
+
 	u8 buf[1];
 	buf[0] = 0x48; 	// column_order | bgr
 	switch (m_rotation)
@@ -261,7 +270,7 @@ void ILI9846::fillRect(int xs, int ys, int xe, int ye, u16 color)
 {
     setWindow(xs,ys,xe,ye);
     u32 pixels = (xe-xs+1) * (ye-ys+1);
-    
+
     u8 buf[2];
     buf[0] = color >> 8;
     buf[1] = color & 0xff;
@@ -279,7 +288,7 @@ void ILI9846::SetPixel(unsigned x, unsigned y, u16 color)
 {
 	if (x>GetWidth()) return;
 	if (y>GetHeight()) return;
-	
+
     setWindow(x,y,x,y);
     u8 buf[2];
     buf[0] = color >> 8;
@@ -324,7 +333,3 @@ void ILI9846::staticPushPixel(void *pThis, u16 color)
 	((ILI9846*)pThis)->m_pSPI->SetClock(SPI_FREQ);
 	((ILI9846*)pThis)->m_pSPI->Write(0,buf,2);
 }
-
-
-
-
