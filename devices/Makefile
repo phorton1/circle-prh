@@ -9,8 +9,9 @@ CIRCLEHOME = ../..
 
 OBJS	= \
    ili9486.o \
+   ili9488.o \
    xpt2046.o \
-		
+
 
 libdevices.a: $(OBJS)
 	@echo "  AR    $@"
@@ -18,4 +19,3 @@ libdevices.a: $(OBJS)
 	@$(AR) cr $@ $(OBJS)
 
 include ../myRules.mk
-

@@ -11,6 +11,9 @@
 
 #define USE_SCREEN  	 1
 
+#define USE_ILI_DEVICE		9488
+#define USE_XPT2046			0
+
 
 #include <circle/memory.h>
 #include <utils/myActLED.h>
@@ -18,13 +21,20 @@
 #include <circle/devicenameservice.h>
 #if USE_SCREEN
 	#include <circle/screen.h>
+#else
+	#include <circle/serial.h>
 #endif
 #include <circle/exceptionhandler.h>
 #include <circle/interrupt.h>
 #include <circle/timer.h>
-#include <circle/serial.h>
 #include <circle/logger.h>
-#include <devices/ili9486.h>
+
+#if USE_ILI_DEVICE == 9488
+	#include <devices/ili9488.h>
+#else
+	#include <devices/ili9486.h>
+#endif
+
 #include <devices/xpt2046.h>
 #include <utils/myUtils.h>
 
@@ -48,36 +58,45 @@ public:
 	TShutdownMode Run (void);
 
 private:
-	
+
 	CMemorySystem		m_Memory;
 	myActLED			m_ActLED;
 	CKernelOptions		m_Options;
 	CDeviceNameService	m_DeviceNameService;
+
 	#if USE_SCREEN
 		CScreenDevice	m_Screen;
+	#else
+		CSerialDevice	m_Serial;
 	#endif
+
 	CExceptionHandler	m_ExceptionHandler;
 	CInterruptSystem	m_Interrupt;
 	CTimer				m_Timer;
-	CSerialDevice		m_Serial;
 	CLogger				m_Logger;
-	
 	CSPIMaster	        m_SPI;
-	ILI9846    			m_ili9486;
-	XPT2046    			m_xpt2046;
-	
-	void touchEventHandler(
-		TTouchScreenEvent event,
-		unsigned id,
-		unsigned x,
-		unsigned y);
-	static void touchEventStub(
-		void *pThis,
-		TTouchScreenEvent event,
-		unsigned id,
-		unsigned x,
-		unsigned y);
-	
+
+	#if USE_ILI_DEVICE == 9488
+		ILI9488    		*m_tft_device;
+	#else
+		ILI9846    		*m_tft_device;
+	#endif
+
+	#if USE_XPT2046
+		XPT2046    		*m_xpt2046;
+
+		void touchEventHandler(
+			TTouchScreenEvent event,
+			unsigned id,
+			unsigned x,
+			unsigned y);
+		static void touchEventStub(
+			void *pThis,
+			TTouchScreenEvent event,
+			unsigned id,
+			unsigned x,
+			unsigned y);
+	#endif
 };
 
 
