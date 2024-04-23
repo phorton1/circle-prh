@@ -159,18 +159,6 @@ TShutdownMode CKernel::Run(void)
 
 #if USE_XPT2046
 
-	// some RGB565 colors for testing
-
-	#define C_BLACK     0x0000
-	#define C_BLUE      0x001F
-	#define C_GREEN     0x07E0
-	#define C_RED       0xF800
-	#define C_YELLOW    0xFFE0
-	#define C_CYAN      0x07FF
-	#define C_WHITE     0xFFFF
-
-
-
 	void CKernel::touchEventStub(
 		void *pThis,
 		TTouchScreenEvent event,
@@ -208,21 +196,18 @@ TShutdownMode CKernel::Run(void)
 				LOG("SET_ROTATION(%d)",rot);
 				m_tft_device->setRotation(rot);
 				m_xpt2046->setRotation(rot);
-
-				u16 width = m_tft_device->GetWidth();
-				u16 height = m_tft_device->GetHeight();
-
-				m_tft_device->fillRect(0,0,width-1,height-1,C_BLACK);
-				m_tft_device->fillRect(width/3,height/3,2*width/3-1,2*height/3-1,C_CYAN);
-				m_tft_device->fillRect(0,0,20,20,C_RED);
-				m_tft_device->fillRect(width-1-30,0,width-1,30,C_GREEN);
-				m_tft_device->fillRect(0,height-1-40,40,height-1,C_BLUE);
-				m_tft_device->fillRect(width-1-50,height-1-50,width-1,height-1,C_WHITE);
+				m_tft_device->distinctivePattern();
 			}
 			else if (event == TouchScreenEventFingerDown ||
 					 event == TouchScreenEventFingerMove)
 			{
-				m_tft_device->SetPixel(x,y,C_YELLOW);
+				for (int i=-1; i<=1; i++)
+				{
+					for (int j=-1; j<=1; j++)
+					{
+						m_tft_device->SetPixel(x+i,y+j,RGB565_YELLOW);
+					}
+				}
 			}
 
 	    #endif

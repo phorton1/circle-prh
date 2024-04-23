@@ -196,12 +196,20 @@ void XPT2046::Update()
 			LOG("z(%d) z1(%d) z2(%d) z3(%d) x(%d) y(%d)",z,z1,z2,z3,x,y);
 		#endif
 
-		// self adjusting scaling factors
+		// THERE IS A LIMITATION TO THE PRECISNESS OF TOUCHES
+		// BUTTONS SHOULD BE AT LEAST 30 x 30, preferably 40x40
+		// and the edges of the screen are questionable.
+		//
+		// Because of Z falling to zero at low values of Y,
+		// we arbitrarily scale MIN_Y up a bit
 
-		if (x > MAX_X) MAX_X = x;
+		#define CALIB_FUDGE_Y  30
+		#define CALIB_FUDGE_X  10
+
+		if (x+CALIB_FUDGE_X > MAX_X) MAX_X = x+CALIB_FUDGE_X;
 		if (x < MIN_X) MIN_X = x;
 		if (y > MAX_Y) MAX_Y = y;
-		if (y < MIN_Y) MIN_Y = y;
+		if (y+CALIB_FUDGE_Y < MIN_Y) MIN_Y = y+CALIB_FUDGE_Y;
 
 		// scale to screen size
 

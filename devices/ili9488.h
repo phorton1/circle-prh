@@ -1,70 +1,21 @@
 #ifndef __ili9488_h__
 #define __ili9488_h__
 
-// Device driver for 320x480 ili9488 based SPI TFT Display.
-// Tested against Orange 3.5" devices with and without XPT2046
-
-#include <circle/gpiopin.h>
-#include <circle/spimaster.h>
-#include <circle/screen.h>
+#include "ili_base.h"
 
 
-#define WITH_TRIGGER_PIN	0	// 21
-	// An explicit trigger pin for use with logic analyzer
-	// to capture specific moments.
-
-
-class ILI9488 : public CScreenDeviceBase
-	// This device (like all my other small TFTs) takes
-	// u16 RGB565 colors.
+class ILI9488 : public ILIBASE
 {
 public:
 
     ILI9488(CSPIMaster *pSPI);
     ~ILI9488();
 
-    // CScreenDeviceBase overrides
-
-    /* virtual */ boolean Initialize(void);
-	/* virtual */ virtual void InitializeUI(void *pUI, DriverRegisterFxn registerFxn);
-    /* virtual */ unsigned GetWidth(void) const;
-    /* virtual */ unsigned GetHeight(void) const;
-    /* virtual */ void SetPixel(unsigned x, unsigned y, u16 color);
-    /* virtual */ u16 GetPixel(unsigned x, unsigned y) { return 0; }
-
-    u8 getRotation() { return m_rotation; }
-    void setRotation(u8 rotation);
-    void fillRect(int xs, int ys, int xe, int ye, u16 color);
-
-    // static methods that can be registered with ugui
-    // FillArea sets up the window and returns a pointer to pushPixel
-    // which is then called for each pixel to write it.
-
-    static s8 staticFillFrame(void *pThis, s16 x1, s16 y1, s16 x2, s16 y2, u16 color);
-    static void *staticFillArea(void *pThis, s16 x1, s16 y1, s16 x2, s16 y2);
-    static void staticPushPixel(void *pThis, u16 color);
-
+    virtual boolean Initialize(void) override;
 
 private:
 
-    CSPIMaster  *m_pSPI;
-	CGPIOPin    m_pinCD;
-
-	#if WITH_TRIGGER_PIN
-		CGPIOPin    m_trigger_pin;
-	#endif
-
-    u8 m_rotation;
-
-    void write(u8 *data, u16 len);
-    void writeCommand(u8 command, u8 *data, u16 len);
-    void setWindow(int xs, int ys, int xe, int ye);
-
-	void dbgRead(const char *what, u8 command, u8 num_reply_bytes);
-
-	static void color565ToBuf(u16 color, u8 *buf);
-
-	void printString(s16 x, s16 y, const char *str, u16 color);
+	virtual void color565ToBuf(u16 color, u8 *buf) override;
 
 };
 
