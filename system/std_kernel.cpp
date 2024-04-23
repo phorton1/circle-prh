@@ -134,16 +134,18 @@ CCoreTask::~CCoreTask()
 			LOG("UI starting on Core(%d) mem=%dM",nCore,mem_get_size()/1000000);
 			delay(1000);
 
+			CTouchScreenBase  *pTouch = 0;
 			CMouseDevice *pMouse = (CMouseDevice *) CDeviceNameService::Get ()->GetDevice ("mouse1", FALSE);
 
-			#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
-				CScreenDeviceBase *pUseScreen = &m_pKernel->m_ili9486;
-				CTouchScreenBase  *pTouch = &m_pKernel->m_xpt2046;
+			#if USE_ILI_TFT
+				CScreenDeviceBase *pUseScreen = &m_pKernel->m_tft;
+				#if USE_XPT2046
+					pTouch = &m_pKernel->m_xpt2046;
+				#endif
 			#else
 				CScreenDeviceBase *pUseScreen = &m_pKernel->m_Screen;
-				CTouchScreenBase  *pTouch =
+				pTouch = (CTouchScreenBase *) CDeviceNameService::Get ()->GetDevice ("touch1", FALSE);
 					// prh 2020-08-19 - no TouchScreen Device
-					(CTouchScreenBase *) CDeviceNameService::Get ()->GetDevice ("touch1", FALSE);
 			#endif
 
 			m_pKernel->m_app.Initialize(pUseScreen,pTouch,pMouse);
@@ -340,10 +342,10 @@ CKernel::CKernel(void) :
 	#if USE_USB
 		,m_DWHCI(&m_Interrupt, &m_Timer)
 	#endif
-	#if USE_UI_SYSTEM
-		#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
-			,m_ili9486(&m_SPI)
-			,m_xpt2046(&m_SPI)
+	#if USE_ILI_TFT
+		,m_tft(&m_SPI)
+		#if USE_XPT2046
+			,m_xpt2046(&m_SPI,m_tft.GetWidth(),m_tft.GetHeight())
 		#endif
 	#endif
 	,m_CoreTask(this)
@@ -370,7 +372,7 @@ boolean CKernel::Initialize (void)
 	#if USE_SCREEN
 		if (bOK)
 			bOK = m_Screen.Initialize();
-		#if !USE_MINI_SERIAL && !USE_MAIN_SERIAL
+		#if USE_LOG_TO == LOG_TO_SCREEN
 			if (bOK)
 				bOK = m_Logger.Initialize(&m_Screen);
 		#endif
@@ -379,8 +381,10 @@ boolean CKernel::Initialize (void)
 	#if USE_MINI_SERIAL
 		if (bOK)
 			bOK = m_MiniUart.Initialize(115200);
-		if (bOK)
-			bOK = m_Logger.Initialize(&m_MiniUart);
+		#if USE_LOG_TO == LOG_TO_MIN_UART
+			if (bOK)
+				bOK = m_Logger.Initialize(&m_MiniUart);
+		#endif
 	#endif
 
 	if (bOK)
@@ -391,8 +395,10 @@ boolean CKernel::Initialize (void)
 	#if USE_MAIN_SERIAL
 		if (bOK)
 			bOK = m_Serial.Initialize(115200);
-		if (bOK)
-			bOK = m_Logger.Initialize(&m_Serial);
+		#if USE_LOG_TO == LOG_TO_MAIN_SERIAL
+			if (bOK)
+				bOK = m_Logger.Initialize(&m_Serial);
+		#endif
 	#endif
 
 	dprobe(0,"after logger started",0);
@@ -409,17 +415,16 @@ boolean CKernel::Initialize (void)
 		#endif
 	#endif
 
-	#if USE_UI_SYSTEM
-		if (bOK)
-		{
-			#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
-				m_SPI.Initialize();
-				m_ili9486.Initialize ();
-			#else
-				m_TouchScreen.Initialize ();
-			#endif
-		}
-	#endif
+	if (bOK)
+	{
+		#if USE_ILI_TFT
+			bOK = m_SPI.Initialize();
+			if (bOK)
+				bOK = m_tft.Initialize();
+		#else
+			bOK = m_TouchScreen.Initialize ();
+		#endif
+	}
 
 	#if USE_FILE_SYSTEM
 		if (bOK)

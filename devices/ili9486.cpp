@@ -1,4 +1,8 @@
-// xpt2046
+//-----------------------------------------------------
+// ili9586.cpp
+//-----------------------------------------------------
+// Device driver for 320x480 ili9486 based SPI TFT Display.
+// Tested against Blue 3.5" rPi Hat with and without XPT2046
 
 #include "ili9486.h"
 #include <circle/logger.h>
@@ -7,7 +11,7 @@
 #include <utils/myUtils.h>
 
 
-#define SHOW_DISTINCTIVE_STARTUP_PATTERN	1
+#define OUTPUT_TEST_PATTERN	1
 	// on by default, the screen displays a distinct pattern
 	// of squares to verify basic functionality at boot ...
 
@@ -105,12 +109,15 @@ ILI9846::ILI9846(CSPIMaster *pSPI) :
     m_pSPI(pSPI),
     m_pinCD(PIN_CD,GPIOModeOutput),
     m_pinRESET(PIN_RESET,GPIOModeOutput)
-	#ifdef ILI9846_WITH_DEBUG_PIN
-		,m_pinDebug(PIN_DEBUG,GPIOModeOutput)
+	#if WITH_TRIGGER_PIN
+		,m_trigger_pin(WITH_TRIGGER_PIN,GPIOModeOutput)
 	#endif
 {
-	m_rotation = 0;
     LOG("ctor",0,0);
+	m_rotation = 0;
+	#if WITH_TRIGGER_PIN
+		m_trigger_pin.Write(1);
+	#endif
 }
 
 
@@ -157,10 +164,6 @@ boolean ILI9846::Initialize()
     CTimer::Get()->usDelay(1000);
     m_pinRESET.Write(1);
 
-    #if ILI9846_WITH_DEBUG_PIN
-        m_pinDebug.Write(1);
-        CTimer::Get()->usDelay(50);
-    #endif
 
     u8 *p = init_sequence;
     while (*p)
@@ -183,10 +186,13 @@ boolean ILI9846::Initialize()
 	setRotation(3);
 		// prh - right now it's upside down on my desk :-)
 
-    #if SHOW_DISTINCTIVE_STARTUP_PATTERN
-        LOG("test",0,0);
-		#if ILI9846_WITH_DEBUG_PIN
-			m_pinDebug.Write(1);
+    #if OUTPUT_TEST_PATTERN
+
+        LOG("OUTPUT_TEST_PATTERN",0,0);
+
+		#if WITH_TRIGGER_PIN
+			m_trigger_pin.Write(0);
+			CTimer::Get()->usDelay(5);
 		#endif
 
         fillRect(0,0,GetWidth()-1,GetHeight()-1,C_BLACK);
@@ -196,6 +202,7 @@ boolean ILI9846::Initialize()
         fillRect(GetWidth()-1-30,0,GetWidth()-1,30,C_GREEN);
         fillRect(0,GetHeight()-1-40,40,GetHeight()-1,C_BLUE);
         fillRect(GetWidth()-1-50,GetHeight()-1-50,GetWidth()-1,GetHeight()-1,C_WHITE);
+
     #endif
 
 	return true;

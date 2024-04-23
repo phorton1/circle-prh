@@ -1,6 +1,9 @@
 #ifndef __ili9488_h__
 #define __ili9488_h__
 
+// Device driver for 320x480 ili9488 based SPI TFT Display.
+// Tested against Orange 3.5" devices with and without XPT2046
+
 #include <circle/gpiopin.h>
 #include <circle/spimaster.h>
 #include <circle/screen.h>
@@ -60,6 +63,8 @@ private:
 	void dbgRead(const char *what, u8 command, u8 num_reply_bytes);
 
 	static void color565ToBuf(u16 color, u8 *buf);
+
+	void printString(s16 x, s16 y, const char *str, u16 color);
 
 };
 

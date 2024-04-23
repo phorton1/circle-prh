@@ -12,7 +12,7 @@
 #define USE_SCREEN  	 1
 
 #define USE_ILI_DEVICE		9488
-#define USE_XPT2046			0
+#define USE_XPT2046			1
 
 
 #include <circle/memory.h>

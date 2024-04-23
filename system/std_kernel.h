@@ -27,7 +27,7 @@
 //
 // If USE_UI_SYSTEM is defined, then someone must implement a method
 // wsApplication::Create() which defines the windows in the UI.
-// An empty method can be provided by includingstd_empty_ui.h.
+// An empty method can be provided by including std_empty_ui.h.
 //
 // I don't like the way this works.
 // I am considering a compilation strategy whereby all variants
@@ -39,29 +39,39 @@
 #define USE_AUDIO_SYSTEM 	1
 #define USE_MIDI_SYSTEM     0			// requires USE_USB
 
-#define USE_SCREEN  	 	1			// may run with only specific i2c/spi touch screen devices
-#define USE_USB          	0			// may run with, or without, a mouse
+#define USE_SCREEN  	 	1			// has a screen device
+#define USE_USB          	0			// if 1, and no other input device, will try a USB mouse
 #define USE_MINI_SERIAL  	0			// can output log to either serial port
 #define USE_MAIN_SERIAL  	1
-#define USE_FILE_SYSTEM     0			// include (and initalize) the addon fatfs
+#define USE_FILE_SYSTEM     1			// include (and initalize) the addon fatfs
 
-
-// At most, one of the following may be defined/
-// If USE_UI_SYSTEM then USE_SCREEN or one of these MUST be defined.
-//
 // The following defines override the binding of the user
 // interface to physical devices.  By defaut, it expects
 // a bcm hdmi circle CScreen device, and will automatically
 // use the Circle default official rpi touchscreen if one is
 // present.  If USE_USB is defined it will additionally bind
 // the UI to a mouse device.
-//
-// If one of the below is defined, the CScreen, nor the default
-// touchscreen, nor the mouse will be bound to the UI.
 
-// #define WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
-	// This define corresponds to the standard cheap resistive
-	// rpi touch screen that I implemented.
+#define USE_ILI_TFT			9488		// can be 0, 9486, or 9488
+	// If non-zero the CScreen will not be bound to the UI
+#define USE_XPT2046			1			// can only be 1, really, if USE_ILI_TFT
+	// If non-zero the neither the touchscreen, nor the mouse
+	// will be bound to the UI.
+
+
+// The following defines bind the Logger to one of
+// the devices. The given USE_DEVICE must also be
+// defined or you will end up with no logger!
+
+#define LOG_TO_SCREEN  			0
+#define LOG_TO_MINI_UART		1
+#define LOG_TO_MAIN_SERIAL		2
+
+#define USE_LOG_TO				LOG_TO_SCREEN
+
+
+
+
 
 #include <circle/memory.h>
 #include <utils/myActLED.h>
@@ -88,13 +98,23 @@
 
 #if USE_UI_SYSTEM
 	#include <ws/wsApp.h>
-	#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
-		#include <devices/ili9486.h>
-		#include <devices/xpt2046.h>
-	#else
-		#include <circle/input/touchscreen.h>
-	#endif
 #endif
+
+
+#if USE_ILI_TFT
+	#include <circle/spimaster.h>
+	#if USE_ILI_TFT == 9488
+		#include <devices/ili9488.h>
+	#elif USE_ILI_TFT == 9486
+		#include <devices/ili9486.h>
+	#endif
+	#if USE_XPT2046
+		#include <devices/xpt2046.h>
+	#endif
+#else
+	#include <circle/input/touchscreen.h>
+#endif
+
 
 #if USE_FILE_SYSTEM
 	#include <SDCard/emmc.h>
@@ -124,7 +144,7 @@
 		// interrupt is triggered from the core0 code (IRQ) to the
 		// core which will just call do_update on the IPI.
 		//
-		// As currently implemented, the psudo-Arudino setup() and
+		// As currently implemented, the pseudo-Arudino setup() and
 		// loop() calls are made from the core running the Audio
 		// system.
 
@@ -242,14 +262,23 @@ private:
 
 	#if USE_UI_SYSTEM
 		wsApplication 	m_app;
-		#ifdef WITH_480x320_ILI9486_XPT2046_TOUCHSCREEN
-			CSPIMaster	m_SPI;
-			ILI9846 	m_ili9486;
-			XPT2046 	m_xpt2046;
-		#else
-			CTouchScreenDevice	m_TouchScreen;
-		#endif
 	#endif
+
+	#if USE_ILI_TFT
+		CSPIMaster		m_SPI;
+		#if USE_ILI_TFT == 9488
+			ILI9488 	m_tft;
+		#elif USE_ILI_TFT == 9486
+			ILI9886 	m_tft;
+		#endif
+		#if USE_XPT2046
+			XPT2046  m_xpt2046;
+		#endif
+	#else
+		CTouchScreenDevice	m_TouchScreen;
+	#endif
+
+
 
 	CCoreTask 	m_CoreTask;
 

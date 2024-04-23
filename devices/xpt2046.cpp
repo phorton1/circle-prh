@@ -1,42 +1,127 @@
+//-------------------------------------------------
 // xpt2046
-// see ili9486.cpp for comments
+//-------------------------------------------------
+// Note that on Orange 3.5" 320x480 ili9488 screens, I had
+// to redesign the teensyExpression2 lcd_connector and pull
+// MISO first from the TOUCH_DO pin, and separate it from the the
+// LCD_MISO pin by a 220 ohm resistor in order to be able to
+// read from both the ili9488 and xpt2046 on the same SPI bus.
+// Otherwise, with previous connector design, the xpt2046 MISO
+// signal was pulled down to below 1 volt by the ili9488 MISO
+// line and the xpt2046 did not work.
+//
+// MULTI-SAMPLING
+//
+// It is not clear to me that there is a benefit to multiple
+// sampling.  On Arduino/ESP32's I have used various approaches
+// including.
+//
+//		- multi-sampling and only accepting the results if
+//        is unchanged
+//	    - multi-sampling and throwing out the first sample
+//	      and taking the average
+//      - keeping a circular buffer of samples
+//
+// I am re-implementing this to initially do NO multi-sampling
+// just to see how it works.
+//
+// CALIBRATION
+//
+// There are a couple of approaches we can take to calibrating
+// the X-Y axis values. On my CNC machines with ili9431 3.25"
+// xpt2046 devices, I have an explicit calibration method that
+// allows the user to touch the four corners and then those values
+// are saved to the SDCard and restored at startup.
+//
+// Another approach is to start with conservative calibration
+// values and then to auto-adjust them during usage to any new
+// MAX or MIN values that are found.  That is the algorithm
+// currently used in this implementation.
+
 
 #include "xpt2046.h"
 #include <circle/logger.h>
 #include <circle/util.h>
 #include <utils/myUtils.h>
 
-
-#define GENERATE_MOVE_EVENTS
-// #define PRINT_MOUSE_EVENTS
-
 #define log_name "xpt2046"
 
-#define SPI_FREQ  500000
-
-#define PIN_CS_TOUCH    7
-// #define PIN_CS_LCD      8
-// #define PIN_MISO        9
-// #define PIN_MOSI        10
-// #define PIN_SCLK        11
-// #define PIN_TP_IRQ      17
-// #define PIN_CD          24
-// #define PIN_RESET       25
+#define DEBUG_TOUCH   0
 
 
+#define GENERATE_MOVE_EVENTS
+	// if not, only up and down events will be generated
 
-XPT2046::XPT2046(CSPIMaster *pSPI) :
-    m_pSPI(pSPI),
-    m_pinCS_TOUCH(PIN_CS_TOUCH,GPIOModeOutput)
+#define SPI_FREQ  1000000
+	// 1 Mhz works
+
+// This XPT2046 implementation uses default rPi SCLK, MOSI, MISO pins,
+// and only the default PIN_CS_TOUCH == SPICE1, which is gotten
+// with the '1' param to circle's SPI WriteRead() methods.
+// All the pins on a typical TFT are listed here for completeness.
+//
+// #define PIN_CS_TOUCH    	7	// SPICE1	pass 1 to SPI.Write/Read
+// #define PIN_CS_LCD      	8	// SPICE0	pass 0 to SPI.Write; not used by XPT2046
+// #define PIN_MISO        	9	// default rPi SPI MISO
+// #define PIN_MOSI        	10	// default rPi SPI MOSI
+// #define PIN_SCLK        	11	// default rPi SPI SCLK
+// #define PIN_TP_IRQ      	17	// we are not using the touch IRQ
+// #define PIN_CD          	24	// for the LCD only - not used by XPT2046
+// #define PIN_RESET       	25	// not used on XPT2046, or ILI9488, for that matter
+
+
+//------------------------------------------------------------------
+// XPT2046 Command bytes
+//------------------------------------------------------------------
+// The doc is horrible and does not explain what is really going on.
+// But, with SER_DFR(0) there are four possible commands in a table
+// in the doc.   My previoius implementation used POWER(01) to leave
+// the ADC powered up, but the doc says this is not necessary and
+// my new implementation uses POWER(00).  Note that we use 8BIT
+// mode for z measurement as per doc recommendation
+
+
+#define XPT_START_BIT		0x80
+#define XPT_8BIT_MODE       0x08
+#define XPT_POWER_REF		0x02
+#define XPT_POWER_ADC		0x01
+
+		// 1xxx mspp
+		// 1 			= start bit
+		//  xxx 		= A2,A1,A0
+		//      m 		= MODE(0) = 12 bit conversion mode; 1==8 bit mode
+		//       s		= SER_DFR(0) = differential reference mode
+		//        pp    = POWER(pp) = Reference and ADC is on/off.
+#define XPT_READ_Y		(XPT_START_BIT | (0x1 << 4) | XPT_POWER_ADC)
+		// 0x91 = 001 = +REF=YP -REF=YN +IN=XP m=Y_position  drivers=YP,YN
+#define XPT_READ_Z1		(XPT_START_BIT | (0x3 << 4) | XPT_8BIT_MODE | XPT_POWER_ADC)
+		// 0xB9 = 011 = +REF=YP -REF=XN +IN=XP m=Z1_position drivers=YP
+#define XPT_READ_Z2		(XPT_START_BIT | (0x4 << 4) | XPT_8BIT_MODE | XPT_POWER_ADC)
+		// 0xC9 = 100 = +REF=YP -REF=XN +IN=YN m=Z2_position drivers=YP
+#define XPT_READ_X		(XPT_START_BIT | (0x5 << 4) | XPT_POWER_ADC)
+		// 0xD1 = 101 = +REF=XP -REF=XN +IN=YP m=X_position  drivers=XP
+
+
+
+
+//-------------------------------------------------
+// implementation
+//-------------------------------------------------
+
+
+
+XPT2046::XPT2046(CSPIMaster *pSPI, u16 width, u16 height) :
+    m_pSPI(pSPI)
 {
     LOG("ctor",0,0);
 	m_rotation = 3;
-    m_width = 320;
-    m_height = 480;
+    m_width = width;
+    m_height = height;
     m_lastx = 0;
     m_lasty = 0;
     m_lastz = 0;
 }
+
 
 
 XPT2046::~XPT2046()
@@ -44,123 +129,82 @@ XPT2046::~XPT2046()
 }
 
 
-static u16 MIN_X = 300;
-static u16 MAX_X = 3700;
-static u16 MIN_Y = 240;
-static u16 MAX_Y = 3700;
-
 
 
 u16 XPT2046::transfer16(u8 reg)
 {
-	u8 in_buf[3];
-	u8 out_buf[3];
-	out_buf[0] = reg;
-	out_buf[1] = 0;
-	out_buf[2] = 0;
-	m_pSPI->SetClock(SPI_FREQ);		
-	int rslt = m_pSPI->WriteRead(1,out_buf,in_buf,3);
+	u8 buf[3];
+	buf[0] = reg;
+	buf[1] = 0;
+	buf[2] = 0;
+	m_pSPI->SetClock(SPI_FREQ);
+	int rslt = m_pSPI->WriteRead(1,buf,buf,3);
+	CTimer::Get()->usDelay(5);
 	assert(rslt == 3);
-	u16 retval = (in_buf[1] << 8) | in_buf[2];
+	// LOG("buf[0]=0x%02x buf[0]=0x%02x buf[0]=0x%02x",buf[0],buf[1],buf[2]);
+
+	u16 retval = buf[1];
+	retval <<= 8;
+	retval |= buf[2];
+	retval >>= 4;
+
+	if (reg & XPT_8BIT_MODE)
+	{
+		retval &= 0xff;
+	}
+	else	// 12 bit mode
+	{
+		retval &= 0xfff;
+	}
 	return retval;
 }
 
 
-static s16 besttwoavg( s16 x , s16 y , s16 z )
-{
-	s16 da, db, dc;
-	s16 reta = 0;
-	if ( x > y ) da = x - y; else da = y - x;
-	if ( x > z ) db = x - z; else db = z - x;
-	if ( z > y ) dc = z - y; else dc = y - z;
-	if ( da <= db && da <= dc ) reta = (x + y) >> 1;
-	else if ( db <= da && db <= dc ) reta = (x + z) >> 1;
-	else reta = (y + z) >> 1;
-	return (reta);
-}
 
-
-
+//---------------------------------------------------------
+// IMPLEMENTATION
+//---------------------------------------------------------
 
 #define swap(i,j)  { s16 tmp; tmp=i; i=j; j=tmp; }
 
 
+static u16 MIN_X = 30000;
+static u16 MAX_X = 0;
+static u16 MIN_Y = 30000;
+static u16 MAX_Y = 0;
+
+
 void XPT2046::Update()
 {
-	u8 buf[1];
-	u16 data[6];
-	memset(data,0,12);
-	m_pinCS_TOUCH.Write(0);
+	// read z1 three times and only set z to 1 if all three have values
 
-	buf[0] = 0xb1; 							// Z1
-	m_pSPI->SetClock(SPI_FREQ);		
-	m_pSPI->Write(1,buf,1);
+	s16 z1 = transfer16(XPT_READ_Z1);	// 0xB9
+	s16 z2 = transfer16(XPT_READ_Z1);	// 0xB9
+	s16 z3 = transfer16(XPT_READ_Z1);	// 0xB9
 
-	// if !GENERATE_MOVE_EVENTS we only report mouse up
-	// and down events, so we only report changes in z state
-	
-	s16 rawz = transfer16(0x91);	//  ? 1 : 0;	// X
-	// printf("starting rawz=%d,m_lastz=%d\n",rawz,m_lastz);
-	s16 z = rawz>0 ? 1 : 0;
-	
-	#ifdef GENERATE_MOVE_EVENTS
-		if (!z && !m_lastz)
-	#else
-		if (m_lastz == z)
-	#endif
-	{
-		m_pinCS_TOUCH.Write(0);
-		return;
-	}
-	
-	if (z)	// (z >= Z_THRESHOLD)
-	{
-		transfer16(0x91);  						 // dummy X measure
-		data[0] = transfer16(0xD1 /* Y */) >> 3;
-		data[1] = transfer16(0x91 /* X */) >> 3; // make 3 x-y measurements
-		data[2] = transfer16(0xD1 /* Y */) >> 3;
-		data[3] = transfer16(0x91 /* X */) >> 3;
-	}
-	else
-	{
-		m_pinCS_TOUCH.Write(0);
-		m_lastz = z;
-		
-		// report mouse up event to client, with the previous x,y coordinates
-		// printf("touch up(%d,%d)\n",m_lastx,m_lasty);
-		
-		if (m_pEventHandler)
-			m_pEventHandler(m_pThat,TouchScreenEventFingerUp,0,m_lastx,m_lasty);
-		return;
-	}
-	
-	// sending low bit 0 powers down and re-enables the interrupt
-	// so we do this one outside of the if loop
-	
-	data[4] = transfer16(0xD0 /* Y */) >> 3;
-	data[5] = transfer16(0) >> 3;
-	m_pinCS_TOUCH.Write(1);
+	s16 z = z1 && z2 && z3 ? 1 : 0;
 
-	s16 x = 0;
-	s16 y = 0;
-	// s16 rawx = 0;
-	// s16 rawy = 0;
+	// x and y are only valid if z, so
+	// if z, get, then scale and rotate x and y
+
 	if (z)
 	{
-		// rawx =
-		x = besttwoavg( data[0], data[2], data[4] );
-		//  rawy =
-		y = besttwoavg( data[1], data[3], data[5] );
-		
+		s16 x  = transfer16(XPT_READ_X);	// 0xD1
+		s16 y  = transfer16(XPT_READ_Y);	// 0x91
+
+		#if DEBUG_TOUCH
+			LOG("z(%d) z1(%d) z2(%d) z3(%d) x(%d) y(%d)",z,z1,z2,z3,x,y);
+		#endif
+
 		// self adjusting scaling factors
-		
+
 		if (x > MAX_X) MAX_X = x;
 		if (x < MIN_X) MIN_X = x;
 		if (y > MAX_Y) MAX_Y = y;
 		if (y < MIN_Y) MIN_Y = y;
-		
+
 		// scale to screen size
-			
+
 		float fx = x - MIN_X;
 		float fy = y - MIN_Y;
 		if (fx < 0) fx = 0;
@@ -173,61 +217,63 @@ void XPT2046::Update()
 		fy *= m_height;
 		x = fx;
 		y = fy;
-		
-		// rotate as needed
-		
+
+		// X and Y from the xpt2046 are ALWAYS in the un-rotated
+		// state, 0<=X<=319 and 479<=Y<=0, with 0,0 at the bottom
+		// left corner.
+
 		switch (m_rotation)
 		{
-			case 0: 
-				x = m_width - x;
+			case 0:
 				y = m_height - y;
 				break;
-			case 1: 
+
+			case 1:
+				x = m_width - x;
 				y = m_height - y;
 				swap(x,y);
 				break;
-			case 3:
+
+			case 2:
 				x = m_width - x;
+				break;
+
+			case 3:
 				swap(x,y);
 				break;
 		}
-	}
 
-	// static int count = 0;
-	// printf("%-10d raw(%d,%d,%d) cur(%d,%d,%d) last(%d,%d,%d)\n",
-	// 	count++,rawx,rawy,rawz,x,y,z,m_lastx,m_lasty,m_lastz);
-	
-	// report mouse down event with appropriate coordinates
-	
-#ifdef GENERATE_MOVE_EVENTS
-	if (m_lastz != z || m_lastx != x || m_lasty != y)
-	{
-#endif
-	
-		// printf("touch down(%d,%d)\n",x,y);
-		
+		// if not previous Z it's a Down event,
+		// or if GENERATE_MOVE_EVENTS and x or y changed, it's a Move event
+
 		if (m_pEventHandler)
 		{
-			m_pEventHandler(
-				m_pThat,
-#ifdef GENERATE_MOVE_EVENTS
-				z == m_lastz ? TouchScreenEventFingerMove :
-#endif
-				TouchScreenEventFingerDown,
-				0,x,y);
+			if (!m_lastz)
+			{
+				m_pEventHandler(m_pThat,TouchScreenEventFingerDown,0,x,y);
+			}
+
+			#ifdef GENERATE_MOVE_EVENTS
+				else if (x != m_lastx || y != m_lasty)
+				{
+					m_pEventHandler(m_pThat,TouchScreenEventFingerMove,0,x,y);
+				}
+			#endif
 		}
-		
-		m_lastz = z;
+
+		// assign m_last values
+
 		m_lastx = x;
 		m_lasty = y;
-				
-#ifdef GENERATE_MOVE_EVENTS
 	}
-#endif
-	
+
+	// otherwise, if !z and m_lastz, its an Up event
+
+	else if (m_pEventHandler && m_lastz)
+	{
+		m_pEventHandler(m_pThat,TouchScreenEventFingerUp,0,m_lastx,m_lasty);
+	}
+
+	m_lastz = z;
+
 }
-
-
-
-
-

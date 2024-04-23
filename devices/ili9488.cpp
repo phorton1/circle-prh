@@ -1,4 +1,19 @@
-// xpt2046
+//---------------------------------------------------------------
+// ili9488.cpp
+//---------------------------------------------------------------
+// Note that on Orange 3.5" 320x480 ili9488 screens, I had
+// to redesign the teensyExpression2 lcd_connector and pull
+// MISO first from the TOUCH_DO pin, and separate it from the the
+// LCD_MISO pin by a 220 ohm resistor in order to be able to
+// read from both the ili9488 and xpt2046 on the same SPI bus.
+// Otherwise, with previous connector design, the xpt2046 MISO
+// signal was pulled down to below 1V by the ili9488 MISO line
+// and the xpt2046 did not work.
+//
+// Note the GetPixel() is not implemented in these devices,
+// so the only use of the LCD_MISO pin is for dbgRead() debugging.
+// Another alternative is to merely not hook up the LCD_MISO pin.
+
 
 #include "ili9488.h"
 #include <circle/logger.h>
@@ -7,7 +22,7 @@
 #include <utils/myUtils.h>
 
 
-#define log_name "ili9848"
+#define log_name "ili9488"
 
 #define WIDTH		320
 #define HEIGHT		480
@@ -18,8 +33,8 @@
 
 // May want to turn these three off in production use
 
-#define DEBUG_DEFAULT_VALUES 	0
-#define DEBUG_INIT_VALUES		0
+#define DEBUG_DEFAULT_VALUES 	1
+#define DEBUG_INIT_VALUES		1
 #define OUTPUT_TEST_PATTERN		1
 	// on by default, the screen displays a distinct pattern
 	// of squares to verify basic functionality at boot ...
@@ -44,8 +59,7 @@
 #endif
 
 
-// some colors for testing
-// definitions from ugui 565 colors
+// some RGB565 colors for testing
 
 #define C_BLACK     0x0000
 #define C_BLUE      0x001F
@@ -59,11 +73,9 @@
 //---------------------------------------------------------------------------------
 // pin  gpioname    fxn             desc
 //---------------------------------------------------------------------------------
-// The pins for the Orange 3.5" ILI9488 are unchanged from the ILI9486, except:
-//
-// 	(a) we do not use TP_IRQ
-// 	(a) we do not use RST reset pin
-// 	(b) we do not use a DEBUG_PIN
+// The pins for the Orange 3.5" ILI9488 are unchanged from the Blue rPi
+// 3.5" 320x480 ILI9486 hat, except that we do not use the RST pin,
+// which is pulled up to 5V by a 10K resistor on the lcd_connector.
 //
 // 18 	gpio24		LCD_RS 	        LCD instruction control, Instruction/Data register selection
 //									called 'CD' in my code
@@ -78,7 +90,6 @@
 // #define PIN_MISO        9
 // #define PIN_MOSI        10
 // #define PIN_SCLK        11
-
 
 #define PIN_CD          24
 #define DLY  			255
@@ -121,11 +132,20 @@ u8 init_sequence[] =	// additional comments from MSWindows Copilot query
 		// Set Image Function
 		// 0x00 = Disable 24 bit data
 #endif
+#if 0
+	2, 0xB0, 0x80,      // Interface Mode Control
+		// 0x80 == use 3 wire (bi-directional SDA, no SDO)
+		// Paul Changed the SPI mode from the default to apparently use the
+		// the "3 wire" interface which multiplexes the SDA line.
+		// This might have something to do with the XPT2046
+		// functionality possibly working (untested) with teensy
+		// libraries.
+#endif
 #if USE_16_BIT_COLORS
 	2, 0x3A, 0x56,
-		// prh - RGB interface remains at (6) = 18 bits
-		// MPU interface changed to (5) = 16 bit pixel format
-#elif 0	// NOT NEEDED as 18 bit mode is my orange devices default value
+		// prh - set RGB interface remains to 16 bits
+		// I was not able to get this working (with either 0x56, 0x65, or 0x55)
+#elif 0	// 18 bit is the orange devices DEFAULT_VALUE
 	2, 0x3A, 0x66,
 		// Interface Pixel Format (18 bit)
 		// Sets the pixel format to 18 bits per pixel (RGB666).
@@ -164,9 +184,9 @@ u8 init_sequence[] =	// additional comments from MSWindows Copilot query
 #endif
 
 
-// In fact, I am only using this small section of initialization
+// In the end I am only using this small section of initialization
 // to wake up and turn on the display.  My orange devices work
-// with the default 18-bit mode.
+// with the device defaults
 
 #if 1
 	// Take the display out of any sleep mode and turn it on
@@ -340,7 +360,7 @@ boolean ILI9488::Initialize()
 		}
 	}
 
-	setRotation(3);
+	setRotation(0);
 
 	// post initialization debugging
 
@@ -372,11 +392,23 @@ boolean ILI9488::Initialize()
         fillRect(GetWidth()-1-30,0,GetWidth()-1,30,C_GREEN);
         fillRect(0,GetHeight()-1-40,40,GetHeight()-1,C_BLUE);
         fillRect(GetWidth()-1-50,GetHeight()-1-50,GetWidth()-1,GetHeight()-1,C_WHITE);
+
+		printString(30,30,"This is a TEST",C_WHITE);
     #endif
 
 	return true;
 }
 
+
+void ILI9488::printString(s16 x, s16 y, const char *str, u16 color)
+{
+	s16 char_width = m_CharGen.GetCharWidth();
+	while (*str)
+	{
+		CScreenDeviceBase::DisplayChar(*str++, x, y, color);
+		x += char_width;
+	}
+}
 
 
 void ILI9488::color565ToBuf(u16 color, u8 *buf)
