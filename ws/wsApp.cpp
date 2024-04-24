@@ -3,6 +3,9 @@
 //
 // A event driven windowing system that kind of combines uGUI and wxWindows.
 // Written for the rPi Circle bare metal C++ libraries.
+//
+// Is aware of xpt2046 devices and their need for an Update() loop for
+// calibration initialization as started in std_kernel,.cpp ...
 
 #include "wsApp.h"
 #include "wsEvent.h"
@@ -276,17 +279,21 @@ void wsApplication::onTouchEvent(
 // timeSlice()
 //--------------------------------------------------
 
-#define UI_FRAME_RATE    30
+#define UI_FRAME_RATE    0 // 30
+	// if the std_kernel is set to 60 frames,
+	// probably want to undefine this
 
 void wsApplication::timeSlice()
 {
 	// Gate the entire process to UI_FRAME_RATE
 
-	unsigned cur_time = CTimer::Get()->GetClockTicks();
-	if (cur_time > m_update_frame_time &&
-		cur_time < m_update_frame_time + CLOCKHZ/UI_FRAME_RATE)
-		return;
-	m_update_frame_time = cur_time;
+	#if UI_FRAME_RATE
+		unsigned cur_time = CTimer::Get()->GetClockTicks();
+		if (cur_time > m_update_frame_time &&
+			cur_time < m_update_frame_time + CLOCKHZ/UI_FRAME_RATE)
+			return;
+		m_update_frame_time = cur_time;
+	#endif
 
 	#ifdef DEBUG_UPDATE
 		if (debug_update)
@@ -295,6 +302,26 @@ void wsApplication::timeSlice()
 			printf("================= update =====================\n");
 			if (!m_pDC->getInvalid().isEmpty())
 				print_rect("invalid",&m_pDC->getInvalid());
+		}
+	#endif
+
+	// return if in calibration mode, or
+	// redraw the whole screen ..
+
+	#if USE_XPT2046
+		static bool calibration_started = 0;
+		XPT2046 *xpt2046 = CCoreTask::Get()->GetKernel()->GetXPT2046();
+		if (xpt2046->inCalibration())
+		{
+			calibration_started = 1;
+			xpt2046->Update();
+			return;
+		}
+		else if (calibration_started)
+		{
+			calibration_started = 0;
+			getTopWindow()->setStateBits(WIN_STATE_DRAW);
+			return;
 		}
 	#endif
 

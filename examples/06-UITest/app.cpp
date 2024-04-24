@@ -288,7 +288,7 @@ class topWindow : public wsTopLevelWindow
 				{
 					#if USE_XPT2046
 						LOG("ui starting tft calibration",0);
-						CCoreTask::Get()->GetKernel()->GetXPT2046()->startCalibration(0);
+						CCoreTask::Get()->GetKernel()->GetXPT2046()->startCalibration();
 					#else
 						LOG("ID_MENU1_OPTION1",0);
 					#endif
@@ -330,6 +330,7 @@ class topWindow : public wsTopLevelWindow
 					stext(ID_TEXT_DRAG)->setText("Drag Mode Reset");
 					button(ID_BUTTON_DRAG)->move(4,5);	// restore original position
 					m_drag_mode = 0;					// restore drag constraint
+					button(ID_BUTTON_DRAG)->setDragConstraint(m_drag_mode);
 					result_handled = 1;
 				}
 			}

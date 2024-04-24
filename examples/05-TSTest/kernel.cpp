@@ -212,7 +212,7 @@ TShutdownMode CKernel::Run(void)
 					x > (m_tft_device->GetWidth()-50) && y < 50)
 				{
 					started_calibration = 1;
-					m_xpt2046->startCalibration(0);
+					m_xpt2046->startCalibration();
 				}
 			#endif
 

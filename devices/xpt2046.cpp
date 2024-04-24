@@ -129,7 +129,8 @@ XPT2046::~XPT2046()
 
 XPT2046::XPT2046(CSPIMaster *pSPI, ILIBASE *pTFT) :
     m_pSPI(pSPI),
-	m_pTFT(pTFT)
+	m_pTFT(pTFT),
+	m_pFileSystem(0)
 {
 	m_rotation = pTFT->getRotation();
     m_width = pTFT->GetWidth();
@@ -198,16 +199,7 @@ u16 XPT2046::transfer16(u8 reg)
 //---------------------------------------------------------
 // IMPLEMENTATION
 //---------------------------------------------------------
-// The TFT_ESPI implementation takes many milliseconds.
-//
-//		- do the z3 loop with 1ms delay until z3 stops increasing
-//      - bail if z3 is less then a threshold
-//      -
 
-// with a while loop to debounce the pressure, then doing
-// four samples per x and y, keeping only the last one,
-// then
-//
 
 #define swap(i,j)  { s16 tmp; tmp=i; i=j; j=tmp; }
 
@@ -418,15 +410,7 @@ void XPT2046::Update()
 // If the OK button is not pressed, then a cancel is performed
 
 
-
-void XPT2046::Initialize(FATFS *pFileSystem)
-{
-}
-
-
-
-
-void XPT2046::startCalibration(FATFS *pFileSystem)
+void XPT2046::startCalibration()
 {
 	LOG("startCalibration()",0);
 
@@ -477,6 +461,7 @@ void XPT2046::endCalibration(bool ok)
 	if (ok)
 	{
 		printCentered(2, start_y,"CALIBRATION COMPLETE");
+		writeCalibration();
 	}
 	else
 	{
@@ -487,7 +472,7 @@ void XPT2046::endCalibration(bool ok)
 		m_max_y = m_save_max_y;
 	}
 
-	CTimer::Get()->MsDelay(2000);
+	CTimer::Get()->MsDelay(1000);
 	m_calibration_phase = 0;
 	LOG("endCalibration() returning",0);
 }
@@ -542,7 +527,9 @@ void XPT2046::calibMove(u16 state, u16 x, u16 y)
 	// LOG("PHASE(%d) CALIB_%s(%d,%d)  in=%d  button=%d",
 	// 	m_calibration_phase,
 	// 	(state == 0 ? "DOWN" : state == 1 ? "MOVE" : "UP"),
-	// 	x,y,in,m_button_pressed);	// show the contact point as 3x3 yellow pixels
+	// 	x,y,in,m_button_pressed);
+
+	// show the contact point as 3x3 yellow pixels
 
 	if (!in && (state == CALIB_DOWN || state == CALIB_MOVE))
 	{
@@ -555,23 +542,21 @@ void XPT2046::calibMove(u16 state, u16 x, u16 y)
 		}
 	}
 
-	// finished calibration
-
 	if (m_calibration_phase == 2)
 	{
-		if (state == CALIB_UP)
+		if (state == CALIB_UP)			// finished calibration
 		{
 			if (m_button_pressed && in == m_button_pressed)
 				endCalibration(in == 2);
 			m_button_pressed = 0;
 		}
-		else if (state == CALIB_DOWN)
+		else if (state == CALIB_DOWN)	// button pressed
 		{
 			m_button_pressed = in;
 			if (m_button_pressed)
 				showButton(m_button_pressed,1);
 		}
-		else if (m_button_pressed && in != m_button_pressed)
+		else if (m_button_pressed && in != m_button_pressed)	// moved out button invalid
 		{
 			showButton(m_button_pressed,0);
 			m_button_pressed = 0;
@@ -579,3 +564,159 @@ void XPT2046::calibMove(u16 state, u16 x, u16 y)
 	}
 }
 
+
+//------------------------------------
+// read and write calibration
+//--------------------------------------
+
+#define CALIB_FILENAME "SD:tft_calib.txt"
+
+
+void XPT2046::writeCalibration()
+{
+	LOG("writeCalibration(%d,%d,%d,%d)",m_min_x,m_max_x,m_min_y,m_max_y);
+
+	if (m_pFileSystem)
+	{
+		FIL file;
+		if (f_open(&file, CALIB_FILENAME, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)
+		{
+			CString s;
+			s.Format("%d,%d,%d,%d\n",m_min_x,m_max_x,m_min_y,m_max_y);
+			int len = s.GetLength();
+
+			u32 wrote = 0;
+			if (f_write(&file,(const char *)s,len,&wrote) == FR_OK)
+			{
+				LOG("wrote %s(%d,%d,%d,%d)",CALIB_FILENAME,m_min_x,m_max_x,m_min_y,m_max_y);
+			}
+			else
+			{
+				LOG_ERROR("Could not open %s",len,CALIB_FILENAME);
+			}
+
+			f_close(&file);
+		}
+		else
+		{
+			LOG_WARNING("Could open %s for writing",CALIB_FILENAME);
+		}
+	}
+	else
+	{
+		LOG_WARNING("No file system for %s",CALIB_FILENAME);
+	}
+}
+
+
+
+void XPT2046::Initialize(FATFS *pFileSystem)
+{
+	m_pFileSystem = pFileSystem;
+	if (pFileSystem)
+	{
+		FIL file;
+		FILINFO info;
+
+		LOG("Initialize()",0);
+
+		if (f_stat(CALIB_FILENAME, &info) == FR_OK)
+		{
+			u32 len = info.fsize;
+			// LOG("%s len=%d",CALIB_FILENAME,len);
+			if (len && len < 100)
+			{
+				if (f_open(&file, CALIB_FILENAME, FA_READ | FA_OPEN_EXISTING) == FR_OK)
+				{
+					u32 read = 0;
+					char buf[128];
+					memset(buf,0,128);
+					// LOG("reading %d bytes from %s",len,CALIB_FILENAME);
+					if (f_read(&file,buf,len,&read) == FR_OK)
+					{
+						// LOG("got %d bytes from %s",read,CALIB_FILENAME);
+
+						int count = 0;
+						u16 values[4];
+						char *p = buf;
+
+						while (count<4 && *p)
+						{
+							const char *sp = p;
+							while (*p && *p >= '0' && *p <= '9')
+							{
+								p++;
+							}
+							if (*p)
+							{
+								*p++ = 0;
+
+								// strtoul sheesh, no atoi, atol, strToInt, took an hour to figure out
+
+								char *pEnd;
+								unsigned long stupid;
+								stupid = strtoul(sp, &pEnd, 10);
+									// sheesh, need end ptr and base(10) param
+								values[count++] = stupid;
+							}
+						}
+
+						if (count == 4)
+						{
+							// xmin, xmax, ymin, ymax
+
+							if (values[0] < 10   || values[0] > 2048 ||
+								values[1] < 2048 || values[1] > 4095 ||
+								values[2] < 10   || values[2] > 2048 ||
+								values[3] < 2048 || values[3] > 4095 ||
+								values[0] >= values[1] ||
+								values[2] >= values[3] )
+							{
+								LOG_ERROR("bad values(%d,%d,%d,%d) in %s",values[0],values[1],values[2],values[3],CALIB_FILENAME);
+							}
+							else
+							{
+								LOG("got calibration values: %d,%d,%d,%d",values[0],values[1],values[2],values[3]);
+								m_min_x = values[0];
+								m_max_x = values[1];
+								m_min_y = values[2];
+								m_max_y = values[3];
+
+								// SUCCESS!! return
+
+								return;
+							}
+						}
+						else
+						{
+							LOG_ERROR("wrong number of values(%d) in %s",count,CALIB_FILENAME);
+						}
+					}
+					else
+					{
+						LOG_ERROR("read failed %s",len,CALIB_FILENAME);
+					}
+
+					f_close(&file);
+
+				}
+				else
+				{
+					LOG_ERROR("Could not open %s",len,CALIB_FILENAME);
+				}
+			}
+			else
+			{
+				LOG_ERROR("Incorrect len(%d) for %s",len,CALIB_FILENAME);
+			}
+		}
+		else
+		{
+			LOG_WARNING("Could not stat %s",CALIB_FILENAME);
+		}
+	}
+
+	// otherwise, start a calibration at boot !!
+
+	startCalibration();
+}

@@ -30,13 +30,14 @@ public:
 	virtual void Update(void) override;
 
 	void Initialize(FATFS *pFileSystem);
-	void startCalibration(FATFS *pFileSystem);
+	void startCalibration();
 	int inCalibration() { return m_calibration_phase; }
 
 protected:
 
     CSPIMaster *m_pSPI;
 	ILIBASE    *m_pTFT;
+	FATFS 	   *m_pFileSystem;
 
     u8  m_rotation;
     u16 m_width;			// width in the rotated state (not absolute)
@@ -67,6 +68,7 @@ protected:
 	int m_button_pressed;
 
 	void endCalibration(bool ok);
+	void writeCalibration();
 	int printCentered(int size, int start_y, const char *str);
 	void showButton(int num, bool down);
 	void calibMove(u16 state, u16 x, u16 y);
