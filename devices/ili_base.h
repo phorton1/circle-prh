@@ -67,8 +67,8 @@ public:
 
 	u16	charWidth();
 	u16	charHeight();
-	void printChar(u16 x, u16 y, char c, u16 color, u8 size);
-	void printString(u16 x, u16 y, const char *str, u16 color, u8 size /*=1*/);
+	void printChar(u16 x, u16 y, char c, u16 fg, u16 bg, u8 size);
+	void printString(u16 x, u16 y, const char *str, u16 fg, u16 bg=RGB565_BLACK, u8 size=1);
 		// rudimentary character output
 
 

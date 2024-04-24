@@ -87,6 +87,10 @@ boolean CKernel::Initialize (void)
 }
 
 
+#if USE_XPT2046
+	static bool started_calibration = 0;
+#endif
+
 
 TShutdownMode CKernel::Run(void)
 	// calls the CoreTask to do all the work
@@ -115,10 +119,7 @@ TShutdownMode CKernel::Run(void)
 					// for xpt2046 construction.
 
 					LOG("constructing XPT2046",0);
-					m_xpt2046 = new XPT2046(
-						&m_SPI,
-						m_tft_device->GetWidth(),
-						m_tft_device->GetHeight());
+					m_xpt2046 = new XPT2046(&m_SPI,m_tft_device);
 					LOG("XPT2046 constructed",0);
 				#endif
 
@@ -137,6 +138,12 @@ TShutdownMode CKernel::Run(void)
 		else
 		{
 			#if USE_XPT2046
+				if (started_calibration && !m_xpt2046->inCalibration())
+				{
+					started_calibration = 0;
+					m_tft_device->distinctivePattern();
+				}
+
 				m_xpt2046->Update();
 				#if DEBUG_TOUCH
 					CTimer::Get()->MsDelay(100);
@@ -198,6 +205,17 @@ TShutdownMode CKernel::Run(void)
 				m_xpt2046->setRotation(rot);
 				m_tft_device->distinctivePattern();
 			}
+
+			// press and release green box to do a calibration
+			#if USE_XPT2046
+				else if (event == TouchScreenEventFingerUp &&
+					x > (m_tft_device->GetWidth()-50) && y < 50)
+				{
+					started_calibration = 1;
+					m_xpt2046->startCalibration(0);
+				}
+			#endif
+
 			else if (event == TouchScreenEventFingerDown ||
 					 event == TouchScreenEventFingerMove)
 			{

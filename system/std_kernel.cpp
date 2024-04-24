@@ -120,6 +120,10 @@ CCoreTask::~CCoreTask()
 
 #if USE_UI_SYSTEM
 
+	#if USE_XPT2046
+		bool calibration_started = 0;
+	#endif
+
 	#define UI_FRAME_RATE   60
 		// undefine this to not throttle the UI
 
@@ -165,6 +169,21 @@ CCoreTask::~CCoreTask()
 			{
 				ui_timer = now;
 			#endif
+
+				#if USE_XPT2046
+					if (m_pKernel->m_xpt2046.inCalibration())
+					{
+						calibration_started = 1;
+						m_pKernel->m_xpt2046.Update();
+					}
+					else if (calibration_started)
+					{
+						calibration_started = 0;
+						m_pKernel->m_app.getTopWindow()->setStateBits(WIN_STATE_DRAW);
+					}
+					else
+
+				#endif
 
 				m_pKernel->m_app.timeSlice();
 
@@ -345,7 +364,7 @@ CKernel::CKernel(void) :
 	#if USE_ILI_TFT
 		,m_tft(&m_SPI)
 		#if USE_XPT2046
-			,m_xpt2046(&m_SPI,m_tft.GetWidth(),m_tft.GetHeight())
+			,m_xpt2046(&m_SPI,&m_tft)
 		#endif
 	#endif
 	,m_CoreTask(this)
@@ -421,6 +440,11 @@ boolean CKernel::Initialize (void)
 			bOK = m_SPI.Initialize();
 			if (bOK)
 				bOK = m_tft.Initialize();
+			#if USE_XPT2046
+				if (bOK)
+					m_xpt2046.setRotation(m_tft.getRotation());
+			#endif
+
 		#else
 			bOK = m_TouchScreen.Initialize ();
 		#endif
@@ -431,7 +455,14 @@ boolean CKernel::Initialize (void)
 		{
 			bOK = m_EMMC.Initialize();
 			initFileSystem();
+			#if USE_XPT2046
+				m_xpt2046.startCalibration(&m_FileSystem);
+			#endif
 		}
+	#else
+		#if USE_XPT2046
+			m_xpt2046.startCalibration(0);
+		#endif
 	#endif
 
 

@@ -48,7 +48,6 @@
 
 #define DEBUG_TOUCH   0
 
-
 #define GENERATE_MOVE_EVENTS
 	// if not, only up and down events will be generated
 
@@ -102,6 +101,19 @@
 		// 0xD1 = 101 = +REF=XP -REF=XN +IN=YP m=X_position  drivers=XP
 
 
+//------------------------------------------------
+// defines for calibration
+//------------------------------------------------
+
+#define CALIB_DOWN  0
+#define CALIB_MOVE  1
+#define CALIB_UP    2
+
+#define BUTTON_DELAY  15
+#define CANCEL_DELAY  25
+
+#define BUTTON_WIDTH 	80
+#define BUTTON_HEIGHT 	40
 
 
 //-------------------------------------------------
@@ -110,25 +122,42 @@
 
 
 
-XPT2046::XPT2046(CSPIMaster *pSPI, u16 width, u16 height) :
-    m_pSPI(pSPI)
-{
-    LOG("ctor",0,0);
-	m_rotation = 3;
-    m_width = width;
-    m_height = height;
-    m_lastx = 0;
-    m_lasty = 0;
-    m_lastz = 0;
-}
-
-
-
 XPT2046::~XPT2046()
 {
 }
 
 
+XPT2046::XPT2046(CSPIMaster *pSPI, ILIBASE *pTFT) :
+    m_pSPI(pSPI),
+	m_pTFT(pTFT)
+{
+	m_rotation = pTFT->getRotation();
+    m_width = pTFT->GetWidth();
+    m_height = pTFT->GetHeight();
+    LOG("XPT046(%d,%d,%d)",m_rotation,m_width,m_height);
+
+    m_lastx = 0;
+    m_lasty = 0;
+    m_lastz = 0;
+
+	// arbitrary starting calibration values from
+	// emprical testing on a orange ILI9488 device
+
+	m_calibration_phase = 0;
+	m_min_x = 241;
+	m_max_x = 3830;
+	m_min_y = 174;
+	m_max_y = 3888;
+
+}
+
+
+
+void XPT2046::setRotation(u8 rotation)
+{
+	m_rotation = rotation;
+	LOG("setRotation(%d)",m_rotation);
+}
 
 
 u16 XPT2046::transfer16(u8 reg)
@@ -141,21 +170,26 @@ u16 XPT2046::transfer16(u8 reg)
 	int rslt = m_pSPI->WriteRead(1,buf,buf,3);
 	CTimer::Get()->usDelay(5);
 	assert(rslt == 3);
-	// LOG("buf[0]=0x%02x buf[0]=0x%02x buf[0]=0x%02x",buf[0],buf[1],buf[2]);
+
+	// GRRR - there is always a leading zero bit returned
+	// therefore, for 12 bits we right shift THREE bits.
+	// The doc is terribly unclear about what the pattern
+	// is in 8 bit mode (leading or trailing?)
 
 	u16 retval = buf[1];
 	retval <<= 8;
 	retval |= buf[2];
-	retval >>= 4;
+	retval >>= 3;
 
-	if (reg & XPT_8BIT_MODE)
-	{
-		retval &= 0xff;
-	}
-	else	// 12 bit mode
-	{
-		retval &= 0xfff;
-	}
+	//	if (reg & XPT_8BIT_MODE)
+	//	{
+	//		retval &= 0xff;
+	//	}
+	//	else	// 12 bit mode
+	//	{
+	//		retval &= 0xfff;
+	//	}
+
 	return retval;
 }
 
@@ -164,25 +198,87 @@ u16 XPT2046::transfer16(u8 reg)
 //---------------------------------------------------------
 // IMPLEMENTATION
 //---------------------------------------------------------
+// The TFT_ESPI implementation takes many milliseconds.
+//
+//		- do the z3 loop with 1ms delay until z3 stops increasing
+//      - bail if z3 is less then a threshold
+//      -
+
+// with a while loop to debounce the pressure, then doing
+// four samples per x and y, keeping only the last one,
+// then
+//
 
 #define swap(i,j)  { s16 tmp; tmp=i; i=j; j=tmp; }
 
 
-static u16 MIN_X = 30000;
-static u16 MAX_X = 0;
-static u16 MIN_Y = 30000;
-static u16 MAX_Y = 0;
-
-
 void XPT2046::Update()
 {
-	// read z1 three times and only set z to 1 if all three have values
+	// Cancel or advance the calibration phase based on timer
 
-	s16 z1 = transfer16(XPT_READ_Z1);	// 0xB9
-	s16 z2 = transfer16(XPT_READ_Z1);	// 0xB9
-	s16 z3 = transfer16(XPT_READ_Z1);	// 0xB9
+	if (m_calibration_phase)
+	{
+		u32 elapsed = CTimer::Get()->GetTime() - m_calibration_time;
+		u32 remain  = elapsed > BUTTON_DELAY ?
+			CANCEL_DELAY - elapsed :
+			BUTTON_DELAY - elapsed;
+		if (remain != m_display_time)
+		{
+			m_display_time = remain;
 
-	s16 z = z1 && z2 && z3 ? 1 : 0;
+			// fill the background ....
+
+			#define RECT_CHARS 6
+
+			s16 width = m_pTFT->GetWidth();
+			s16 char_width = m_pTFT->charWidth() * 2;
+			s16 char_height = m_pTFT->charHeight() * 2;
+			s16 start_x = (width - RECT_CHARS*char_width) / 2;
+			s16 ex = start_x + RECT_CHARS * char_width - 1;
+			s16 ey = 20 + char_height - 1;
+			m_pTFT->fillRect(start_x,20,ex,ey,RGB565_BLACK);
+
+			// output a timer string
+
+			CString msg;
+			msg.Format ("%d",m_display_time);
+			printCentered(2,20,msg);
+		}
+
+		// advance or cancel m_calibration_phase
+
+		if (elapsed > CANCEL_DELAY)
+		{
+			endCalibration(0);
+		}
+		else if (m_calibration_phase == 1 && elapsed > BUTTON_DELAY)
+		{
+			m_calibration_phase++;
+			showButton(1,0);
+			showButton(2,0);
+		}
+	}
+
+	// Another thing the doc just completely fails to describe
+	// is what are z1 and z2 and how to use them.  From the
+	// TFT_ESPI implementation, I gleaned this weird bit of
+	// code that subtracts z2 from z1 and biases it by 0xfff,
+	// then uses a threshold (350 typically).  In the end
+	// I went with my MUCH simpler code.
+
+	#if 0
+		#define Z_THRESH  128
+		s16 z1 = transfer16(0xB0);
+		s16 z2 = transfer16(0xC0);
+		s16 z3 = 0xfff + z1 - z2;
+		s16 z = z3 > Z_THRESH ? 1 : 0;
+	#else
+		// read z1 three times and only set z to 1 if all three have values
+		s16 z1 = transfer16(XPT_READ_Z1);	// 0xB9
+		s16 z2 = transfer16(XPT_READ_Z1);	// 0xB9
+		s16 z3 = transfer16(XPT_READ_Z1);	// 0xB9
+		s16 z = z1 && z2 && z3 ? 1 : 0;
+	#endif
 
 	// x and y are only valid if z, so
 	// if z, get, then scale and rotate x and y
@@ -196,29 +292,27 @@ void XPT2046::Update()
 			LOG("z(%d) z1(%d) z2(%d) z3(%d) x(%d) y(%d)",z,z1,z2,z3,x,y);
 		#endif
 
-		// THERE IS A LIMITATION TO THE PRECISNESS OF TOUCHES
-		// BUTTONS SHOULD BE AT LEAST 30 x 30, preferably 40x40
-		// and the edges of the screen are questionable.
-		//
-		// Because of Z falling to zero at low values of Y,
-		// we arbitrarily scale MIN_Y up a bit
+		if (m_calibration_phase)
+		{
+			#define CALIB_FUDGE_Y  30
+			#define CALIB_FUDGE_X  -10
 
-		#define CALIB_FUDGE_Y  30
-		#define CALIB_FUDGE_X  10
+			if (x+CALIB_FUDGE_X > m_max_x) m_max_x = x+CALIB_FUDGE_X;
+			if (x < m_min_x) m_min_x = x;
+			if (y > m_max_y) m_max_y = y;
+			if (y+CALIB_FUDGE_Y < m_min_y) m_min_y = y+CALIB_FUDGE_Y;
 
-		if (x+CALIB_FUDGE_X > MAX_X) MAX_X = x+CALIB_FUDGE_X;
-		if (x < MIN_X) MIN_X = x;
-		if (y > MAX_Y) MAX_Y = y;
-		if (y+CALIB_FUDGE_Y < MIN_Y) MIN_Y = y+CALIB_FUDGE_Y;
+			LOG("CALIB(%d,%d,%d) min(%d,%d) max(%d,%d)",x,y,z,m_min_x,m_min_y,m_max_x,m_max_y);
+		}
 
 		// scale to screen size
 
-		float fx = x - MIN_X;
-		float fy = y - MIN_Y;
+		float fx = x - m_min_x;
+		float fy = y - m_min_y;
 		if (fx < 0) fx = 0;
 		if (fy < 0) fy = 0;
-		fx = fx /(MAX_X-MIN_X);
-		fy = fy /(MAX_Y-MIN_Y);
+		fx = fx /(m_max_x-m_min_x);
+		fy = fy /(m_max_y-m_min_y);
 		if (fx > 1.0) fx = 1.0;
 		if (fy > 1.0) fy = 1.0;
 		fx *= m_width;
@@ -253,16 +347,27 @@ void XPT2046::Update()
 
 		// if not previous Z it's a Down event,
 		// or if GENERATE_MOVE_EVENTS and x or y changed, it's a Move event
+		// we send all of em to calibMove if in a calibration
 
-		if (m_pEventHandler)
+		if (!m_lastz)
 		{
-			if (!m_lastz)
+			if (m_calibration_phase)
+			{
+				calibMove(CALIB_DOWN,x,y);
+			}
+			else if (m_pEventHandler)
 			{
 				m_pEventHandler(m_pThat,TouchScreenEventFingerDown,0,x,y);
 			}
-
+		}
+		else if (x != m_lastx || y != m_lasty)
+		{
+			if (m_calibration_phase)
+			{
+				calibMove(CALIB_MOVE,x,y);
+			}
 			#ifdef GENERATE_MOVE_EVENTS
-				else if (x != m_lastx || y != m_lasty)
+				else if (m_pEventHandler)
 				{
 					m_pEventHandler(m_pThat,TouchScreenEventFingerMove,0,x,y);
 				}
@@ -277,11 +382,200 @@ void XPT2046::Update()
 
 	// otherwise, if !z and m_lastz, its an Up event
 
-	else if (m_pEventHandler && m_lastz)
+	else if (m_lastz)
 	{
-		m_pEventHandler(m_pThat,TouchScreenEventFingerUp,0,m_lastx,m_lasty);
+		if (m_calibration_phase)
+		{
+			calibMove(CALIB_UP,m_lastx,m_lasty);
+		}
+		else if (m_pEventHandler)
+		{
+			m_pEventHandler(m_pThat,TouchScreenEventFingerUp,0,m_lastx,m_lasty);
+		}
 	}
 
 	m_lastz = z;
 
 }
+
+
+
+//------------------------------------------------------------
+// Calibration UI
+//------------------------------------------------------------
+// THERE IS A LIMITATION TO THE PRECISNESS OF TOUCHES
+// BUTTONS SHOULD BE AT LEAST 30 x 30, preferably 40x40
+// and the edges of the screen are questionable.
+//
+// Using the screen itself for calibration Cancel/OK buttons
+// is weird, inasmuch as they could get a false hit on an OK
+// button while moving the mouse around.
+//
+// Therefore there are two phases, and a timeout ...
+// For 15 seconds there are no buttons.
+// 		hopefully this is enough time to start getting a line
+// Then for 10 seconds the buttons show.
+// If the OK button is not pressed, then a cancel is performed
+
+
+
+void XPT2046::Initialize(FATFS *pFileSystem)
+{
+}
+
+
+
+
+void XPT2046::startCalibration(FATFS *pFileSystem)
+{
+	LOG("startCalibration()",0);
+
+	int width = m_pTFT->GetWidth();
+	int height = m_pTFT->GetHeight();
+	int char_height = m_pTFT->charHeight();
+
+	m_pTFT->fillRect(0,0,width-1,height-1,RGB565_BLACK);
+
+	int start_y = (height - 4 * char_height) / 2;
+
+	start_y = printCentered(2, start_y,
+		"CALIBRATE TOUCH");
+	start_y = printCentered(1, start_y,
+		"Slide pointer towards the edges until");
+	start_y = printCentered(1, start_y,
+		"you get a good set of lines");
+
+	m_save_min_x = m_min_x;
+	m_save_max_x = m_max_x;
+	m_save_min_y = m_min_y;
+	m_save_max_y = m_max_y;
+
+	m_min_x = 30000;
+	m_max_x = 0;
+	m_min_y = 30000;
+	m_max_y = 0;
+
+	m_button_pressed = 0;
+	m_calibration_phase = 1;
+	m_calibration_time = CTimer::Get()->GetTime();
+
+	LOG("startCalibration() returning",0);
+}
+
+
+void XPT2046::endCalibration(bool ok)
+{
+	LOG("endCalibration(%d)",ok);
+
+	int width = m_pTFT->GetWidth();
+	int height = m_pTFT->GetHeight();
+	int char_height = m_pTFT->charHeight();
+	int start_y = (height - 2 * char_height) / 2;
+
+	m_pTFT->fillRect(0,0,width-1,height-1,RGB565_BLACK);
+
+	if (ok)
+	{
+		printCentered(2, start_y,"CALIBRATION COMPLETE");
+	}
+	else
+	{
+		printCentered(2, start_y,"CALIBRATION ABORTED");
+		m_min_x = m_save_min_x;
+		m_max_x = m_save_max_x;
+		m_min_y = m_save_min_y;
+		m_max_y = m_save_max_y;
+	}
+
+	CTimer::Get()->MsDelay(2000);
+	m_calibration_phase = 0;
+	LOG("endCalibration() returning",0);
+}
+
+
+
+int XPT2046::printCentered(int size, int start_y, const char *str)
+{
+	int width = m_pTFT->GetWidth();
+	int len = strlen(str);
+	int start_x = (width - (size * len * m_pTFT->charWidth())) / 2;
+	m_pTFT->printString(start_x,start_y,str,RGB565_WHITE,RGB565_BLACK,size);
+	return start_y + size * m_pTFT->charHeight();
+}
+
+
+void XPT2046::showButton(int num, bool down)
+{
+	int width = m_pTFT->GetWidth();
+	int char_height = m_pTFT->charHeight();
+	int char_width  = m_pTFT->charWidth();
+
+	const char *msg = num==1 ? "Cancel" : "OK";
+	u16 len = strlen(msg);
+
+	u16 fg =
+		down ? RGB565_WHITE : RGB565_BLACK;
+	u16 bg =
+		down ? RGB565_BLUE  :
+		num == 1 ? RGB565_RED :
+		RGB565_GREEN;
+	u16 box_sx = num == 1 ? 0 : width - BUTTON_WIDTH;
+	u16 box_ex = num == 1 ? BUTTON_WIDTH-1 : width-1;
+
+	m_pTFT->fillRect(box_sx,0,box_ex,BUTTON_HEIGHT-1,bg);
+
+	u16 text_y = (BUTTON_HEIGHT - char_height) / 2;
+	u16 text_x = (BUTTON_WIDTH - char_width * len) / 2;
+
+	m_pTFT->printString(box_sx + text_x,text_y,msg,fg,bg,1);
+}
+
+
+void XPT2046::calibMove(u16 state, u16 x, u16 y)
+{
+	int width = m_pTFT->GetWidth();
+
+	int in = m_calibration_phase == 2 ?
+		(y<50 && x<50) ? 1 :
+		(y<50 && x>width-50) ? 2 : 0 : 0;
+
+	// LOG("PHASE(%d) CALIB_%s(%d,%d)  in=%d  button=%d",
+	// 	m_calibration_phase,
+	// 	(state == 0 ? "DOWN" : state == 1 ? "MOVE" : "UP"),
+	// 	x,y,in,m_button_pressed);	// show the contact point as 3x3 yellow pixels
+
+	if (!in && (state == CALIB_DOWN || state == CALIB_MOVE))
+	{
+		for (int i=-1; i<=1; i++)
+		{
+			for (int j=-1; j<=1; j++)
+			{
+				m_pTFT->SetPixel(x+i,y+j,RGB565_YELLOW);
+			}
+		}
+	}
+
+	// finished calibration
+
+	if (m_calibration_phase == 2)
+	{
+		if (state == CALIB_UP)
+		{
+			if (m_button_pressed && in == m_button_pressed)
+				endCalibration(in == 2);
+			m_button_pressed = 0;
+		}
+		else if (state == CALIB_DOWN)
+		{
+			m_button_pressed = in;
+			if (m_button_pressed)
+				showButton(m_button_pressed,1);
+		}
+		else if (m_button_pressed && in != m_button_pressed)
+		{
+			showButton(m_button_pressed,0);
+			m_button_pressed = 0;
+		}
+	}
+}
+

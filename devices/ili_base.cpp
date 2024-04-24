@@ -205,7 +205,7 @@ void ILIBASE::distinctivePattern()
 	fillRect(0,GetHeight()-1-40,40,GetHeight()-1,RGB565_BLUE);
 	fillRect(GetWidth()-1-50,GetHeight()-1-50,GetWidth()-1,GetHeight()-1,RGB565_WHITE);
 
-	printString(30,30,"This is a TEST",RGB565_YELLOW,2);
+	printString(30,30,"This is a TEST",RGB565_YELLOW,RGB565_BLUE,2);
 }
 
 
@@ -221,14 +221,14 @@ u16	ILIBASE::charHeight()
 }
 
 
-void ILIBASE::printChar(u16 x, u16 y, char c, u16 color, u8 size)
+void ILIBASE::printChar(u16 x, u16 y, char c, u16 fg, u16 bg, u8 size)
 {
-	LOG("    printChar(%d,%d,'%c',0x%04x,%d)",x,y,c,color,size);
+	// LOG("    printChar(%d,%d,'%c',0x%04x,0x%04x,%d)",x,y,c,fg,bg,size);
 	for (u16 yp=0; yp<charHeight(); yp++)
 	{
 		for (u16 xp=0; xp<charWidth(); xp++)
 		{
-			u16 col = m_CharGen.GetPixel(c, xp, yp) ? color : RGB565_BLACK;
+			u16 col = m_CharGen.GetPixel(c, xp, yp) ? fg : bg;
 			u16 sx = x + (xp * size);
 			u16 sy = y + (yp * size);
 			for (u16 i=0; i<size; i++)
@@ -240,15 +240,15 @@ void ILIBASE::printChar(u16 x, u16 y, char c, u16 color, u8 size)
 }
 
 
-void ILIBASE::printString(u16 x, u16 y, const char *str, u16 color, u8 size /*=1*/)
+void ILIBASE::printString(u16 x, u16 y, const char *str, u16 fg, u16 bg, u8 size /*=1*/)
 {
-	LOG("printString(%d,%d,'%s',0x%04x,%d)",x,y,str,color,size);
+	// LOG("printString(%d,%d,'%s',0x%04x,0x%04x, %d)",x,y,str,fg,bg,size);
 
 	s16 char_width = charWidth();
 	while (*str)
 	{
 		// CScreenDeviceBase::DisplayChar(*str++, x,y, color);
-	    printChar(x, y, *str++, color, size);
+	    printChar(x, y, *str++, fg, bg, size);
 	    x += char_width * size;
 	}
 }
@@ -274,6 +274,7 @@ unsigned ILIBASE::GetHeight() const
 
 void ILIBASE::setRotation(u8 rotation)
 {
+	LOG("setRotation(%d)",rotation);
 	rotation = rotation % 4;
 	m_rotation = rotation;
 

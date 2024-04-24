@@ -228,6 +228,10 @@ public:
 		CSerialDevice *GetSerial()  { return &m_Serial; }
 	#endif
 
+	#if USE_XPT2046
+		XPT2046 *GetXPT2046() { return &m_xpt2046; }
+	#endif
+
 private:
 
 	friend class CCoreTask;

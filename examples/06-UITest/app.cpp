@@ -19,7 +19,7 @@
 
 #define log_name  "app"
 
-	
+
 //------------------------------------------------------------
 // define the layout, ids, windows, and objects of the UI
 //------------------------------------------------------------
@@ -35,17 +35,17 @@
 #define ID_WIN_BOTTOM   40
 #define ID_PANEL	   	100
 
-#define ID_BUTTON1    	101
-#define ID_BUTTON2    	102
-#define ID_BUTTON3    	103
-#define ID_BUTTON4    	104
-#define ID_BUTTON5    	105
+#define ID_BUTTON_DLG   	101
+#define ID_BUTTON_UP_DOWN   102
+#define ID_BUTTON_COUNT    	103
+#define ID_BUTTON_MODE    	104
+#define ID_BUTTON_DRAG    	105
 
-#define ID_TEXT1      	201
-#define ID_TEXT2      	202
-#define ID_TEXT3      	203
-#define ID_TEXT4      	204
-#define ID_TEXT5      	205
+// #define ID_TEXT1      	201
+#define ID_TEXT_UP_DOWN		202
+#define ID_TEXT_COUNT		203
+#define ID_TEXT_DRAG      	204
+// #define ID_TEXT5      	205
 
 #define ID_CHECKBOX1  	301
 #define ID_CHECKBOX2  	302
@@ -62,7 +62,7 @@
 
 #define ID_DLG  1000
 #define ID_BUTTON_CLOSE  1001
-#define ID_BUTTON_BUG    1002 
+#define ID_BUTTON_BUG    1002
 
 #define button(id)   ((wsButton *)findChildByID(id))
 #define stext(id)    ((wsStaticText *)findChildByID(id))
@@ -70,11 +70,33 @@
 #define menu(id)     ((wsMenu *)findChildByID(id))
 
 
+const char *dragModeToStr(u16 mode)
+{
+	CString msg;
+	msg.Format("mode(%d)",mode);
+	if (mode & DRAG_CONSTRAINT_X)
+		msg.Append("X ");
+	if (mode & DRAG_CONSTRAINT_Y)
+		msg.Append("Y ");
+	if (mode & DRAG_CONSTRAINT_FIT)
+		msg.Append("FIT ");
+	if (mode & DRAG_CONSTRAINT_SHOW)
+		msg.Append("SHOW ");
+	if (mode & DRAG_CONSTRAINT_OBJECT)
+		msg.Append("OBJ ");
+
+	static char buf[80];
+	strcpy(buf,msg);
+	return buf;
+}
+
+
+
 class dialogWindow : public wsTopLevelWindow
 	// a popup test dialog window
 {
 	public:
-		
+
 		dialogWindow(wsTopLevelWindow *pPrevTop, u16 id, s32 x, s32 y, s32 width, s32 height) :
 			wsTopLevelWindow(pPrevTop->getApplication(),id,x,y,x + width-1,y + height-1,
 				WIN_STYLE_3D | WIN_STYLE_POPUP),
@@ -82,20 +104,20 @@ class dialogWindow : public wsTopLevelWindow
 		{
 			setBackColor(wsDARK_BLUE);
 			setForeColor(wsWHITE);
-			
+
 			const char *msg =
 				"This is a test dialog window\n\n"
 				"It presents a \"close\" button\n"
 				"to allow you to close it.\n\n"
 				"Clicking anywhere outside of it\n"
 				"should close it too. It does not clip text very well.";
-				
+
 			wsStaticText *text = new wsStaticText(this,
 				0, msg,
 				10, 10, getWidth()-10-1, getHeight()-60-1);
 			text->setAlign(ALIGN_TOP_LEFT);
 			text->setBackColor(wsPURPLE);
-			
+
 			new wsButton(this,
 				ID_BUTTON_CLOSE,
 				"close",
@@ -103,7 +125,7 @@ class dialogWindow : public wsTopLevelWindow
 				getHeight()-50,
 				getWidth()-15-1,
 				getHeight()-15-1);
-			
+
 			new wsButton(this,
 				ID_BUTTON_BUG,
 				"bug",
@@ -111,33 +133,33 @@ class dialogWindow : public wsTopLevelWindow
 				getHeight()-50,
 				95,
 				getHeight()-15-1);
-			
+
 		}
-			
+
 	private:
-		
+
 		wsTopLevelWindow *m_pPrevTop;
-		
+
 		virtual u32 handleEvent(wsEvent *event)
 		{
 			u32 type = event->getEventType();
 			u32 event_id = event->getEventID();
 			u32 id = event->getID();
 			u32 result_handled = 0;
-			
+
 			// wsWindow *obj = event->getObject();
-			
+
 			#if 0
 				LOG("dlg::handleEvent(%08x,%d,%d)",type,event_id,id);
 			#endif
-			
+
 			if (type == EVT_TYPE_BUTTON &&
 				event_id == EVENT_CLICK)
 			{
 				if (id == ID_BUTTON_CLOSE)
 				{
 					printf("hiding dialog\n");
-					
+
 					#if 0
 						// set the background to gray to prove it only redraws the invalidated area
 						wsRect full(0,0,getApplication()->getWidth()-1,getApplication()->getHeight()-1);
@@ -152,8 +174,8 @@ class dialogWindow : public wsTopLevelWindow
 					static int bug_count = 0;
 					CString msg;
 					msg.Format("this is bug %d",bug_count++);
-					((wsStaticText *)m_pPrevTop->findChildByID(ID_TEXT3))->setText(msg);
-					
+					((wsStaticText *)m_pPrevTop->findChildByID(ID_TEXT_COUNT))->setText(msg);
+
 					// the reason this is questionable is that entire static text control
 					// repaints itself, and then later, the dialog again repaints itself.
 					// only the portion of the static text control that is really visible
@@ -175,28 +197,22 @@ class topWindow : public wsTopLevelWindow
 	// bunch of buttons, etc.
 {
 	public:
-		
+
 		topWindow(wsApplication *pApp, u16 id, s32 xs, s32 ys, s32 xe, s32 ye) :
 			wsTopLevelWindow(pApp,id,xs,ys,xe,ye,WIN_STYLE_TRANSPARENT),
 			m_pDlg(0)
 		{
-			m_button1_count = 0;
-			m_button2_count = 0;
-			m_button3_count = 0;
-			m_button4_count = 0;
-			m_button5_count = 0;
+			m_button_count = 0;
+			m_drag_mode = 0;
 		}
-			
+
 	private:
-		
-		u16 m_button1_count;
-		u16 m_button2_count;
-		u16 m_button3_count;
-		u16 m_button4_count;
-		u16 m_button5_count;
-		
+
+		u16 m_button_count;
+		u16 m_drag_mode;
+
 		dialogWindow *m_pDlg;
-		
+
 		virtual u32 handleEvent(wsEvent *event)
 		{
 			u32 type = event->getEventType();
@@ -204,18 +220,17 @@ class topWindow : public wsTopLevelWindow
 			u32 id = event->getID();
 			wsWindow *obj = event->getObject();
 			u32 result_handled = 0;
-			
+
 			#if DEBUG_TOUCH
 				LOG("handleEvent(%08x,%d,%d)",type,event_id,id);
 			#endif
-			
+
 			if (type == EVT_TYPE_BUTTON &&
 				event_id == EVENT_CLICK)
 			{
-				if (id == ID_BUTTON1)
+				if (id == ID_BUTTON_DLG)
 				{
 					result_handled = 1;
-					m_button1_count++;
 					if (!m_pDlg)
 					{
 						#define DLG_WIDTH  300
@@ -234,59 +249,58 @@ class topWindow : public wsTopLevelWindow
 						m_pDlg->show();
 					}
 				}
-				else if (id == ID_BUTTON2)
+				else if (id == ID_BUTTON_UP_DOWN)
 				{
-					m_button2_count++;
 					wsButton *button = (wsButton *) event->getObject();
-					stext(ID_TEXT2)->setText(
-						button->isPressed() ? "DOWN" : "UP");
+					stext(ID_TEXT_UP_DOWN)->setText( button->isPressed() ? "DOWN" : "UP");
 					result_handled = 1;
 				}
-				else if (id == ID_BUTTON3)
+				else if (id == ID_BUTTON_COUNT)
 				{
-					m_button3_count++;
+					m_button_count++;
 					CString string;
-					string.Format("text3 - %d",m_button3_count);
-					stext(ID_TEXT3)->setText(string);
+					string.Format("count(%d)",m_button_count);
+					stext(ID_TEXT_COUNT)->setText(string);
 					result_handled = 1;
 				}
-				else if (id == ID_BUTTON4)
+				else if (id == ID_BUTTON_MODE)
 				{
-					m_button4_count++;
-					if (m_button4_count > 31) m_button4_count = 0;
-					
-					CString string;
-					string.Format("text4 - clicked 0x%02x",m_button4_count);
-					stext(ID_TEXT4)->setText(string);
-					button(ID_BUTTON5)->setDragConstraint(m_button4_count);
+					m_drag_mode++;
+					if (m_drag_mode > 31) m_drag_mode = 0;
+
+					CString string = dragModeToStr(m_drag_mode);
+					stext(ID_TEXT_DRAG)->setText(string);
+					button(ID_BUTTON_DRAG)->setDragConstraint(m_drag_mode);
 					result_handled = 1;
 				}
-				else if (id == ID_BUTTON5)
+				else if (id == ID_BUTTON_DRAG)
 				{
-					m_button5_count++;
-					CString string;
-					string.Format("text5 - clicked %d",m_button5_count);
-					stext(ID_TEXT5)->setText(string);
+					stext(ID_TEXT_DRAG)->setText("CLICKED");
 					result_handled = 1;
 				}
 				else if (id == ID_MENU1)
-				{	
+				{
 					LOG("ID_MENU1",0);
 					menu(ID_MENU1)->popup();
 					result_handled = 1;
 				}
 				else if (id == ID_MENU1_OPTION1)
-				{	
-					LOG("ID_MENU1_OPTION1",0);
+				{
+					#if USE_XPT2046
+						LOG("ui starting tft calibration",0);
+						CCoreTask::Get()->GetKernel()->GetXPT2046()->startCalibration(0);
+					#else
+						LOG("ID_MENU1_OPTION1",0);
+					#endif
 					result_handled = 1;
 				}
 				else if (id == ID_MENU1_OPTION2)
-				{	
+				{
 					LOG("ID_MENU1_OPTION2",0);
 					result_handled = 1;
 				}
 				else if (id == ID_MENU1_OPTION3)
-				{	
+				{
 					LOG("ID_MENU1_OPTION3",0);
 					result_handled = 1;
 				}
@@ -294,34 +308,38 @@ class topWindow : public wsTopLevelWindow
 			else if (type == EVT_TYPE_CHECKBOX &&
 					 event_id == EVENT_VALUE_CHANGED)
 			{
-				if (id == ID_CHECKBOX2)
+				if (id >= ID_CHECKBOX1 && id <= ID_CHECKBOX3)
 				{
 					wsCheckbox *box = (wsCheckbox *) obj;
-					stext(ID_CB_TEXT2)->setText(box->isChecked() ? "two checked" : "two not checked");
+
+					u32 num = id - ID_CHECKBOX1;
+					CString msg;
+					msg.Format("%s %s",
+						num == 2 ? "three" : num == 1 ? "two" : "one",
+						box->isChecked() ? "checked" : "off" );
+
+					stext(ID_CB_TEXT1 + num)->setText(msg);
 					result_handled = 1;
 				}
 			}
 			else if (type == EVT_TYPE_WINDOW &&
 					 event_id == EVENT_LONG_CLICK)
 			{
-				if (id == ID_BUTTON4)
+				if (id == ID_BUTTON_MODE)
 				{
-					CString string;
-					m_button5_count++;
-					if (m_button4_count > 31) m_button4_count = 0;
-					string.Format("text4 - long clicked 0x%02x",m_button4_count);
-					stext(ID_TEXT4)->setText(string);
-					button(ID_BUTTON5)->setDragConstraint(m_button4_count);
+					stext(ID_TEXT_DRAG)->setText("Drag Mode Reset");
+					button(ID_BUTTON_DRAG)->move(4,5);	// restore original position
+					m_drag_mode = 0;					// restore drag constraint
 					result_handled = 1;
 				}
 			}
-	
+
 			if (!result_handled)
 				result_handled = wsTopLevelWindow::handleEvent(event);
-			
+
 			return result_handled;
 		}
-	
+
 };
 
 
@@ -335,70 +353,69 @@ class topWindow : public wsTopLevelWindow
 void wsApplication::Create()
 {
 	LOG("wsApplication::Create(%08x)",this);
-	
+
 	s32 width = getWidth();
 	s32 height = getHeight();
-	
+
 	topWindow *frame = new topWindow(this,ID_WIN_FRAME ,0,0,width-1,height-1);
 	LOG("frame=%08x",(u32)frame);
-	
+
 	// since all the controls in the top level window will trigger an event on it,
 	// they must have unique ids in that context
-	
-	
+
+
 	wsWindow *pTitle  = new wsWindow(frame, ID_WIN_TOP,    0, 		0, width-1, 			TOP_MARGIN-1);
 	wsWindow *pLeft   = new wsWindow(frame, ID_WIN_LEFT,   0, 		TOP_MARGIN, 			width/2-1,		height-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
 	wsWindow *pRight  = new wsWindow(frame, ID_WIN_RIGHT,  width/2, TOP_MARGIN, 			width-1, 		height-BOTTOM_MARGIN-1, 	WIN_STYLE_2D);
 	wsWindow *pStatus = new wsWindow(frame, ID_WIN_BOTTOM, 0, 		height-BOTTOM_MARGIN, 	width-1, 		height-1, 					WIN_STYLE_3D);
-	
+
 	// app.setBackColor(wsBLACK);
 	// app.setForeColor(wsGRAY);
-	
+
 	pTitle->setBackColor(wsRED);
 	pTitle->setForeColor(wsWHITE);
-	
+
 	pLeft->setBackColor(wsDARK_GREEN);
 	pLeft->setForeColor(wsMAGENTA);
-	
+
 	pRight->setBackColor(wsBLUE);
 	pRight->setForeColor(wsYELLOW);
-	
-	new wsButton		(pTitle,  ID_BUTTON1, "button1", 	4,   5,   119, 44,  BTN_STYLE_USE_ALTERNATE_COLORS);
-	new wsStaticText	(pTitle,  ID_TEXT1,   "text1", 		150, 5,   360, 44);
-	stext(ID_TEXT1)->setFont(wsFont12x16);
-	button(ID_BUTTON1)->setAltBackColor(wsBLUE);
-	button(ID_BUTTON1)->setAltForeColor(wsWHITE);
-	
+
+	new wsButton(pTitle,  ID_BUTTON_DLG, "DLG", 	4,   5,   119, 44,  BTN_STYLE_USE_ALTERNATE_COLORS);
+	button(ID_BUTTON_DLG)->setAltBackColor(wsBLUE);
+	button(ID_BUTTON_DLG)->setAltForeColor(wsWHITE);
+
 	wsMenu *pMenu = new wsMenu(pTitle, ID_MENU1, "MENU", width-121, 0, width-1, 49, 120);
-	pMenu->addChoice(ID_MENU1_OPTION1,"option1");
+
+	#if USE_XPT2046
+		pMenu->addChoice(ID_MENU1_OPTION1,"calib");
+	#else
+		pMenu->addChoice(ID_MENU1_OPTION1,"option2");
+	#endif
 	pMenu->addChoice(ID_MENU1_OPTION2,"option2");
 	pMenu->addChoice(ID_MENU1_OPTION3,"option3");
-	
-	new wsButton		(pLeft,   ID_BUTTON2, "button2", 	4,   5,   119, 33, BTN_STYLE_3D | BTN_STYLE_TOGGLE_COLORS | BTN_STYLE_TOGGLE_VALUE);
-	new wsStaticText	(pLeft,   ID_TEXT2,   "text2", 		130, 5,   360, 33);
 
-	new wsButton		(pRight,  ID_BUTTON3, "button3", 	4,   5,   119, 33, BTN_STYLE_3D, WIN_STYLE_CLICK_REPEAT);
-	new wsStaticText	(pRight,  ID_TEXT3,   "text3", 		130, 5,   360, 33);
-	
-	new wsButton		(pStatus, ID_BUTTON4, "button4", 	4,   5,   119, 40, BTN_STYLE_2D | BTN_STYLE_TOGGLE_COLORS, WIN_STYLE_CLICK_LONG);
-	new wsStaticText	(pStatus, ID_TEXT4,   "text4", 		130, 5,   360, 40);
+
+	new wsButton		(pLeft,   ID_BUTTON_UP_DOWN, 	"up_down", 		4,   5,   119, 33, BTN_STYLE_3D | BTN_STYLE_TOGGLE_COLORS | BTN_STYLE_TOGGLE_VALUE);
+	new wsStaticText	(pLeft,   ID_TEXT_UP_DOWN,      "up(0)", 		130, 5,   360, 33);
+
+	new wsButton		(pRight,  ID_BUTTON_COUNT, 		"count", 		4,   5,   119, 33, BTN_STYLE_3D, WIN_STYLE_CLICK_REPEAT);
+	new wsStaticText	(pRight,  ID_TEXT_COUNT,   		"count(0)", 	130, 5,   360, 33);
+
+	new wsButton		(pStatus, ID_BUTTON_MODE, 		"drag mode", 	4,   5,   119, 40, BTN_STYLE_2D | BTN_STYLE_TOGGLE_COLORS, WIN_STYLE_CLICK_LONG);
+	new wsStaticText	(pStatus, ID_TEXT_DRAG,   		"drag_text", 	130, 5,   360, 40);
 
 	wsWindow *pPanel = new wsWindow(pLeft, ID_PANEL, 10, 40, pLeft->getWidth()-10-1, pLeft->getHeight()-10-1, WIN_STYLE_2D | WIN_STYLE_TRANSPARENT);
-	
+
 	// instantiate the drag button after the other objects that are in the background
-	
-	new wsStaticText	(pPanel,  ID_TEXT5,   "text5", 		130, 5,   360, 33);
-	new wsButton		(pPanel,  ID_BUTTON5, "button5", 	4,   5,   119, 33, BTN_STYLE_2D, WIN_STYLE_DRAG);
-	
+
+	new wsButton		(pPanel,  ID_BUTTON_DRAG, "drag", 	4,   5,   119, 33, BTN_STYLE_2D, WIN_STYLE_DRAG);
+
 	new wsCheckbox(pRight, ID_CHECKBOX1, 1,  20,45,  0);
 	new wsCheckbox(pRight, ID_CHECKBOX2, 1,  20,75,  CHB_STYLE_2D | CHB_STYLE_TOGGLE_COLORS);
 	new wsCheckbox(pRight, ID_CHECKBOX3, 1,  20,105, CHB_STYLE_3D | CHB_STYLE_TOGGLE_COLORS);
-	
+
 	new wsStaticText(pRight, ID_CB_TEXT1, "one", 	60,45,	360,70 );
 	new wsStaticText(pRight, ID_CB_TEXT2, "two", 	60,75,	360,100 );
 	new wsStaticText(pRight, ID_CB_TEXT3, "three", 	60,105,	360,130 );
 }
-
-
-
-
