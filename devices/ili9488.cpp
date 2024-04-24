@@ -29,8 +29,8 @@
 	// Read is better at or below 20MHZ
 	// 1Mhz is useful with the logic analyzer
 
-#define DEBUG_DEFAULT_VALUES 	1
-#define DEBUG_INIT_VALUES		1
+#define DEBUG_DEFAULT_VALUES 	0
+#define DEBUG_INIT_VALUES		0
 
 #define OUTPUT_TEST_PATTERN		1
 	// on by default, the screen displays a distinct pattern
@@ -216,6 +216,9 @@ boolean ILI9488::Initialize()
 			CTimer::Get()->usDelay(20);
 		}
 	}
+
+	// set my preferred rotation
+	// xpt2046 was constructed at rotation(0)
 
 	setRotation(3);
 

@@ -112,6 +112,9 @@ boolean ILI9846::Initialize()
         }
     }
 
+	// set my preferred rotation
+	// xpt2046 was constructed at rotation(0)
+
 	setRotation(3);
 
     #if OUTPUT_TEST_PATTERN
