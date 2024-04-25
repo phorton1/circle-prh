@@ -1,7 +1,7 @@
 //
 // kernel.cpp - prh
 //
-//     this file is compiled and linked to recovery.img
+//     this file is compiled and linked to recoveryN.img
 //
 //     the standard stock raspberry pi bootcode.bin and
 //     start.elf scheme attempts to load recovery.img before
@@ -39,6 +39,12 @@
 #include <circle/alloc.h>
 #include <circle/chainboot.h>
 #include <circle/sysconfig.h>
+
+//	#ifdef ARM_ALLOW_MULTI_CORE
+//		#error The bootloader must be compiled single core
+//	#endif
+
+
 
 #if WITH_TFTP
 	#include "tftpbootserver.h"
@@ -897,9 +903,13 @@ redo_block:
 		return;
 	}
 	
+	// send ACK for checksum
+	
+	m_pUseSerial->Write(&BS_ACK,1);
+
 	// otherwise, we're good to reboot to it ...
 	
-	m_kernel_size = length;	
+	m_kernel_size = length;
 	printf("OK!! enabling chain boot for binary(%d) sum=%d\r\n",m_kernel_size,total_sum);
 	EnableChainBoot(m_pKernelBuffer, m_kernel_size);
 }

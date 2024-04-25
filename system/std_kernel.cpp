@@ -19,7 +19,7 @@
 
 
 #if USE_FILE_SYSTEM
-	#define SHOW_ROOT_DIRECTORY  1
+	#define SHOW_ROOT_DIRECTORY  0
 	#define DRIVE		"SD:"
 #endif
 

@@ -67,7 +67,7 @@
 #define LOG_TO_MINI_UART		1
 #define LOG_TO_MAIN_SERIAL		2
 
-#define USE_LOG_TO				LOG_TO_SCREEN
+#define USE_LOG_TO				LOG_TO_MAIN_SERIAL
 
 
 
