@@ -2,7 +2,9 @@
 #include <circle/koptions.h>
 #include <circle/device.h>
 #include <circle/timer.h>
+#include <circle/logger.h>
 #include <circle/util.h>
+#include "myUtils.h"
 
 
 void delay(unsigned int ms)
@@ -44,25 +46,35 @@ void printf(const char *pMessage, ...)
 
 void display_bytes(const char *s, const unsigned char *p, int len)
 {
-    printf("%-12s  ",s);
-    char buf[17];
-    memset(buf,0,17);
+	CString buf1;
+	CString buf2;
+	CString bbb;
+
+	#define log_name ""
+	
+	buf1.Format("%-12s  ",s);
     for (int i=0; i<len; i++)
     {
         if (i && i%16==0)
         {
-            printf("   %s\n%-12s  ",buf,"");
-            memset(buf,0,17);
+			buf1.Append(buf2);
+			LOG("%s",(const char *) buf1);
+			buf1.Format("%-12s  ","");
+			buf2 = "";
         }
-        buf[i % 16] = p[i]>' ' ? p[i] : '.';
-        printf("%02x ",p[i]);
+
+        bbb.Format("%02x ",p[i]);
+		buf1.Append(bbb);
+		bbb.Format("%c",p[i]>' ' ? p[i] : '.');
+		buf2.Append(bbb);
     }
     while (len % 16 != 0)
     {
-        printf("   ");
+        buf1.Append("   ");
         len++;
     }
-    printf("   %s\n",buf);
+	buf1.Append(buf2);
+	LOG("%s",(const char *) buf1);
 }    
 
 
