@@ -346,7 +346,7 @@ void AudioControlCS42448::inputLevel(int channel, float level)
 
 void AudioControlCS42448::write(uint32_t address, uint32_t data)
 {
-    // printf("write_reg(0x%02x,0x%02x)\n",address,data);
+    // LOG("write_reg(0x%02x,0x%02x)",address,data);
 	Wire.beginTransmission(I2C_ADDR);
 	Wire.write(address);
 	Wire.write(data);
@@ -470,7 +470,7 @@ u8 AudioControlCS42448::read(u8 address)
 
         for (u8 i=0; i<4; i++)
         {
-            // printf("mult[%d]=%d\n",i,mult[i]);
+            // LOG("mult[%d]=%d\n",i,mult[i]);
             octo_mult[i]->Write(mult[i]);
         }
     }

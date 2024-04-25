@@ -58,14 +58,15 @@ int CWire::endTransmission()
     size_t rslt = 0;
     if (m_len)
     {
-        // printf("Wire endTransmission addr(0x%02x) len=%d data=0x%02x 0x%02x \n",m_addr,m_len,m_buf[0],m_buf[1]);
+        // LOG("Wire endTransmission addr(0x%02x) len=%d data=0x%02x 0x%02x",m_addr,m_len,m_buf[0],m_buf[1]);
 
         // m_pI2CMaster->SetClock(I2C_CLOCK_SPEED);
         rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len);
+
+		// assert(rslt == m_len);
 		if (rslt != m_len)
 		{
-			// assert(rslt == m_len);
-			printf("Wire.cpp(66): error result(%d) writing(%d) bytes to m_addr(0x%08x)\n",rslt,m_len,m_addr);
+			LOG_ERROR("wrote(%d) expected(%d) bytes to m_addr(0x%08x)",rslt,m_len,m_addr);
 			display_bytes("buffer",m_buf,m_len);
         }
         return (rslt == m_len) ? 0 : 1;
@@ -85,6 +86,11 @@ size_t CWire::write(u8 value)
 size_t CWire::read(u8 addr, u8 *buf, u8 len)
 {
     size_t rslt = m_pI2CMaster->Read(addr, buf, len);
-    assert(rslt == len);
-    return rslt;
+	// never fails
+    // assert(rslt == len);
+	if (rslt != len)
+	{
+		LOG_ERROR("read(%d) expected(%d)",rslt,len);
+	}
+	return rslt;
 }

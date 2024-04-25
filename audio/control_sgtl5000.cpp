@@ -605,7 +605,7 @@ void AudioControlSGTL5000::start()
     u32 divi = CLOCK_RATE / freq;           // 44
     u32 modi = CLOCK_RATE % freq;           // 3257600
     u32 divf = (modi*4096 + freq/2) / freq; // 1182
-    // printf("divf=%d should equal 1182\n",divf);
+    // LOG("divf=%d should equal 1182\n",divf);
     // the above math overflows 32 bits
     divf = 1182;
     m_MCLK.Start(divi, divf, 1);

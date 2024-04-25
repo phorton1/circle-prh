@@ -164,7 +164,7 @@ audio_block_t *AudioSystem::allocate(void)
 {
     // if (show_allocs)
     // {
-    //     printf("alloc   %d/%d  %08lx\n", s_blocksUsed,s_totalBlocks,(u32)s_pFreeBlock);
+    //     LOG("alloc   %d/%d  %08lx", s_blocksUsed,s_totalBlocks,(u32)s_pFreeBlock);
     //     delay(5);
     // }
 
@@ -227,7 +227,7 @@ void AudioSystem::release(audio_block_t *block)
     {    
         // if (show_allocs)
         // {
-        //     printf("release %d/%d  %08lx free=%08lx\n", s_blocksUsed,s_totalBlocks,(u32)block,(u32)s_pFreeBlock);
+        //     LOG("release %d/%d  %08lx free=%08lx", s_blocksUsed,s_totalBlocks,(u32)block,(u32)s_pFreeBlock);
         //     delay(5);
         // }
 
@@ -272,9 +272,10 @@ void AudioSystem::traverse_update(u16 depth, AudioStream *p)
         p->m_updateDepth = depth;
         
     #if 0
+		CString fill;
         for (u16 i=0; i<depth; i++)
-            printf("  ");
-        printf("%s%d   depth:%d   max:%d\n",p->getName(),p->getInstance(),depth,p->m_updateDepth);
+            fill.Append("  ");
+		LOG("%s%s%d   depth:%d   max:%d",(const char *)fill,p->getName(),p->getInstance(),depth,p->m_updateDepth);
     #endif
     
     for (AudioConnection *con=p->m_pFirstConnection; con; con=con->m_pNextConnection)
