@@ -58,8 +58,8 @@ void wsButton::onUpdateTouch(bool touched)
 
 void wsButton::onUpdateClick()
 {
-	#if 1  // DEBUG_TOUCH
-		printf("wsButton(%08x)::onUpdateClick()\n",(u32)this);
+	#if DEBUG_TOUCH
+		LOG("wsButton(%08x)::onUpdateClick()",(u32)this);
 	#endif
 
 	if (m_button_style & BTN_STYLE_TOGGLE_VALUE)
