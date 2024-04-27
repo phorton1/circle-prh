@@ -29,7 +29,6 @@ extern const wsFont *wsFont6x10;
 extern const wsFont *wsFont7x12;
 extern const wsFont *wsFont8x8;
 extern const wsFont *wsFont8x12;
-extern const wsFont *wsFont8x12;
 extern const wsFont *wsFont8x14;
 extern const wsFont *wsFont10x16;
 extern const wsFont *wsFont12x16;
