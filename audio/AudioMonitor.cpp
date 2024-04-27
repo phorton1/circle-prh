@@ -21,6 +21,11 @@ typedef struct
 
 } monitorVal_t;
 
+
+bool inited;
+u32 last_diff;
+
+
 monitorVal_t mon_vals[] = {
 	{ "cpuCycles",			0,	0,	AudioSystem::getCPUCycles,  			},
 	{ "cpuCyclesMax",		0,	0,	AudioSystem::getCPUCyclesMax,			},
@@ -37,14 +42,18 @@ monitorVal_t mon_vals[] = {
 	{ "out_wrong_count",    0,	&bcm_pcm.out_wrong_count,  },
 	{ "underflow_count",    0,	&bcm_pcm.underflow_count,  },
 	{ "overflow_count",     0,	&bcm_pcm.overflow_count,   },
+	{ "diff_count",     	0,	&last_diff,   },
 };
 
 
-bool inited;
+
 
 
 void AudioMonitor::Update()
 {
+	last_diff = bcm_pcm.out_block_count;
+	last_diff -= bcm_pcm.in_block_count;
+
 	int num = sizeof(mon_vals) / sizeof(monitorVal_t);
 	printf("\x1b[J");
 	printf("\x1b[1;1H");		// goto 0,0
@@ -70,9 +79,15 @@ void AudioMonitor::Update()
 			mon->last_val = val;
 			printf("\x1b[%d;%dH",i+VAL_Y,VAL_X);	// cursor move y,x
 			printf("\x1b[%dX",VAL_W);				// erase N chars
-			printf("%d",val);
+			printf("%ld",val);
 		}
 	}
+
+
+	// somebody is clearing the screen after I write the init values
+	// I think it may be the blinking cursor from m_screen itself.
+	
+	printf("\x1b[%d;1H",num+3+VAL_Y);		// cursor move y,x
 
 	inited = true;
 }
