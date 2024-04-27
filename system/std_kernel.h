@@ -102,7 +102,6 @@
 
 
 #if USE_ILI_TFT
-	#include <circle/spimaster.h>
 	#if USE_ILI_TFT == 9488
 		#include <devices/ili9488.h>
 	#elif USE_ILI_TFT == 9486
@@ -269,7 +268,7 @@ private:
 	#endif
 
 	#if USE_ILI_TFT
-		CSPIMaster		m_SPI;
+		ILISPI_CLASS	m_SPI;
 		#if USE_ILI_TFT == 9488
 			ILI9488 	m_tft;
 		#elif USE_ILI_TFT == 9486

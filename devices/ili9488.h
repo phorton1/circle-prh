@@ -8,7 +8,7 @@ class ILI9488 : public ILIBASE
 {
 public:
 
-    ILI9488(CSPIMaster *pSPI);
+    ILI9488(ILISPI_CLASS *pSPI);
     ~ILI9488();
 
     virtual boolean Initialize(void) override;

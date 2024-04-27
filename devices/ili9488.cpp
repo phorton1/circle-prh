@@ -29,7 +29,7 @@
 	// Read is better at or below 20MHZ
 	// 1Mhz is useful with the logic analyzer
 
-#define DEBUG_DEFAULT_VALUES 	0
+#define DEBUG_DEFAULT_VALUES 	1
 #define DEBUG_INIT_VALUES		0
 
 #define OUTPUT_TEST_PATTERN		1
@@ -174,7 +174,7 @@ ILI9488::~ILI9488()
 
 
 
-ILI9488::ILI9488(CSPIMaster *pSPI) :
+ILI9488::ILI9488(ILISPI_CLASS *pSPI) :
 	ILIBASE(WIDTH,HEIGHT,PIXEL_BYTES,pSPI,SPI_WRITE_FREQ,SPI_READ_FREQ)
 {
 }

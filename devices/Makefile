@@ -12,6 +12,7 @@ OBJS	= \
    ili9486.o \
    ili9488.o \
    xpt2046.o \
+   bangspi.o \
 
 
 libdevices.a: $(OBJS)

@@ -14,7 +14,6 @@
 
 // May want to turn these three off in production use
 
-#define DEBUG_DEFAULT_VALUES 	1
 #define DEBUG_INIT_VALUES		1
 #define OUTPUT_TEST_PATTERN		1
 	// on by default, the screen displays a distinct pattern
@@ -83,7 +82,7 @@ ILIBASE::~ILIBASE()
 ILIBASE::ILIBASE(u16 fixed_width,
 		u16 fixed_height,
 		u8 pixel_bytes,
-		CSPIMaster *pSPI,
+		ILISPI_CLASS *pSPI,
 		u32 spi_write_freq,
 		u32 spi_read_freq ) :
 	m_fixed_width(fixed_width),

@@ -74,7 +74,7 @@ private:
 	CInterruptSystem	m_Interrupt;
 	CTimer				m_Timer;
 	CLogger				m_Logger;
-	CSPIMaster	        m_SPI;
+	ILISPI_CLASS	    m_SPI;
 
 	#if USE_ILI_DEVICE == 9488
 		ILI9488    		*m_tft_device;

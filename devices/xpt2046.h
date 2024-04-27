@@ -21,7 +21,7 @@ class XPT2046 : public CTouchScreenBase
 {
 public:
 
-    XPT2046(CSPIMaster *pSPI, ILIBASE *pTFT);
+    XPT2046(ILISPI_CLASS *pSPI, ILIBASE *pTFT);
 		// Constructed with knowledge abou the fixed
 		// physical width and height in rotation 0
     ~XPT2046();
@@ -35,7 +35,7 @@ public:
 
 protected:
 
-    CSPIMaster *m_pSPI;
+    ILISPI_CLASS *m_pSPI;
 	ILIBASE    *m_pTFT;
 	FATFS 	   *m_pFileSystem;
 

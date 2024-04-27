@@ -127,7 +127,11 @@ XPT2046::~XPT2046()
 }
 
 
-XPT2046::XPT2046(CSPIMaster *pSPI, ILIBASE *pTFT) :
+#define STRINGIFY(x) #x
+
+
+
+XPT2046::XPT2046(ILISPI_CLASS *pSPI, ILIBASE *pTFT) :
     m_pSPI(pSPI),
 	m_pTFT(pTFT),
 	m_pFileSystem(0)
@@ -135,7 +139,9 @@ XPT2046::XPT2046(CSPIMaster *pSPI, ILIBASE *pTFT) :
 	m_rotation = pTFT->getRotation();
     m_width = pTFT->GetWidth();
     m_height = pTFT->GetHeight();
-    LOG("XPT046(%d,%d,%d)",m_rotation,m_width,m_height);
+    LOG("XPT046(%s,%d,%d,%d)",
+		STRINGIFY(ILISPI_CLASS),
+		m_rotation,m_width,m_height);
 
     m_lastx = 0;
     m_lasty = 0;
@@ -281,7 +287,7 @@ void XPT2046::Update()
 		s16 y  = transfer16(XPT_READ_Y);	// 0x91
 
 		#if DEBUG_TOUCH
-			LOG("z(%d) z1(%d) z2(%d) z3(%d) x(%d) y(%d)",z,z1,z2,z3,x,y);
+			LOG("z(%5d) z1(%5d) z2(%5d) z3(%5d) x(%5d) y(%5d)",z,z1,z2,z3,x,y);
 		#endif
 
 		if (m_calibration_phase)
@@ -618,7 +624,6 @@ void XPT2046::Initialize(FATFS *pFileSystem)
 		FIL file;
 		FILINFO info;
 
-		LOG("Initialize()",0);
 
 		if (f_stat(CALIB_FILENAME, &info) == FR_OK)
 		{

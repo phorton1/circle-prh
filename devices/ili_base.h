@@ -2,7 +2,20 @@
 #define __ilibase_h__
 
 #include <circle/gpiopin.h>
-#include <circle/spimaster.h>
+
+#ifndef USE_BITBANG_SPI
+	#define USE_BITBANG_SPI	1
+		// must agree with value in std_kernel.h
+#endif
+
+#if USE_BITBANG_SPI
+	#include "bangspi.h"
+	#define ILISPI_CLASS CBangSPI
+#else
+	#include <circle/spimaster.h>
+	#define ILISPI_CLASS CSPIMaster
+#endif
+
 #include <circle/screen.h>
 
 
@@ -32,7 +45,7 @@ public:
 		u16 fixed_width,
 		u16 fixed_height,
 		u8 pixel_bytes,			// 2 for 9486, 3 for 9488
-		CSPIMaster *pSPI,
+		ILISPI_CLASS *pSPI,
 		u32 spi_write_freq,
 		u32 spi_read_freq );
     ~ILIBASE();
@@ -78,7 +91,7 @@ protected:
 	u16			m_fixed_width;
 	u16			m_fixed_height;
 	u8			m_pixel_bytes;
-    CSPIMaster *m_pSPI;
+	ILISPI_CLASS *m_pSPI;
 	u32 		m_write_freq;
 	u32 		m_read_freq;
 	CGPIOPin    m_pinCD;
