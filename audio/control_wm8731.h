@@ -40,8 +40,8 @@ public:
 	virtual void start();
 		// public until AudioSystem starts it ...
 
-	void volume(float n);
-	void inputLevel(float n); // range: 0.0f to 1.0f
+	virtual void volume(float n) override;
+	virtual void inputLevel(float n) override; // range: 0.0f to 1.0f
 	void inputSelect(int n);
     
 protected:

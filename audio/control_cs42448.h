@@ -46,10 +46,11 @@ public:
 	
 	virtual const char *getName()  { return "cs42448"; }
 	
-	void volume(float level);
+	virtual void volume(float level) override;
+	virtual void inputLevel(float level) override;
+
 	void volume(int channel, float level);
     
-	void inputLevel(float level);
 	void inputLevel(int channel, float level);
         
 	virtual void start();

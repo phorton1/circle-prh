@@ -55,7 +55,13 @@ public:
         s_pCodec = this;
     }
     virtual u16 getType()  { return AUDIO_DEVICE_CODEC; }
+
 	static AudioCodec *getSystemCodec() { return s_pCodec; }
+
+	virtual void volume(float n) = 0;
+	virtual void inputLevel(float n) = 0;
+		// range: 0.0f to 1.0f
+
     
 private:
     friend class AudioSystem;
