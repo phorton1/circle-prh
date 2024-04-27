@@ -15,6 +15,7 @@ OBJS = \
 	arm_q31_to_q15.o \
 	arm_float_to_q31.o \
 	AudioConnection.o \
+	AudioMonitor.o \
 	AudioStream.o \
 	AudioSystem.o \
 	bcm_pcm.o \

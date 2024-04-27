@@ -12,6 +12,7 @@
 #include <system/std_kernel.h>
 #include <circle/logger.h>
 #include <circle/util.h>
+
 #define log_name  "wsapp"
 
 
@@ -283,6 +284,12 @@ void wsApplication::onTouchEvent(
 	// if the std_kernel is set to 60 frames,
 	// probably want to undefine this
 
+#if USE_AUDIO_SYSTEM
+	#include <audio/AudioMonitor.h>
+	AudioMonitor audio_mon;
+#endif
+
+
 void wsApplication::timeSlice()
 {
 	// Gate the entire process to UI_FRAME_RATE
@@ -294,6 +301,10 @@ void wsApplication::timeSlice()
 			return;
 		m_update_frame_time = cur_time;
 	#endif
+
+#if USE_AUDIO_SYSTEM
+	audio_mon.Update();
+#endif
 
 	#ifdef DEBUG_UPDATE
 		if (debug_update)
