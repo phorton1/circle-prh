@@ -279,7 +279,7 @@ void wsApplication::onTouchEvent(
 // timeSlice()
 //--------------------------------------------------
 
-#define UI_FRAME_RATE    0 // 30
+#define UI_FRAME_RATE    30
 	// if the std_kernel is set to 60 frames,
 	// probably want to undefine this
 
