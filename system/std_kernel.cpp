@@ -24,7 +24,15 @@
 #endif
 
 
-#define USE_GPIO_READY_PIN    25		// 25
+#define USE_GPIO_READY_PIN    25		
+// The Blue rPi 3.5" ILI9486 hat uses hardwired GPIO25 RESET pin,
+// which conflicts with this definition for RPI_READY.
+// I could change it to a different pin (6, 13, and 26 are
+// available in the looper as of this 2024-04-29 writing),
+// but since I am not going to use the 9486 in the teensyExpression3
+// I am leaving the RPI_READY gpio pin as GPIO25
+
+
 
 static const char log_name[] = "kernel";
 

@@ -45,24 +45,31 @@
 // the i2s device as "one unite".  We'll call it 3ms for now.
 
 #define TEST_SHORT_CIRCUIT_IN_TO_OUT   0
+	// Used to test sound without buffer allocation.
 	// If 1, the input and output DMA's will use the same pair
 	// of physical buffers.  Since the input DMA is started first
 	// it just happens that the output DMA always has some bytes
-	// available to it.  LIKELY has sub 3ms latency, and is
-	// guaranteed to have sub-6ms latency, or it wouldn't work
-	// without more buffers!
+	// available to it.  Has sub 3ms latency.
 
 #define TEST_ROUTE_IN_TO_OUT    0
-	// If 1 the "teensy client" isr routines will not be called.
-	// A pair of buffers are used to move data from the input DMA
-	// to the output DMA.  PROBABLY has sub 6ms latancy.
+	// Used to test sound without calling client ISR routines.
+	// If 1 the client ISR routines are not be called.
+	// A pair of static buffers are used to move data from the input
+	// DMA to the output DMA.  Has sub 3ms latency.
+
+#define TEST_FAKE_IO	0
+	// Used to test if interrupts cause noise, ignoring client buffers.
+	// The client ISR routines ARE called, wowever the buffers returned
+	// by them are ignored and like TEST_ROUTE_IN_TO_OUT a pair of static
+	// buffers are used to save the input and move it directly to the output.
+
 
 #define OUTPUT_DISTINCTIVE_PATTERN  0
 	// Used for debuging frames.  If set,
 	// will output a distinctive pattern of samples.
 
 
-#if TEST_ROUTE_IN_TO_OUT
+#if TEST_ROUTE_IN_TO_OUT || TEST_FAKE_IO
 	uint32_t *test_buffer[2];
 	u8  *test_alloc[2];
 #endif
@@ -165,7 +172,7 @@ BCM_PCM::~BCM_PCM()
 			delete m_allocInBuffer[i];
 		if (m_allocOutBuffer[i])
 			delete m_allocOutBuffer[i];
-		#if TEST_ROUTE_IN_TO_OUT
+		#if TEST_ROUTE_IN_TO_OUT || TEST_FAKE_IO
 			if (test_alloc[i])
 				delete test_alloc[i];
 		#endif
@@ -190,7 +197,7 @@ void BCM_PCM::initBuffers()
 		if (!m_outBuffer[i])
 			m_outBuffer[i] = allocateRawAudioBlock(&m_allocOutBuffer[i]);
 
-		#if TEST_ROUTE_IN_TO_OUT
+		#if TEST_ROUTE_IN_TO_OUT || TEST_FAKE_IO
 			if (!test_buffer[i])
 				test_buffer[i] = allocateRawAudioBlock(&test_alloc[i]);
 		#endif
@@ -756,6 +763,12 @@ void BCM_PCM::updateInput(bool cold)
 			// copy input to intermediate buffer for output
 			memcpy(test_buffer[m_inToggle],m_inBuffer[m_inToggle],RAW_AUDIO_BLOCK_BYTES);
 		#else
+
+			#if TEST_FAKE_IO
+				// save original input buffer
+				memcpy(test_buffer[m_inToggle],m_inBuffer[m_inToggle],RAW_AUDIO_BLOCK_BYTES);
+			#endif
+
 			assert(m_inISR);
 			(*m_inISR)();
 		#endif
@@ -794,6 +807,11 @@ void BCM_PCM::updateOutput(bool cold)
 			memset(m_outBuffer[m_outToggle],0,RAW_AUDIO_BLOCK_BYTES);
 			assert(m_outISR);
 			(*m_outISR)();
+
+			#if TEST_FAKE_IO
+				memcpy(m_outBuffer[m_outToggle],test_buffer[m_inToggle ^ 1],RAW_AUDIO_BLOCK_BYTES);
+			#endif
+
 		#endif
 	}
 	else
@@ -838,6 +856,7 @@ void BCM_PCM::audioOutIRQStub(void *pParam)
 void BCM_PCM::audioInIRQ(void)
 {
 	PeripheralEntry();
+
 	u32 nIntMask = 1 << m_nDMAInChannel;
 	u32 nOtherMask = 1 << m_nDMAOutChannel;
 	u32 nIntStatus = read32(ARM_DMA_INT_STATUS);
@@ -848,9 +867,7 @@ void BCM_PCM::audioInIRQ(void)
 		{
 			in_other_count++;
 			PeripheralExit();
-			// 2020-01-05  YIKES this should be "audioOutIRQ9)" !!!!!!
-			// Now I need to regression test EVERYTHING sheesh.
-			audioInIRQ();
+			audioOutIRQ();
 		}
 		else
 		{

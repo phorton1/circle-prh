@@ -284,7 +284,7 @@ void wsApplication::onTouchEvent(
 	// if the std_kernel is set to 60 frames,
 	// probably want to undefine this
 
-#if USE_AUDIO_SYSTEM
+#if 1 && USE_AUDIO_SYSTEM
 	#include <audio/AudioMonitor.h>
 	AudioMonitor audio_mon;
 #endif
@@ -294,17 +294,19 @@ void wsApplication::timeSlice()
 {
 	// Gate the entire process to UI_FRAME_RATE
 
+	CTimer *timer = CTimer::Get();
+
 	#if UI_FRAME_RATE
-		unsigned cur_time = CTimer::Get()->GetClockTicks();
+		unsigned cur_time = timer->GetClockTicks();
 		if (cur_time > m_update_frame_time &&
 			cur_time < m_update_frame_time + CLOCKHZ/UI_FRAME_RATE)
 			return;
 		m_update_frame_time = cur_time;
 	#endif
 
-#if USE_AUDIO_SYSTEM
-	audio_mon.Update();
-#endif
+	#if 1 && USE_AUDIO_SYSTEM
+		audio_mon.Update();
+	#endif
 
 	#ifdef DEBUG_UPDATE
 		if (debug_update)

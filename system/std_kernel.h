@@ -231,6 +231,16 @@ public:
 		XPT2046 *GetXPT2046() { return &m_xpt2046; }
 	#endif
 
+	#if USE_ILI_TFT
+		ILISPI_CLASS *getILISPI() { return &m_SPI; }
+		#if USE_ILI_TFT == 9488
+			ILI9488 *getILITFT() 	  { return &m_tft; }
+		#elif USE_ILI_TFT == 9486
+			ILI9886 *getILITFT() 	  { return &m_tft; }
+		#endif
+	#endif
+	
+
 private:
 
 	friend class CCoreTask;

@@ -3,10 +3,7 @@
 
 #include <circle/gpiopin.h>
 
-#ifndef USE_BITBANG_SPI
-	#define USE_BITBANG_SPI	1
-		// must agree with value in std_kernel.h
-#endif
+#define USE_BITBANG_SPI	0
 
 #if USE_BITBANG_SPI
 	#include "bangspi.h"

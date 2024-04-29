@@ -46,30 +46,44 @@
 
 
 //---------------------------------------------------------------------------------
-// pin  gpioname    fxn             desc
+// pins
 //---------------------------------------------------------------------------------
 // For 3.5" Blue rPi ILI9486 and Orange 3.5" ILI9488 displays.
 // These devices use standard rPi MOSI, MISO, and SCK, and SPICE0 pins.
-// Both are using GPIO24 as the 'CD' (RS) pin.
-// The 9486 also uses a RESET pin
-// We do not use TP_IRQ
 //
-// 18 	gpio24		LCD_RS 	        LCD instruction control, called 'CD' in my code
-// 19 	spi_mosi	LCD_SI/TP_SI 	SPI data input of both LCD & touch panel
-// 21 	spi_miso	TP_S0 	        SPI data output of touch panel
-// 23 	spi_sclk	LCD_SCK/TP_SCK 	SPI clock for both LCD & touch panel
-// 24 	gpio8		LCD_CS 	        SPICE0 = LCD chip select (active low)
-// 26 	gpio7		TP_CS 	        SPICE1 = Touch panel chip select (active low)
+// 11	spi_sclk		LCD_SCK/TP_SCK 	SPI clock for both LCD & touch panel
+// 10	spi_mosi		LCD_SI/TP_SI 	SPI data input of both LCD & touch panel
+// 9	spi_miso		TP_S0 	        SPI data output of touch panel
+// 8	gpio8 spice0	LCD_CS 	        SPICE0 = LCD chip select (active low)
+// 7	gpio7 spice1	TP_CS 	        SPICE1 = Touch panel chip select (active low)
 //
+// The Blue 9486 hat has it's RS/CD pin hardwired to GPIO24.
+//		This conflicts with the hardwired OCTO_MULT3 pin,
+//		which causes noise in the OCTO when we draw to the display.
+// The Blue 9486 hat also has hardwired GPIO25 RESET pin,
+//		which conflicts with the RPI_READY pin I use in std_kernel.cpp
+//		and which is built into the teensyEpression1-2 rPI connector.
+//		I could change it to a different pin (6, 13, and 26 are
+//		available in the looper as of this 2024-04-29 writing),
+//		but since I am not going to use the 9486 in the teensyExpression3,
+//		I am leaving the RPI_READY gpio pin as GPIO25 in std_kernel.cpp
+
 // #define PIN_CS_TOUCH    7
 // #define PIN_CS_LCD      8
 // #define PIN_MISO        9
 // #define PIN_MOSI        10
 // #define PIN_SCLK        11
 
-#define PIN_CD          24
-#define DLY  			255
-
+#ifdef USE_BLUE_9465_HAT	// not defined anywhere
+	#define PIN_CD          24
+		// original, as used on blue rPi 3.5 ILI9486 hat
+		// conflicts with OCTO_MULT3
+#else
+	#define PIN_CD          4
+		// pin chosen, after testing, that works and elimitates
+		// OCTO crackling noises when drawing to the screen.
+		// I had mixed results trying the other avail pins 26 and 6.
+#endif
 
 
 
