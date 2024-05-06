@@ -58,22 +58,53 @@
 //       |        v     channels 0 & 1
 //      IN       OUT
 //
-// Connections:
+//--------------------------------------------------------------
+// Pin Numbers
+//--------------------------------------------------------------
+// Start off by noting that the RX and TX labels on the audio
+// 		shield diagrams are from the perspective of the TEENSY, not
+// 		from the perspective of the audio shields.  So the pin labelled
+// 		TX on the audio shield diagram is actually the SGTL5000 rx pin.
+// All pin numbers are in terms of their GPIO number.
 //
-// You connect following rPi pins to the teensy audio shield.
-// The audio shield pins are given in terms of their teensy
-// equivilant gpio pin number.
+// The pin numbers for various I2S devices are best found
+// 		Paul's audio library design tool.  The main i2s channel
+// 		is as follows
 //
-//      rPi   gpio   Teensy 3.2_quad  3.6_quad   normal_teensy_i2s
+// functional
+// name			teensy4.x 			teensy3.x
+//-----------------------------------------------------------
+// MCLK1		23_A9_MCLK			11_MOSI0
+// BCLK1		21_A7_RX5_BCLK1		9_RX2_CS01
+// LRCLCK1		20_A6_TX5_LRCLK1	23_A9
+// TX1A			7_RX2_OUT1A			22_A8
+// RX1A			8_TX2_IN1			13_LED_SCK0
 //
-//	    BCLK    18   <----  9          9            9
-//	    FCLK    19   <----  23         23           23
-//	    RXD     22   ---->  15 tx1     15 tx1       22 tx0       
-//	    TXD     21   <----  30 rx1     38 rx1       13 rx0   
 //
-// You have to remove the small capicator attached to pin15 on the teensy audio shield.
-// Unfortunately, pin30 is on the underside of a teensy3.2.
-// On the teensy 3.6, the 2nd i2s rx channel is on pin38, which is breadboard-able.
+// The teensyQuad devices adds an additional set of TX1B and RX1B pins
+// that are sent to the rPi. Note that the yellow teensy 4.1 i2s labels
+// don't necessarily match up to the device definition, in that teensy
+// RX2A is using 6_OUT1D according to the 4.1 pinout diagram.
+//
+//				functional
+// RPI			name		teensy4.x		teensy3.6	teensy3.2
+//-----------------------------------------------------------------
+// 18_BCLK		BCLK1		duplicated to RPI
+// 19_FCLK		LRCLK1		duplicated to RPI
+// 20_RXD		TX1B		32_OUT1B		15_A1		15_A1
+// 21_TXD		RX1B		6_OUT1D			38_A9		30 on bottom
+//
+// For grins and giggles, here is the separate I2S2 device pin mappings
+// only available on the teensy 4.x series:
+//
+// name			teensy 4.x
+//--------------------------
+// MCLK2		33_MCLK2
+// BCLK2		4_BCLK2
+// LRCLCK2		3_LRCLK2
+// TX2A			2_OUT2
+// RX2A			5_IN2
+
 
 #ifndef _input_teensy_quad_h_
 #define _input_teensy_quad_h_
