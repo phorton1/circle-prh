@@ -71,14 +71,14 @@
 // 		Paul's audio library design tool.  The main i2s channel
 // 		is as follows
 //
-// functional
-// name			teensy4.x 			teensy3.x
+// functional										Optimized Quad
+// name			teensy4.x 			teensy3.x		New Name
 //-----------------------------------------------------------
-// MCLK1		23_A9_MCLK			11_MOSI0
-// BCLK1		21_A7_RX5_BCLK1		9_RX2_CS01
-// LRCLCK1		20_A6_TX5_LRCLK1	23_A9
-// TX1A			7_RX2_OUT1A			22_A8
-// RX1A			8_TX2_IN1			13_LED_SCK0
+// MCLK1		23_A9_MCLK			11_MOSI0		I2S_MCLK
+// BCLK1		21_A7_RX5_BCLK1		9_RX2_CS01		I2S_BCLK
+// LRCLCK1		20_A6_TX5_LRCLK1	23_A9			I2S_FCLK
+// TX1A			7_RX2_OUT1A			22_A8			I2S_TXA
+// RX1A			8_TX2_IN1			13_LED_SCK0		I2S_RXA
 //
 //
 // The teensyQuad devices adds an additional set of TX1B and RX1B pins
@@ -86,13 +86,13 @@
 // don't necessarily match up to the device definition, in that teensy
 // RX2A is using 6_OUT1D according to the 4.1 pinout diagram.
 //
-//				functional
-// RPI			name		teensy4.x		teensy3.6	teensy3.2
-//-----------------------------------------------------------------
+//				functional												Optimized Quad
+// RPI			name		teensy4.x		teensy3.6	teensy3.2		New Name
+//--------------------------------------------------------------------------------------
 // 18_BCLK		BCLK1		duplicated to RPI
 // 19_FCLK		LRCLK1		duplicated to RPI
-// 20_RXD		TX1B		32_OUT1B		15_A1		15_A1
-// 21_TXD		RX1B		6_OUT1D			38_A9		30 on bottom
+// 20_RXD		TX1B		32_OUT1B		15_A1		15_A1			I2S_RXB
+// 21_TXD		RX1B		6_OUT1D			38_A9		30 on bottom	I2S_TXB
 //
 // For grins and giggles, here is the separate I2S2 device pin mappings
 // only available on the teensy 4.x series:
