@@ -11,8 +11,8 @@
 
 #define USE_SCREEN  	 1
 
-#define USE_ILI_DEVICE		9488
-#define USE_XPT2046			1
+#define USE_ILI_DEVICE		9488	// 9488
+#define USE_XPT2046			1	//	1
 
 
 #include <circle/memory.h>
@@ -31,11 +31,15 @@
 
 #if USE_ILI_DEVICE == 9488
 	#include <devices/ili9488.h>
-#else
+#elif USE_ILI_DEVICE == 9486
 	#include <devices/ili9486.h>
 #endif
 
-#include <devices/xpt2046.h>
+#if USE_XPT2046
+	#include <devices/xpt2046.h>
+#endif
+
+
 #include <utils/myUtils.h>
 
 
@@ -74,11 +78,14 @@ private:
 	CInterruptSystem	m_Interrupt;
 	CTimer				m_Timer;
 	CLogger				m_Logger;
-	ILISPI_CLASS	    m_SPI;
+
+	#if USE_ILI_DEVICE
+		ILISPI_CLASS	    m_SPI;
+	#endif
 
 	#if USE_ILI_DEVICE == 9488
 		ILI9488    		*m_tft_device;
-	#else
+	#elif USE_ILI_DEVICE == 9486
 		ILI9846    		*m_tft_device;
 	#endif
 

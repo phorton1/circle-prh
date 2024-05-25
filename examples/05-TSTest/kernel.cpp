@@ -35,8 +35,10 @@ CKernel::CKernel(void) :
 	#if !USE_SCREEN
 		m_Serial(&m_Interrupt, TRUE),
 	#endif
-	m_Logger(LogDebug,&m_Timer),
-	m_SPI()
+	m_Logger(LogDebug,&m_Timer)
+	#if USE_ILI_DEVICE
+		,m_SPI()
+	#endif
 {
 	m_ActLED.Toggle();
 }
@@ -72,16 +74,20 @@ boolean CKernel::Initialize (void)
 			bOK = m_Logger.Initialize(&m_Serial);
 	#endif
 
-	if (bOK)
-		bOK = m_SPI.Initialize();
+	#if USE_ILI_DEVICE
+		if (bOK)
+			bOK = m_SPI.Initialize();
 
-	LOG("constructing ILI%d",USE_ILI_DEVICE);
-	#if USE_ILI_DEVICE == 9488
-		m_tft_device = new ILI9488(&m_SPI);
-	#else
-		m_tft_device = new ILI9846(&m_SPI);
+		LOG("constructing ILI%d",USE_ILI_DEVICE);
+		#if USE_ILI_DEVICE == 9488
+			m_tft_device = new ILI9488(&m_SPI);
+		#else
+			m_tft_device = new ILI9846(&m_SPI);
+		#endif
+		LOG("ILI%d constructed",USE_ILI_DEVICE);
 	#endif
-	LOG("ILI%d constructed",USE_ILI_DEVICE);
+
+	LOG("Kernel::Initialize() completed",0);
 
 	return bOK;
 }
@@ -123,10 +129,12 @@ TShutdownMode CKernel::Run(void)
 					LOG("XPT2046 constructed",0);
 				#endif
 
-				LOG("initializing ILI%d",USE_ILI_DEVICE);
-				m_tft_device->Initialize();
-				LOG("ILI%d initialized",USE_ILI_DEVICE);
-
+				#if USE_ILI_DEVICE
+					LOG("initializing ILI%d",USE_ILI_DEVICE);
+					m_tft_device->Initialize();
+					LOG("ILI%d initialized",USE_ILI_DEVICE);
+				#endif
+				
 				#if USE_XPT2046
 					LOG("initializing XPT2046",0);
 					m_xpt2046->setRotation(m_tft_device->getRotation());

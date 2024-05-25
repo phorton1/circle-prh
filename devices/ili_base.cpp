@@ -60,13 +60,20 @@
 // The Blue 9486 hat has it's RS/CD pin hardwired to GPIO24.
 //		This conflicts with the hardwired OCTO_MULT3 pin,
 //		which causes noise in the OCTO when we draw to the display.
+//      While still in development I chose and tested GPIO4
+//	    with the OCTO.
 // The Blue 9486 hat also has hardwired GPIO25 RESET pin,
 //		which conflicts with the RPI_READY pin I use in std_kernel.cpp
 //		and which is built into the teensyEpression1-2 rPI connector.
 //		I could change it to a different pin (6, 13, and 26 are
 //		available in the looper as of this 2024-04-29 writing),
-//		but since I am not going to use the 9486 in the teensyExpression3,
-//		I am leaving the RPI_READY gpio pin as GPIO25 in std_kernel.cpp
+//		but since I am not going to use the Blue 9486 in the TE3,
+//		I am leaving the RPI_READY gpio pin as GPIO25 in
+//		std_kernel.cpp
+// The use of GPIO4 for CD in my OCTO tests conflicts with the need to
+// 	    generate I2S_MCLK on the rPi GPIO4 pin for the SGTL5000.
+//      So my latest plan is to move the ILI CD pin to GPIO17,
+//		on the same side as MOSI,MISCO, and SCLK, for TE3
 
 // #define PIN_CS_TOUCH    7
 // #define PIN_CS_LCD      8
@@ -74,15 +81,20 @@
 // #define PIN_MOSI        10
 // #define PIN_SCLK        11
 
-#ifdef USE_BLUE_9465_HAT	// not defined anywhere
-	#define PIN_CD          24
-		// original, as used on blue rPi 3.5 ILI9486 hat
-		// conflicts with OCTO_MULT3
-#else
-	#define PIN_CD          4
-		// pin chosen, after testing, that works and elimitates
-		// OCTO crackling noises when drawing to the screen.
-		// I had mixed results trying the other avail pins 26 and 6.
+#ifdef USE_BLUE_9486	// not defined anywhere
+	#define PIN_CD		24
+		// original, as used on Blue rPi 3.5 ILI9486 SPI
+		// shield (which was never built into a device)
+		// and which conflicts with OCTO_MULT3
+#elif defined(OCTO_TEST_SETUP)	// not defined anywhere
+	// rpi with Octo setup which was never built into a device
+	// Remember that the old Looper is using rPi 7" touch screen.
+	// This pin was tested, works, and elimitates OCTO crackling
+	// noises when drawing to the screen.
+	#define PIN_CD		4
+#elif 1
+	// ACTUAL DEFINE - chosen for TE3 with SGTL5000
+	#define PIN_CD		17
 #endif
 
 
