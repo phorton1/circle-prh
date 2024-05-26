@@ -1,11 +1,25 @@
 Bootloader
-==========
 
+	NOTE YOU MUST DO A CLEAN CIRCLE BUILD
+		> cd /src/circle
+		> makeall clean
+
+	with "ARM_ALLOW_MULTI_CORE" commented out
+	in /src/circle/include/circle/sysconfig.h
+
+	As the bootloader uses circl hain loading
+	which is only supported on single core builds.
+
+===========================
 This is the latest in a string of bootloaders.
 
-It is compiled within the Circle framework to allow it access to circle's standard devices, including the Serial port and a timer for counting down, as well as, optionally, other more complicated devices like the screen, ethernet port, and even bt and/or wifi.
+It is compiled within the Circle framework to allow it access to
+circle's standard devices, including the Serial port and a timer for
+counting down, as well as, optionally, other more complicated devices
+like the screen, ethernet port, and even bt and/or wifi.
 
-Please see the source code in **kernel.h** and **kernel.cpp** for various compile flags you can change to change it's behavior.
+Please see the source code in **kernel.h** and **kernel.cpp**
+for various compile flags you can change to change it's behavior.
 
 History
 -------
@@ -14,13 +28,22 @@ So far, the iterations of rPi bare metal bootloaders has been
 
 * **none** - no config.txt, just manually copy the compiled kernel.img to the sdcard.
 
-* **SREC** - the initial dave welch bootloader10 that I started working with. I don't think it had a timer.  It just waited for the srec's. i'm not sure how far I got integrating this into the devleopment environment, but I'm pretty sure I got it into an earlier version of the console program.
+* **SREC** - the initial dave welch bootloader10 that I started working with.
+I don't think it had a timer.  It just waited for the srec's. i'm not sure how far I got
+integrating this into the devleopment environment, but I'm pretty sure I got it into an
+earlier version of the console program.
 
-* **PLACID XMODEM** - that was weird and hard, and there may be some good code in Placid worth moving forward, but I think I can do without the xmodem stuff. Has a timer, though.
+* **PLACID XMODEM** - that was weird and hard, and there may be some good code in Placid
+worth moving forward, but I think I can do without the xmodem stuff. Has a timer, though.
 
-* **CIRCLE** - amazed and amused by running circle with an ethernet cable from an rPi b3+ on a fixed ip address to the laptop ("sharing" the wifi connection so that there's dhcp someplace), logging to the hdmi screen, there's an HTTP server as well as the TFTP server.
+* **CIRCLE** - amazed and amused by running circle with an ethernet cable from an rPi b3+
+on a fixed ip address to the laptop ("sharing" the wifi connection so that there's dhcp
+someplace), logging to the hdmi screen, there's an HTTP server as well as the TFTP server.
 
-Although I used the Circle bootloader with TFTP as is (with only minor mods) for quite a while, since the rPi zero does not have an ethernet port, at some point I decided to go back through to dave welch's stuff (SREC) and ended up adding my own **binary protocol** which is documented in the source code.
+Although I used the Circle bootloader with TFTP as is (with only minor mods) for quite a
+while, since the rPi zero does not have an ethernet port, at some point I decided to go
+back through to dave welch's stuff (SREC) and ended up adding my own **binary protocol**
+which is documented in the source code.
 
 
 console&#46;pm and Buddy
@@ -45,7 +68,10 @@ my **path** variable.
 TeensyPi.ino
 ------------
 
-**Not** included (yet) at this time is a program that runs on a Teensy 3.2 which provides a far superior experience to just hooking a FTL232 serial-to-usb convertor up to the rPi. The main thing it provides is the ability to reboot the rPi from the serial port by sending ctrl-B to the teensyPi program (all other characters are passed thru in both directions).
+**Not** included (yet) at this time is a program that runs on a Teensy 3.2 which provides a
+far superior experience to just hooking a FTL232 serial-to-usb convertor up to the rPi.
+The main thing it provides is the ability to reboot the rPi from the serial port by
+sending ctrl-B to the teensyPi program (all other characters are passed thru in both directions).
 
 I present TeensyPi, and the associated circuit that I use separately, as a Hackaday project, at
 
@@ -55,7 +81,9 @@ I present TeensyPi, and the associated circuit that I use separately, as a Hacka
 Previous Notes on the Circle Bootloader
 ---------------------------------------
 
-These notes are included verbatim from the original Circle bootloader, still available, unchanged, in /circle/tools/bootloader.  They generally still apply to my version, but all I am using, and regularly
+These notes are included verbatim from the original Circle bootloader, still available,
+unchanged, in /circle/tools/bootloader.  They generally still apply to my version,
+but all I am using, and regularly
 testing, at the current time is my own bihnary protocol.
 
 

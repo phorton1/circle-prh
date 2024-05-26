@@ -21,24 +21,18 @@
 #ifndef _kernel_h
 #define _kernel_h
 
-#define  USE_CIRCLE_FAT   0
-	// as opposed to addon/fatfs
 
-#define WITH_FILE         1
 #define WITH_SCREEN 	  0
-#define WITH_HTTP  		  0
-#define WITH_TFTP  		  0
-#define WITH_SOFT_SERIAL  0
+	// if so, binary protocol debugging will be sent to the screen
+	// rather than the "log" device (serial port).
 
 #include <circle/types.h>
 #include <circle/stdarg.h>
 #include <circle/memory.h>
 #include <circle/koptions.h>
 #include <circle/devicenameservice.h>
-
-#include <utils/myUtils.h>
+// #include <utils/myUtils.h>
 #include <utils/myActLED.h>
-
 
 #if WITH_SCREEN
 	#include <circle/screen.h>
@@ -49,27 +43,10 @@
 #include <circle/timer.h>
 #include <circle/logger.h>
 #include <circle/serial.h>
+#include <SDCard/emmc.h>
+#include <fatfs/ff.h>
 
-#if WITH_FILE
-	#include <SDCard/emmc.h>
-	#if USE_CIRCLE_FAT
-		#include <circle/fs/fat/fatfs.h>
-	#else
-		#include <fatfs/ff.h>	// use the addon library instead
-	#endif
-#endif
 
-#if WITH_TFTP || WITH_HTTP
-	#include <circle/sched/scheduler.h>
-	#include <circle/usb/dwhcidevice.h>
-	#include <circle/net/netsubsystem.h>
-#endif
-
-#if WITH_SOFT_SERIAL
-	#include <circle/gpiomanager.h>
-		// something in gpioManager is also stopping chain booting
-	#include "softserial.h"
-#endif
 
 
 enum TShutdownMode
@@ -93,18 +70,17 @@ public:
 
 private:
 	
-	CDevice *m_pUseSerial;
+	CDevice *m_pSerialDevice;
+	CDevice *m_pSerialDebug;
 	
 	void waitForUpload();
 	void readBinarySerial();
 	bool read32Serial(u32 *retval);
 
-#if WITH_FILE
 	void initFileSystem();
 	void closeFileSystem();
 	void readKernelFromSD();
 	void writeKernelToSD();
-#endif
 
 	void debugDumpEnvironment();
 	
@@ -129,23 +105,10 @@ private:
 	CTimer				m_Timer;
 	CSerialDevice 		m_Serial;
 	CLogger				m_Logger;
-#if WITH_SOFT_SERIAL
-	CGPIOManager		m_GPIOManager;
-	CSoftSerialDevice	m_SoftSerial;
-#endif
-#if WITH_TFTP || WITH_HTTP
-	CScheduler			m_Scheduler;
-	CDWHCIDevice		m_DWHCI;
-	CNetSubSystem		m_Net;
-#endif
-#if WITH_FILE
 	CEMMCDevice			m_EMMC;
-	#if USE_CIRCLE_FAT
-		CFATFileSystem	m_FileSystem;
-	#else
-		FATFS			m_FileSystem;
-	#endif
-#endif
+	FATFS				m_FileSystem;
+
+	void dbg_serial(const char *pMessage, ...);
 
 };
 

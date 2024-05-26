@@ -1,1 +1,0 @@
-perl /base/bat/console.pm  %1  %2  %3  %4
