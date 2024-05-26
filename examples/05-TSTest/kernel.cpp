@@ -17,6 +17,9 @@
 #include <circle/util.h>
 #include <circle/types.h>
 
+#define SEND_FAKE_MIDI	0
+	// send fake midi messages to test esp32_PiLooper
+
 
 static const char log_name[] = "kernel";
 
@@ -32,9 +35,7 @@ CKernel::CKernel(void) :
 		m_Screen(800, 480),
 	#endif
 	m_Timer(&m_Interrupt),
-	#if !USE_SCREEN
-		m_Serial(&m_Interrupt, TRUE),
-	#endif
+	m_Serial(&m_Interrupt, TRUE),
 	m_Logger(LogDebug,&m_Timer)
 	#if USE_ILI_DEVICE
 		,m_SPI()
@@ -67,9 +68,12 @@ boolean CKernel::Initialize (void)
 	#if USE_SCREEN
 		if (bOK)
 			bOK = m_Logger.Initialize(&m_Screen);
-	#else
-		if (bOK)
-			bOK = m_Serial.Initialize(115200);
+	#endif
+
+	if (bOK)
+		bOK = m_Serial.Initialize(115200);
+
+	#if !USE_SCREEN
 		if (bOK)
 			bOK = m_Logger.Initialize(&m_Serial);
 	#endif
@@ -105,10 +109,10 @@ TShutdownMode CKernel::Run(void)
 
 	while (1)
 	{
-		m_ActLED.Toggle();
-
 		if (start_count < START_COUNT)
 		{
+			m_ActLED.Toggle();
+
 			start_count++;
 			LOG("start_count(%d)",start_count);
 			CTimer::Get()->MsDelay(1000);
@@ -145,6 +149,29 @@ TShutdownMode CKernel::Run(void)
 		}
 		else
 		{
+
+			static unsigned last_tick = 0;
+			unsigned tick = CTimer::Get()->GetTicks();
+			if (tick - last_tick > 100)
+			{
+				last_tick = tick;
+				m_ActLED.Toggle();
+			}
+
+			#if SEND_FAKE_MIDI
+			    static uint8_t msg[4] = { 0x0b, 0xb0, 0x01, 0x01 };
+
+				static unsigned last_midi = 0;
+				if (tick - last_midi > 50)
+				{
+					last_midi = tick;
+					if (msg[3] % 8 == 0)
+						LOG("sending midi 0x%08x",*(uint32_t *) msg);
+					m_Serial.Write(msg,4);
+					msg[3] = (msg[3]+1 % 128);
+				}
+			#endif
+
 			#if USE_XPT2046
 				if (started_calibration && !m_xpt2046->inCalibration())
 				{

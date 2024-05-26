@@ -9,7 +9,7 @@
 #ifndef _kernel_h
 #define _kernel_h
 
-#define USE_SCREEN  	 1
+#define USE_SCREEN  	 0
 
 #define USE_ILI_DEVICE		9488	// 9488
 #define USE_XPT2046			1	//	1
@@ -21,9 +21,8 @@
 #include <circle/devicenameservice.h>
 #if USE_SCREEN
 	#include <circle/screen.h>
-#else
-	#include <circle/serial.h>
 #endif
+#include <circle/serial.h>
 #include <circle/exceptionhandler.h>
 #include <circle/interrupt.h>
 #include <circle/timer.h>
@@ -70,13 +69,12 @@ private:
 
 	#if USE_SCREEN
 		CScreenDevice	m_Screen;
-	#else
-		CSerialDevice	m_Serial;
 	#endif
 
 	CExceptionHandler	m_ExceptionHandler;
 	CInterruptSystem	m_Interrupt;
 	CTimer				m_Timer;
+	CSerialDevice		m_Serial;
 	CLogger				m_Logger;
 
 	#if USE_ILI_DEVICE
