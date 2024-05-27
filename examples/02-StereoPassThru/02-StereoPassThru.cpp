@@ -7,14 +7,28 @@
 
 #include <audio\Audio.h>
 
-// You may define zero or one of the following.
-// The default is wm8731.  You can also connect
-// to the teensy audio card (STGL500) or a teensy
-// running the AudioInputI2SQuad device.
+// You must define one of the following.
 
-#define USE_CS42448             1
-#define USE_STGL5000            0
+#define USE_WM8731              0
+#define USE_CS42448             0
+#define USE_STGL5000            1
 #define USE_TEENSY_QUAD_SLAVE   0
+
+// prh 2024-05-27 - this program has not been tested in ages.
+//
+// Initial attempt to turn on SGTL5000 revealed that I removed
+// the AudioControlSGTL5000master, AudioInputI2Sslave and
+// AudioOutputI2Sslave audio components a long time ago.
+// So to get it to compile, I use the "regular" sgtl5000 and
+// i2s devices, but I'm almost sure that even if it compiles
+// it won't work.
+//
+// I almost certainly need to look at the control_sgtl5000
+// implementation and compare the way it uses the bcm_pcm
+// to later cs42488/wm8731 usages and do some heavy lifting
+// to fix it.  Then I am concerned that the rPi MCLK will
+// not be good and the sound will be bad.
+
 
 #if USE_CS42448
 
@@ -32,11 +46,15 @@
 
     // the rpi cannot be a master to an sgtl5000.
     // the sgtl5000 requires 3 clocks and the rpi can only generate 2
-    AudioInputI2Sslave input;
-    AudioOutputI2Sslave output;
-    AudioControlSGTL5000master control;
+    AudioInputI2S input;
+    AudioOutputI2S output;
+        // AudioInputI2Sslave input;
+        // AudioOutputI2Sslave output;
+
+    AudioControlSGTL5000 control;
+        // AudioControlSGTL5000master control;
     
-#else   // wm8731 in master or slave mode
+#elif USE_WM8731   // wm8731 in master or slave mode
 
     #define I2S_MASTER    1
         // the rPi is a horrible i2s master.
@@ -76,13 +94,13 @@ void setup()
     // The audio system now starts any i2s devices,
     // so you don't need to call control.enable().
    
-    #if !USE_CS42448 && !USE_TEENSY_QUAD_SLAVE
+    #if USE_WM8731
         // some devices do not have these controls
         control.inputSelect(AUDIO_INPUT_LINEIN);
         control.inputLevel(1.0);
     #endif
     
-    #if !USE_TEENSY_QUAD_SLAVE
+    #if USE_STGL5000|| USE_WM8731 || USE_CS42448
         // ramp up the master volume over 1 second
         for (u16 i=0; i<=50; i++)
         {

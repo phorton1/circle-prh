@@ -257,8 +257,23 @@ void BCM_PCM::init()
 	assert(m_pInterruptSystem);
 
 	#if INCLUDE_ACTIVITY_LEDS
-		m_RX_ACTIVE.Write(0);
-		m_TX_ACTIVE.Write(0);
+			// flash the leds, alternating, to prove they are working
+		#if 1
+			m_RX_ACTIVE.Write(0);
+			m_TX_ACTIVE.Write(0);
+			for (int i=0; i<20; i++)
+			{
+				delay(100);
+				m_RX_ACTIVE.Write(i&1);
+				m_TX_ACTIVE.Write(!(i&1));
+			}
+			m_RX_ACTIVE.Write(0);
+			m_TX_ACTIVE.Write(0);
+			delay(1000);
+		#else
+			m_RX_ACTIVE.Write(0);
+			m_TX_ACTIVE.Write(0);
+		#endif
 	#endif
 
 	LOG("init(%d,%d,%d,%d,%d,%d,%d,%d,%d.%s) ...",

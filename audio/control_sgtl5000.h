@@ -40,12 +40,15 @@ public:
 	
 	void setAddress(uint8_t level);
 	
-	virtual const char *getName()  { return "sgtl5000m"; }
-	virtual void start();
+	virtual const char *getName() override { return "sgtl5000m"; }
+	virtual void start() override;
 		// public until AudioSystem starts it ...
+
 	
-	
-	void volume(float n) { return volumeInteger(n * 129 + 0.499); }
+	void volume(float n) override { return volumeInteger(n * 129 + 0.499); }
+	void inputLevel(float n) override  {};	// just to get it to compile
+		// prh 2024-05-27
+
 	void muteHeadphone(void) { return write(0x0024, ana_ctrl | (1<<4)); }
 	void unmuteHeadphone(void) { return write(0x0024, ana_ctrl & ~(1<<4)); }
 	void muteLineout(void) { return write(0x0024, ana_ctrl | (1<<8)); }
