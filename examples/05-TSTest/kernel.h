@@ -10,9 +10,33 @@
 #define _kernel_h
 
 #define USE_SCREEN  	 0
+	// if 1, logging output will be sent to the circle
+	// rPi screen, typically the HDMI device.  Otherwise
+	// logging output will be sent to the rPi serial port.
+	// In any case the serial port is always available,
+	// as kernel.cpp also has a SEND_FAKE_MIDI define to
+	// send (embedded serial) midi messags to the serial
+	// port (for testing the Arduino-esp32_PiLoooper).
 
 #define USE_ILI_DEVICE		9488	// 9488
 #define USE_XPT2046			1	//	1
+	// USE_ILI_DEVICE may be 0, 9486, ot 9488 at this time.
+	// 0 can be used to verify that the kernel boots, and
+	// if USE_SCREEN, represents about the simplest example
+	// circle test program.  Otherwise, this program is intended
+	// to do a rudimentary test of the (orange) ili9486/ili9488
+	// displays screens, with or without the additional XPT2046
+	// touch screen capabilities.
+
+#define USE_READY_PIN		25
+	// if set will use the given GPIO pin as a debugging output pin.
+	// GPIO25 is the "standard" for my system, as implemented in
+	// std_kernel.cpp, in order to support a "RPI_READY"
+	// notification to the teensy/esp32 piLooper program(s),
+	// which then gets echoed to an output LED and a serial
+	// debugging message to the laptop.
+
+	
 
 
 #include <circle/memory.h>
@@ -27,6 +51,9 @@
 #include <circle/interrupt.h>
 #include <circle/timer.h>
 #include <circle/logger.h>
+#if USE_READY_PIN
+	#include <circle/gpiopin.h>
+#endif
 
 #if USE_ILI_DEVICE == 9488
 	#include <devices/ili9488.h>
@@ -77,6 +104,10 @@ private:
 	CSerialDevice		m_Serial;
 	CLogger				m_Logger;
 
+	#if USE_READY_PIN
+		CGPIOPin m_ReadyPin;
+	#endif
+
 	#if USE_ILI_DEVICE
 		ILISPI_CLASS	    m_SPI;
 	#endif
@@ -102,6 +133,8 @@ private:
 			unsigned x,
 			unsigned y);
 	#endif
+
+
 };
 
 

@@ -37,11 +37,17 @@ CKernel::CKernel(void) :
 	m_Timer(&m_Interrupt),
 	m_Serial(&m_Interrupt, TRUE),
 	m_Logger(LogDebug,&m_Timer)
+	#if USE_READY_PIN
+		,m_ReadyPin(USE_READY_PIN,GPIOModeOutput)
+	#endif
 	#if USE_ILI_DEVICE
 		,m_SPI()
 	#endif
 {
 	m_ActLED.Toggle();
+	#if USE_READY_PIN
+		m_ReadyPin.Write(0);
+	#endif
 }
 
 
@@ -144,6 +150,14 @@ TShutdownMode CKernel::Run(void)
 					m_xpt2046->setRotation(m_tft_device->getRotation());
 					m_xpt2046->RegisterEventHandler(touchEventStub,this);
 					LOG("XPT2046 initialized",0);
+				#endif
+
+				#if USE_READY_PIN
+					delay(200);
+						// to allow above log messges to be received
+						// and output by teensy/esp32 piLoooper program
+						// before it outputs 'rpi READY' text message.
+					m_ReadyPin.Write(1);
 				#endif
 			}
 		}
