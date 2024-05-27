@@ -2,7 +2,7 @@
 #include <circle/logger.h>
 
 #define I2C_CLOCK_SPEED     	100000
-
+#define DEBUG_WIRE				0
 
 #define log_name "wire"
 
@@ -60,7 +60,11 @@ int CWire::endTransmission()
     {
         // LOG("Wire endTransmission addr(0x%02x) len=%d data=0x%02x 0x%02x",m_addr,m_len,m_buf[0],m_buf[1]);
 
-        // m_pI2CMaster->SetClock(I2C_CLOCK_SPEED);
+		#if DEBUG_WIRE
+			display_bytes("wire",m_buf,m_len);
+        #endif
+		
+		// m_pI2CMaster->SetClock(I2C_CLOCK_SPEED);
         rslt = m_pI2CMaster->Write(m_addr, m_buf, m_len);
 
 		// assert(rslt == m_len);
