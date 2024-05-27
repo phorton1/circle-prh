@@ -23,6 +23,7 @@
 // to most bare metal makefile projects, which we can then
 // chain boot to.
 
+#define SERIAL_BAUD_RATE	460800	// 115200
 
 #define WRITE_KERNEL 		 1
 #define SHOW_ROOT_DIRECTORY  0
@@ -127,13 +128,15 @@ boolean CKernel::Initialize(void)
 	
 	if (bOK)
 	{
-		bOK = m_Serial.Initialize(115200);
+		bOK = m_Serial.Initialize(SERIAL_BAUD_RATE);
 		m_pSerialDevice = &m_Serial;
 		m_ActLED.Toggle();
 		bOK = bOK && m_Logger.Initialize(&m_Serial);
 		#if !WITH_SCREEN
 			m_pSerialDebug = &m_Serial;
 		#endif
+		m_Logger.Write(logBoot, LogNotice,
+			"serial baud_rate=%u",SERIAL_BAUD_RATE);
 	}
 	
 	if (bOK)

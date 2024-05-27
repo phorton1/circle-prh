@@ -12,6 +12,8 @@
 #include <circle/alloc.h>
 #include <circle/gpiopin.h>
 
+#define SERIAL_BAUD_RATE	460800	// 115200
+
 
 #if USE_AUDIO_SYSTEM
 	#include <audio/AudioStream.h>
@@ -410,11 +412,12 @@ boolean CKernel::Initialize (void)
 
 	#if USE_MAIN_SERIAL
 		if (bOK)
-			bOK = m_Serial.Initialize(115200);
+			bOK = m_Serial.Initialize(SERIAL_BAUD_RATE);
 		#if USE_LOG_TO == LOG_TO_MAIN_SERIAL
 			if (bOK)
 				bOK = m_Logger.Initialize(&m_Serial);
 		#endif
+		LOG("serial baud_rate=%u",SERIAL_BAUD_RATE);
 	#endif
 
 	dprobe(0,"after logger started",0);
