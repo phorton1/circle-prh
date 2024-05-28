@@ -107,9 +107,11 @@ BCM_PCM::BCM_PCM() :
 		m_nDMAOutChannel(CMachineInfo::Get()->AllocateDMAChannel(DMA_CHANNEL_NORMAL))
 	#endif
 {
-	#ifdef DYNAMIC_INITIALIZATION
-		// If the object is statically initialized, we depend on BSS
-		// initialization to set everything to zero.
+	#ifdef DYNAMIC_INITIALIZATION  // not defined anywhere
+		// The static global bcm_pcm object is always statically constructed
+		// and initialized here. We rely on BSS initialization to set everything
+		// to zero, and allow the user to call static_init() to initialize the
+		// following members after contruction, but before start()
 
 		m_as_slave = false;
 		m_SAMPLE_RATE = 0;
@@ -120,11 +122,8 @@ BCM_PCM::BCM_PCM() :
 		m_CHANNEL2_OFFSET = 1;
 		m_startClock = 0
 
-		// we rely on bss initialization to set these members
-		// of the static bcm_pcm object to zero. Otherwise,
-		// it *may* happen that the ctor of this is called
-		// AFTER the ctor's of the teensy objects, and the
-		// stashed pointers get wiped out ...
+		// The rest of the members are not client accessible anyways ..
+		// but still must all be zeroed out in BSS initialization:
 		//
 		// m_inISR = 0;
 		// m_outISR = 0;
@@ -150,6 +149,11 @@ BCM_PCM::BCM_PCM() :
 		out_block_count = 0;
 		underflow_count = 0;
 		overflow_count 	= 0;
+
+		// After BSS static initialization and the user calling
+		// static_init() to set it up, everything happens in start()
+		// below.
+
 	#endif
 
 	#if INCLUDE_ACTIVITY_LEDS
