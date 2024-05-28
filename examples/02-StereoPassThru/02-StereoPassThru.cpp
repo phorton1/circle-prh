@@ -52,6 +52,7 @@
         // AudioOutputI2Sslave output;
 
     AudioControlSGTL5000 control;
+        // prh 2024-05-27 verified that this IS the previous
         // AudioControlSGTL5000master control;
     
 #elif USE_WM8731   // wm8731 in master or slave mode
@@ -100,13 +101,17 @@ void setup()
         control.inputLevel(1.0);
     #endif
     
-    #if USE_STGL5000|| USE_WM8731 || USE_CS42448
+    #if USE_WM8731 || USE_CS42448
         // ramp up the master volume over 1 second
         for (u16 i=0; i<=50; i++)
         {
             control.volume(((float)i) / 50.0);
             delay(20);
         }
+    #endif
+
+    #if USE_STGL5000
+        control.setDefaults();
     #endif
     
     printf("02-StereoPassThru::setup() finished\n");

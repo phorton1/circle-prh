@@ -17,16 +17,101 @@
 #include <circle/util.h>
 #include <circle/types.h>
 
-#define SEND_FAKE_MIDI	0
-	// send fake midi messages to test esp32_PiLooper
-
 
 static const char log_name[] = "kernel";
+
+
+#define SERIAL_BAUD_RATE		460800	// 115200
+
+
+#define TOGGLE_PINS	1
+
+#if TOGGLE_PINS
+	#include <circle/gpiopin.h>
+	#define PIN_RX_ACTIVE  12		// a LED to show recv activity
+	#define PIN_TX_ACTIVE  16		// a LED to show xmit activity
+	CGPIOPin   s_ACTIVE_PIN_RX(PIN_RX_ACTIVE,GPIOModeOutput);
+	CGPIOPin   s_ACTIVE_PIN_TX(PIN_TX_ACTIVE,GPIOModeOutput);
+#endif
+
+
+#define SEND_FAKE_MIDI	0
+	// send fake midi messages to test esp32_PiLooper
+#define INIT_FAKE_MCLK  1
+	// initialize an 11.82Mhz clock signal on GPIO4
+	// to test with oscilloscope.
+
+#define INIT_FAKE_MCLK  1
+	// initialize an 11.82Mhz clock signal on GPIO4
+	// to test with oscilloscope.
+
+#if INIT_FAKE_MCLK
+	#include <circle/gpioclock.h>
+
+	#define PIN_MCLK     	4
+	#define SAMPLE_RATE		44100
+	#define CLOCK_RATE   	500000000
+
+	CGPIOPin   s_MPIN(PIN_MCLK,GPIOModeAlternateFunction0);
+	CGPIOClock s_MCLK(GPIOClock0,GPIOClockSourcePLLD);
+
+	void startFakeMCLK()
+	{
+		#if 1
+			u32 freq = SAMPLE_RATE * 256;           // 11289600
+			u32 divi = CLOCK_RATE / freq;           // 44.253
+			u32 modi = CLOCK_RATE % freq;           // 3257600
+				// modi * 4096 =   13,343,129,600 = 0x3 1B500000	overflows 32 bits
+				// freq/2 = 		    5,644,800 = 0x  00562200
+				// sum = 		   13,348,774,400 = 0x3 1BA62200
+				// div =		   1182	as commented below
+			u32 divf = (modi*4096 + freq/2) / freq; // 1182
+				// LOG("divf=%d should equal 1182\n",divf);
+				// the above math overflows 32 bits
+
+			divf = 1182;
+			// s_MCLK.Start(divi, divf, 1);
+				// only gives 1.6v p-p at 11.28mhz
+
+			// seems like I should be able to generate the minimal
+			// SGTL pll 8 Mhz frequency.
+			//
+			// 1.9v p-p round at 10 mhz 500,000,000 / 10,000,000 = 50
+			//		s_MCLK.Start(50, 0, 0);
+			//
+			// get 2.75v p-p at at 8.06 mhz with simple div1 of 62
+			//		div1 = 500,000,000 / 8,000,000 = 62.5
+			//      modi = 4,000,000
+			//      freq/2 = 4,000,000
+			//		divf = (4M * 4096 + 4N) / 8M = 2048.5
+			//			 = (4097 * 4M) / 8M = 2048
+
+			s_MCLK.Start(62, 2048, 3);
+				// need the third nMash parameter
+				// pretty good, but round, 8Mhz clock 2.80-2.9v p-p
+				
+				
+
+
+		#else
+			// start at given rate
+			#define SET_CLOCK 	8000000
+				// square at 1mhz
+				// round at 4mhz
+				// fails at 8,12mhz
+				
+			bool rslt = s_MCLK.StartRate(SET_CLOCK);
+			LOG("starting MCLK at at %u rslt=%d",SET_CLOCK,rslt);
+		#endif
+	}
+#endif 	// INIT_FAKE_MCLK
+
 
 #define DEBUG_TOUCH 	0
 
 #define START_COUNT   	5
 static int start_count = 0;
+
 
 
 
@@ -77,7 +162,7 @@ boolean CKernel::Initialize (void)
 	#endif
 
 	if (bOK)
-		bOK = m_Serial.Initialize(115200);
+		bOK = m_Serial.Initialize(SERIAL_BAUD_RATE);
 
 	#if !USE_SCREEN
 		if (bOK)
@@ -115,6 +200,13 @@ TShutdownMode CKernel::Run(void)
 
 	while (1)
 	{
+		#if TOGGLE_PINS
+			static bool state = 0;
+			state = !state;
+			s_ACTIVE_PIN_RX.Write(state & 1);
+			s_ACTIVE_PIN_TX.Write(!(state & 1));
+		#endif
+
 		if (start_count < START_COUNT)
 		{
 			m_ActLED.Toggle();
@@ -151,6 +243,12 @@ TShutdownMode CKernel::Run(void)
 					m_xpt2046->RegisterEventHandler(touchEventStub,this);
 					LOG("XPT2046 initialized",0);
 				#endif
+
+				#if INIT_FAKE_MCLK
+					LOG("starting fake MCLK",0);
+					startFakeMCLK();
+				#endif
+
 
 				#if USE_READY_PIN
 					delay(200);
@@ -197,7 +295,7 @@ TShutdownMode CKernel::Run(void)
 				#if DEBUG_TOUCH
 					CTimer::Get()->MsDelay(100);
 				#else
-					CTimer::Get()->MsDelay(10);
+					// CTimer::Get()->MsDelay(10);
 				#endif
 			#else
 				CTimer::Get()->MsDelay(1000);
