@@ -901,6 +901,7 @@ bool AudioControlSGTL5000::modify(uint16_t reg_num, uint16_t val, uint16_t mask)
 void AudioControlSGTL5000::volume(float n)
 {
 	setHeadphoneVolume(n * 128);
+	setLineOutLevel(n * 31);
 }
 void AudioControlSGTL5000::inputLevel(float n)
 {
