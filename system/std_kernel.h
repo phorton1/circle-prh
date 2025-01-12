@@ -52,9 +52,9 @@
 // present.  If USE_USB is defined it will additionally bind
 // the UI to a mouse device.
 
-#define USE_ILI_TFT			9488		// can be 0, 9486, or 9488
+#define USE_ILI_TFT			0	// 9488		// can be 0, 9486, or 9488
 	// If non-zero the CScreen will not be bound to the UI
-#define USE_XPT2046			1			// can only be 1, really, if USE_ILI_TFT
+#define USE_XPT2046			0	// 1			// can only be 1, really, if USE_ILI_TFT
 	// If non-zero the neither the touchscreen, nor the mouse
 	// will be bound to the UI.
 
