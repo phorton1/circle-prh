@@ -12,7 +12,7 @@
 #include <circle/alloc.h>
 #include <circle/gpiopin.h>
 
-#define SERIAL_BAUD_RATE	460800	// 115200
+#define SERIAL_BAUD_RATE	115200	// 460800	// 115200
 
 
 #if USE_AUDIO_SYSTEM

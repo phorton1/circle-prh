@@ -23,7 +23,7 @@
 // to most bare metal makefile projects, which we can then
 // chain boot to.
 
-#define SERIAL_BAUD_RATE	460800	// 115200
+#define SERIAL_BAUD_RATE	115200	// 460800	// 115200
 
 #define WRITE_KERNEL 		 1
 #define SHOW_ROOT_DIRECTORY  0
