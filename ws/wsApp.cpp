@@ -284,7 +284,10 @@ void wsApplication::onTouchEvent(
 	// if the std_kernel is set to 60 frames,
 	// probably want to undefine this
 
-#if 1 && USE_AUDIO_SYSTEM
+#define USE_AUDIO_MONITOR	0
+	// not yet tested with actual Looper2
+
+#if USE_AUDIO_MONITOR && USE_AUDIO_SYSTEM
 	#include <audio/AudioMonitor.h>
 	AudioMonitor audio_mon;
 #endif
@@ -304,7 +307,7 @@ void wsApplication::timeSlice()
 		m_update_frame_time = cur_time;
 	#endif
 
-	#if 1 && USE_AUDIO_SYSTEM
+	#if USE_AUDIO_MONITOR && USE_AUDIO_SYSTEM
 		audio_mon.Update();
 	#endif
 
