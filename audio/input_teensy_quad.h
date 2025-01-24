@@ -104,7 +104,7 @@
 // SGTL_DOUT	13				8		I2S_RXA					in(0,1)		audio inputs --> SGTL --> teensy
 // SGTL_DIN		22				7		I2S_TXA					out(0,1)	teensy --> SGTL --> audio outputs
 // 				15				32*		I2S_TXB		20_RPI_RXD	out(2,3)	teensy --> Looper
-// 				30*		38		20		I2S_RXB		21_RPI_TXD	in(2,3)		Looper --> teensy
+// 				30*		38		6		I2S_RXB		21_RPI_TXD	in(2,3)		Looper --> teensy
 //
 // * pins on bottom of teensy3.2 and 4.0
 //   on my first modified teensy4.0 this is the GREY wire in the 3 pin connector
