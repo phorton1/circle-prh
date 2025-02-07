@@ -52,11 +52,20 @@
 // present.  If USE_USB is defined it will additionally bind
 // the UI to a mouse device.
 
-#define USE_ILI_TFT			0	// 9488		// can be 0, 9486, or 9488
-	// If non-zero the CScreen will not be bound to the UI
-#define USE_XPT2046			0	// 1			// can only be 1, really, if USE_ILI_TFT
-	// If non-zero the neither the touchscreen, nor the mouse
-	// will be bound to the UI.
+#ifdef LOOPER3	// LOOPER3 uses ili9488 with XPT2046 touch
+
+	#define USE_ILI_TFT			9488		// can be 0, 9486, or 9488
+	#define USE_XPT2046			1	// can only be 1, really, if USE_ILI_TFT
+
+#else			// LOOPER3 uses rPi official 7" DSI touchscreen
+
+	#define USE_ILI_TFT			0	// 9488		// can be 0, 9486, or 9488
+		// If non-zero the CScreen will not be bound to the UI
+	#define USE_XPT2046			0	// 1			// can only be 1, really, if USE_ILI_TFT
+		// If non-zero the neither the touchscreen, nor the mouse
+		// will be bound to the UI.
+		
+#endif
 
 
 // The following defines bind the Logger to one of

@@ -30,7 +30,11 @@
 #define PIN_RXD		   20       // I2S receive data
 #define PIN_TXD		   21		// I2S transmit data
 
-#define PIN_RX_ACTIVE  12		// a LED to show recv activity
+#ifdef LOOPER3	// vs LOOPER2 box
+	#define PIN_RX_ACTIVE  13	// a LED to show recv activity
+#else
+	#define PIN_RX_ACTIVE  12	// a LED to show recv activity
+#endif
 #define PIN_TX_ACTIVE  16		// a LED to show xmit activity
 
 #define CALLS_PER_LED_FLASH 64			// about 10 times a second at 44.1khz with 128 sized buffers

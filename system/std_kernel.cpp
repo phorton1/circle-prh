@@ -26,7 +26,11 @@
 #endif
 
 
-#define USE_GPIO_READY_PIN    25		
+#ifdef LOOPER3	// vs LOOPER2 box
+	#define USE_GPIO_READY_PIN    12
+#else
+	#define USE_GPIO_READY_PIN    25
+#endif
 // The Blue rPi 3.5" ILI9486 hat uses hardwired GPIO25 RESET pin,
 // which conflicts with this definition for RPI_READY.
 // I could change it to a different pin (6, 13, and 26 are
