@@ -37,7 +37,8 @@
 #endif
 #define PIN_TX_ACTIVE  16		// a LED to show xmit activity
 
-#define CALLS_PER_LED_FLASH 64			// about 10 times a second at 44.1khz with 128 sized buffers
+#define ISR_LED_COUNT_OFF  90	// this many ISRS will have LED turned off
+#define ISR_LED_COUNT_ON   2	// and this many will have it turned on
 
 // This CLOCK_FREQ is used if we are the i2s master.
 
@@ -910,10 +911,14 @@ void BCM_PCM::audioInIRQ(void)
 	#if INCLUDE_ACTIVITY_LEDS
 		static u32 rx_count = 0;
 		rx_count++;
-		if (rx_count > CALLS_PER_LED_FLASH)
+		if (rx_count == ISR_LED_COUNT_OFF)
 		{
+			m_RX_ACTIVE.Write(1);
+		}
+		else if (rx_count == ISR_LED_COUNT_OFF + ISR_LED_COUNT_ON)
+		{
+			m_RX_ACTIVE.Write(0);
 			rx_count = 0;
-			m_RX_ACTIVE.Invert();
 		}
 	#endif
 
@@ -987,10 +992,14 @@ void BCM_PCM::audioOutIRQ(void)
 	#if INCLUDE_ACTIVITY_LEDS
 		static u32 tx_count = 0;
 		tx_count++;
-		if (tx_count > CALLS_PER_LED_FLASH)
+		if (tx_count == ISR_LED_COUNT_OFF)
 		{
+			m_TX_ACTIVE.Write(1);
+		}
+		else if (tx_count == ISR_LED_COUNT_OFF + ISR_LED_COUNT_ON)
+		{
+			m_TX_ACTIVE.Write(0);
 			tx_count = 0;
-			m_TX_ACTIVE.Invert();
 		}
 	#endif
 
