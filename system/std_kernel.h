@@ -57,7 +57,7 @@
 	#define USE_ILI_TFT			9488		// can be 0, 9486, or 9488
 	#define USE_XPT2046			1	// can only be 1, really, if USE_ILI_TFT
 
-#else			// LOOPER3 uses rPi official 7" DSI touchscreen
+#else			// LOOPER2 uses rPi official 7" DSI touchscreen
 
 	#define USE_ILI_TFT			0	// 9488		// can be 0, 9486, or 9488
 		// If non-zero the CScreen will not be bound to the UI
