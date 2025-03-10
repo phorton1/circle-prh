@@ -161,9 +161,9 @@ AudioControlCS42448::AudioControlCS42448(void)
 		16,                 // sample_size
 		8,                  // num_channels
 		32,                 // channel_width
-		1,1,                // channel offsets must be zero for Octo
+		1,1,                // channel offsets 
 		0,                  // don't invert BCLK
-		1,                  // do invert FCLK
+		1,                  // 1=do invert FCLK
 		&startClock);       // callback to start the clock
 
 	// This is not true TDM, but, rather, an Octo specific I2s variant,
