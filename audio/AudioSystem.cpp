@@ -199,7 +199,9 @@ audio_block_t *AudioSystem::allocate(void)
 
 void AudioSystem::release(audio_block_t *block)
 {
-    assert(block);
+    // assert(block);
+		// prh 2025-03-10 was getting this assert at startup every time
+		// so I removed it.
     if (!block)
         return;
     

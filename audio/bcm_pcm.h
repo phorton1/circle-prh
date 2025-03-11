@@ -73,10 +73,87 @@ public:
 	~BCM_PCM();
 
 	// STATIC INITIALIZATION METHODS
+	//
 	// these methods may be called statically by the individual
 	// teensy i2s control and/or input and output devices during
 	// construction. Then init() and start() can be called by any
 	// device and everything should work as expected
+	//
+	// 2025-03-10 Additional Comments
+	//
+	// The bcm_pcm must be setup appropriately to match the i2s
+	// digital signals, including things like the number of bits
+	// per sample, the channel width (which might not be the same
+	// as the number of bits per sample), offsets of channels within
+	// frames, sense (inversion) of clocks, and so on.
+	//
+	// Furthermore, the input/output devices must match, and understand
+	// the structure of the buffers from the bcm_pcm, including the
+	// aforementioned number channels, number of bits per sample,
+	// and the implicit interleaving of samples within the buffers.
+	//
+	// In my code (this audio system), static_init() is typically
+	// called by a "control" device for a specific codec, and then
+	// it is required to use an input/output device that "understands"
+	// the buffers.  For example my control_cs42448 requires the use of the
+	// input/output_tdm devices which have specifically been written to
+	// understand the buffers as produced, and expected by the AudioInjector
+	// Octo's implementation of the cs42448 codec, it's number of channels,
+	// channel width, and sample interleaving.
+	//
+	// In truth, only very specific combinations have been implemented
+	// and tested, and some of them are not very practical for real-world
+	// usage:
+	//
+	//		AudioInjector Octo - control_cs42448 + input/output_tdm devices
+	//			extensively tested and used in Looper1/2 release implementations
+	//		AudioInjector Stereo - control wm8731 + input/output_i2s devices
+	//			fairly well tested, but never actually used in any release implementations
+	//      TeensyAudioShield - control_sgtl5000 + input/output_i2s devices
+	//			tested in the deep dark past on the RevB audioShield, this was actually
+	//				the first device I tested this audio system with.  It was never used
+	//				in any release implementations and was tested only with with dupont jumpers.
+	//			It would probably work about the same with the newer RevD boards, though
+	//				the wiring diagram in /_prh/docs is specifically for the old RevB board.
+	//			It allows a teensyAudioShield to be used as a stereo sound device
+	//				for the rPi, given the required specific wiring.
+	//			The rPi generates the master clock since the teensyAudioShield and
+	//				SGTL5000 itself has no master clock (the master clock for these
+	//				are usually well produced by a teensy mpu).  The rPi as a clock
+	//				generator has issues with drift and clock wrapping, but it works
+	//				well enough to get fairly decent audio in and out of the shield.
+	//			I consider this marginally practical for real-world usage.
+	//
+	// Then there is the Input/output_teensy_quad device
+	//		This is/was another stab from the deep dark past.
+	//		The name is misleading because is really only a stereo i2s device.
+	//		I think, vestigially, it was setup and tested against a teensy3.2
+	//			with the RevB board, running Paul's control_SGTL5000 and
+	//			input/output_i2squad devices.
+	//		Unlike the other above tested configurations, in which the "control device"
+	//			(codec) sets up the bcm_pcm, this thing (specifically in
+	//			output_teensy_quad.cpp) directly sets up the bcm_pcm, and
+	//			crucially, calls bcm_pcm.start() to actually get it running.
+	//		The vestigial setup (call to static_init()) had a channel width of 15!
+	//
+	//		As of this writing, this is the device that is being used in the newest
+	//			TE3/Looper3 and I found that it was not working correctly, only
+	//			getting sound on the 1st (call it "left") channel.
+	//
+	//			When I hooked up the logic analyzer and looked at the signals
+	//			from the RevD shield (which is running on a teensy4.0 using MY OWN SGTL5000
+	//			"control" device, along with Paul's standard input/output i2s devices,
+	//			I discovered that the channel width is actually 32 bits, even though the
+	//			samples within those L/R channels are only the first 16 bits.
+	//
+	//		Perhaps it is the way I AM setting up the SGTL, as, once again, I am not
+	//			using Pauls code for that.  My SGTL5000 device has a normalized API
+	//			that makes sense to me and can be configured and adjusted with serial
+	//			midi in my general TE framework.  But perhaps I set the channel width
+	//			to 32 whereas in Paul's code it would have been 16 bits, and perhaps
+	//			the vestigial '15' for the channel_width param to static_init() was
+	//			correct.
+	
 	
 	void setInISR(voidMethod  *in_isr)  { m_inISR = in_isr; }
 	void setOutISR(voidMethod *out_isr) { m_outISR = out_isr; }

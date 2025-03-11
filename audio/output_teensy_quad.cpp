@@ -58,21 +58,47 @@ AudioOutputTeensyQuad::AudioOutputTeensyQuad(void) :
 // static
 void AudioOutputTeensyQuad::config_i2s()
 {
-	// basically the only thing that changes from any other
+	// OLD COMMENT: basically the only thing that changes from any other
 	// circle i2s device is that the channel width of the
 	// teensy quad device is 16, not 32, bits
-	
+
+#if 1 	// 2025-03-10
+
+	// values that work with TE3 as of this writing
+	// after hooking up the logic analyzer I immediately
+	// saw that the rPI is receiving 32 bit wide channels
+	// from the TE3_audio device.  Changing the channel
+	// width to 32 below made it start working as far as
+	// I can tell.
+
+	// See notes in TE3_audio/docs/audio_bug.md for potential
+	// next steps.  This device might be deleted or made meaningful
+	// in a different way.
+
+	bcm_pcm.static_init(
+		true,			// bcm_pcm is slave device         	-
+		44100,          // sample_rate                     	-
+		16,             // sample_size                     	-
+		2,              // num_channels                    	-
+		32,             // channel_width              		- 32 WORKED!!
+		1,1,            // channel offsets                 	-
+		1,				// invert BCLK                     	-
+		0,              // don't invert FCLK               	-
+		0);             // no callback to start the clock  	-
+
+#else	// original values
 	bcm_pcm.static_init(
 		true,			// bcm_pcm is slave device
 		44100,          // sample_rate
 		16,             // sample_size
 		2,              // num_channels
-		15,             // channel_width		// prh 2025-03-10: grasping; changed from 15 to 16
+		15,             // channel_width
 		1,1,            // channel offsets
 		1,				// invert BCLK
 		0,              // don't invert FCLK
 		0);             // no callback to start the clock
-	
+#endif
+
 	bcm_pcm.init();
 }
 
