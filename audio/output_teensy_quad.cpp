@@ -67,7 +67,7 @@ void AudioOutputTeensyQuad::config_i2s()
 		44100,          // sample_rate
 		16,             // sample_size
 		2,              // num_channels
-		15,             // channel_width
+		15,             // channel_width		// prh 2025-03-10: grasping; changed from 15 to 16
 		1,1,            // channel offsets
 		1,				// invert BCLK
 		0,              // don't invert FCLK
